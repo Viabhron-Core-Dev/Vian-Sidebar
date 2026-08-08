@@ -1,0 +1,7 @@
+- 2026-07-26T14:14:00-07:00
+- Updated FloatingReaderService to hide the ereader floating view instead of stopping the entire service when the close/exit button is tapped.
+- Modified app/src/main/java/com/example/service/FloatingReaderService.kt
+- Replaced `closeSidebar()` and `stopSelf()` with `floatingView.visibility = View.GONE` in `btn_exit_bottom` click listeners to prevent the service from shutting down, which previously caused the sidebar and triggers to disappear.
+- Verified by local build (gradle :app:compileDebugKotlin)
+- No deviation from requested.
+- None

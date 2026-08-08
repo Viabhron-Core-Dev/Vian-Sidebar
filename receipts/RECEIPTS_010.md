@@ -1,0 +1,7 @@
+- 2026-07-26T13:40:00-07:00
+- Removed the "Sidebar" option from the gesture category options for all handles.
+- Modified app/src/main/java/com/example/HandlesListSettingsScreen.kt
+- Updated `categoryOptions` in `HandlesListSettingsScreen` to only contain "Page" and "Action/Element", regardless of whether it is the "sidebar" handle or not.
+- Verified by local build (gradle :app:compileDebugKotlin)
+- No deviation from requested.
+- None

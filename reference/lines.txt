@@ -1,0 +1,14 @@
+                val totalCols = prefs.getInt("hybrid_grid_cols_$pageId", 4)
+                if (defaultCols > totalCols) {
+                    android.widget.Toast.makeText(this, "Cannot add: Requires $defaultCols columns, but grid only has $totalCols.", android.widget.Toast.LENGTH_LONG).show()
+                    return
+                }
+
+                parsedItems.add(com.example.service.GridWidgetItem(
+                    id = elementId,
+                    cols = defaultCols,
+                    rows = defaultRows,
+                    x = 0,
+                    y = 0
+                ))
+                saveHybridItems(prefs, pageId, parsedItems)

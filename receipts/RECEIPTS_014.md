@@ -1,0 +1,8 @@
+- 2026-07-26T15:06:00-07:00
+- Fixed an issue where the floating reader text selection triggered too quickly and often during scrolling.
+- Created app/src/main/java/com/example/view/DelayLongPressTextView.kt
+- Modified app/src/main/res/layout/layout_floating_reader.xml
+- Replaced the default `TextView` for the reader content with `DelayLongPressTextView`, a custom view subclass that cancels the default 500ms long press text selection, instead implementing a 1000ms delay. It dynamically measures the device's touch slop (`ViewConfiguration.get(context).scaledTouchSlop`) to properly cancel the text selection intent the moment a genuine scroll motion is detected. 
+- Verified by local build (gradle :app:compileDebugKotlin)
+- No deviation from requested.
+- None

@@ -1,0 +1,3 @@
+#!/bin/bash
+sed -i '/var showEditDialog/a \    val context = androidx.compose.ui.platform.LocalContext.current' app/src/main/java/com/example/PwaManagerActivity.kt
+sed -i 's/onClick = { showEditDialog = true; selectedPwa = pwa }/onClick = {\n                                    val intent = Intent(context, com.example.service.SidebarService::class.java).apply {\n                                        action = "EXECUTE_ACTION"\n                                        putExtra("ACTION_ID", "pwa:${pwa.id}")\n                                    }\n                                    context.startService(intent)\n                                }/g' app/src/main/java/com/example/PwaManagerActivity.kt

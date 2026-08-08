@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background-color: #1E1E1E; overflow: hidden; }
+        #terminal { height: 100%; width: 100%; padding: 4px; box-sizing: border-box; }
+        .xterm-viewport { background-color: #1E1E1E !important; }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+    <script>
+        var term = new Terminal({
+            cursorBlink: true,
+            theme: { background: '#1E1E1E' },
+            allowProposedApi: true
+        });
+        var fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal'));
+        
+        setTimeout(() => {
+            fitAddon.fit();
+            if (window.Android) Android.onResize(term.cols, term.rows);
+        }, 100);
+
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            if (window.Android) Android.onResize(term.cols, term.rows);
+        });
+
+        term.onData(e => {
+            if (window.Android) Android.sendInput(e);
+        });
+
+        function writeTerminal(data) {
+            term.write(data);
+        }
+    </script>
+</body>
+</html>

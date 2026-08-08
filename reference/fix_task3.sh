@@ -1,0 +1,2 @@
+#!/bin/bash
+sed -i 's/types = types or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION/if (androidx.core.content.ContextCompat.checkSelfPermission(this@SidebarService, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {\n                        types = types or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION\n                    }/g' app/src/main/java/com/example/service/SidebarService.kt

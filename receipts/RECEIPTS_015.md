@@ -1,0 +1,14 @@
+- 2026-07-26T15:25:00-07:00
+- Add a new "Utilities" subsection in Add element with a Blue light filter toggle.
+- Created `app/src/main/java/com/example/service/BlueLightFilterManager.kt`
+- Modified `app/src/main/java/com/example/service/SidebarAppsManager.kt`
+- Modified `app/src/main/java/com/example/service/DisplayHandler.kt`
+- Modified `app/src/main/java/com/example/service/AppsPageView.kt`
+- Modified `app/src/main/java/com/example/AddElementActivity.kt`
+- Added "Utilities" section above "App Custom" in `AddElementActivity.kt`.
+- Created `BlueLightFilterManager` object to manage a `SYSTEM_ALERT_WINDOW` that adds a transparent orange/yellow color filter (`#33FF8800`) across the whole screen while ignoring touches.
+- Exposed the `display:blue_light_filter` action logic in `DisplayHandler`, enabling the filter toggle and sending a broadcast (`UPDATE_SIDEBAR_ICONS`) to refresh the sidebar UI.
+- Updated `AppsPageView` to apply a `#FF9900` tint to the Blue light filter toggle button when it is active.
+- Verified by local build (gradle :app:compileDebugKotlin)
+- No deviation from requested.
+- None

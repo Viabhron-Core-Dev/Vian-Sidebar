@@ -1,0 +1,2 @@
+#!/bin/bash
+sed -i '/if (action == "qr_scan") {/i\        if (action == "barcode_scanner") {\n            val intent = Intent(this, com.example.service.BarcodeScannerActivity::class.java).apply {\n                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)\n            }\n            startActivity(intent)\n            return true\n        }' app/src/main/java/com/example/service/VianSideAccessibilityService.kt

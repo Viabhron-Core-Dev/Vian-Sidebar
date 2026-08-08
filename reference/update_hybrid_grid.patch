@@ -1,0 +1,40 @@
+--- app/src/main/java/com/example/HybridGridEditActivity.kt
++++ app/src/main/java/com/example/HybridGridEditActivity.kt
+@@ -124,12 +124,31 @@
+         } else if (requestCode == 201 && resultCode == Activity.RESULT_OK && data != null) {
+             val elementId = data.getStringExtra("ELEMENT_ID")
+             if (elementId != null) {
+-                // Add widget to prefs by sending broadcast
+-                val intent = Intent("ELEMENT_ADDED_TO_HYBRID")
+-                intent.putExtra("PAGE_ID", pageId)
+-                intent.putExtra("ELEMENT_ID", elementId)
+-                intent.setPackage(packageName)
+-                sendBroadcast(intent)
++                val prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
++                val itemsJson = prefs.getString("hybrid_grid_$pageId", "[]") ?: "[]"
++                val arr = org.json.JSONArray(itemsJson)
++                val parsedItems = mutableListOf<com.example.service.GridWidgetItem>()
++                for (i in 0 until arr.length()) {
++                    val obj = arr.optJSONObject(i)
++                    if (obj != null) {
++                        parsedItems.add(com.example.service.GridWidgetItem(
++                            id = obj.optString("id"),
++                            cols = obj.optInt("cols", 1),
++                            rows = obj.optInt("rows", 1),
++                            x = obj.optInt("x", 0),
++                            y = obj.optInt("y", 0)
++                        ))
++                    }
++                }
++                parsedItems.add(com.example.service.GridWidgetItem(
++                    id = elementId,
++                    cols = if (elementId.startsWith("widget:")) 2 else 1,
++                    rows = if (elementId.startsWith("widget:")) 2 else 1,
++                    x = 0,
++                    y = 0
++                ))
++                saveHybridItems(prefs, pageId, parsedItems)
++                recreate()
+             }
+         }
+     }

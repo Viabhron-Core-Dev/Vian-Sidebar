@@ -1,0 +1,10 @@
+with open("app/src/main/java/com/example/service/SidebarService.kt", "r") as f:
+    text = f.read()
+print("tvWindowTitle" in text)
+print("tvContent" in text)
+print("scrollView" in text)
+print("tvProgress" in text)
+print("toolbarContainer" in text)
+print("bubbleIcon" in text)
+print("windowContainer" in text)
+print("topDragBar" in text)

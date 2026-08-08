@@ -1,0 +1,8 @@
+- 2026-07-26T14:23:00-07:00
+- Fixed an issue where the hybrid grid editor was not saving the newly added element directly to preferences and updating its own state. Also fixed the issue where app icons and widgets in the hybrid grid within the sidebar were restricted in size by `item_sidebar_app.xml`'s `maxWidth` constraints and `AppWidgetHostView` not receiving size updates.
+- Modified app/src/main/java/com/example/HybridGridEditActivity.kt
+- Modified app/src/main/java/com/example/service/HybridGridPageView.kt
+- In `HybridGridEditActivity`, directly updated `SharedPreferences` when adding a new element, broadcasted the update, and called `recreate()` to refresh the Compose UI. In `HybridGridPageView`, programmatically removed `maxWidth` and `maxHeight` constraints for `ImageView` components of added apps/folders/links, and called `updateAppWidgetSize` for `AppWidgetHostView`s so they scale proportionally within the calculated cell dimensions.
+- Verified by local build (gradle :app:compileDebugKotlin)
+- No deviation from requested.
+- None

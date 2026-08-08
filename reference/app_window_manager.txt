@@ -1,0 +1,711 @@
+package com.example.service
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.graphics.PixelFormat
+import android.os.Build
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.CardDefaults
+
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.unit.dp
+import com.example.AppyworkSettingsActivity
+import com.example.R
+import com.example.data.AppDatabase
+import com.example.data.AppyworkProject
+import com.example.utils.ActiveAppTracker
+import com.example.utils.ParsedCodeBlock
+import kotlin.math.max
+import kotlinx.coroutines.launch
+
+class AppyworkWindowManager(
+    private val context: Context,
+    private val parsedBlocks: List<ParsedCodeBlock>,
+    private val onClose: () -> Unit
+) {
+    private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private var floatingView: View? = null
+    
+    private val prefs = context.getSharedPreferences("AppyworkPrefs", Context.MODE_PRIVATE)
+    private var isMinimized = prefs.getBoolean("isMinimized", false)
+    private var lastWidth = prefs.getInt("lastWidth", 800)
+    private var lastHeight = prefs.getInt("lastHeight", 1000)
+    private var windowLayoutParams: WindowManager.LayoutParams? = null
+
+    private var initialX = prefs.getInt("lastX", 100)
+    private var initialY = prefs.getInt("lastY", 200)
+    private var initialTouchX = 0f
+    private var initialTouchY = 0f
+
+    @SuppressLint("ClickableViewAccessibility", "InflateParams")
+    fun show() {
+        if (floatingView != null) return
+
+        val density = context.resources.displayMetrics.density
+        lastWidth = (320 * density).toInt()
+        lastHeight = (450 * density).toInt()
+
+        val layoutFlag: Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        windowLayoutParams = WindowManager.LayoutParams(
+            if (isMinimized) (56 * density).toInt() else lastWidth,
+            if (isMinimized) (56 * density).toInt() else lastHeight,
+            layoutFlag,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = prefs.getInt("lastX", 100)
+            y = prefs.getInt("lastY", 200)
+        }
+
+        val inflater = LayoutInflater.from(context)
+        floatingView = inflater.inflate(R.layout.layout_appywork_floating, null)
+
+        val expandedContainer = floatingView?.findViewById<LinearLayout>(R.id.appywork_expanded_container)
+        val bubble = floatingView?.findViewById<FrameLayout>(R.id.appywork_bubble)
+        val topbar = floatingView?.findViewById<LinearLayout>(R.id.appywork_topbar)
+        
+        if (isMinimized) {
+            expandedContainer?.visibility = View.GONE
+            bubble?.visibility = View.VISIBLE
+        }
+        
+        val btnClose = floatingView?.findViewById<Button>(R.id.appywork_btn_close)
+        val btnFold = floatingView?.findViewById<Button>(R.id.appywork_btn_fold)
+        val btnResize = floatingView?.findViewById<ImageView>(R.id.appywork_btn_resize)
+        val btnSettings = floatingView?.findViewById<ImageView>(R.id.appywork_btn_settings)
+        
+        val contentContainer = floatingView?.findViewById<FrameLayout>(R.id.appywork_content_container)
+        
+        val composeView = ComposeView(context).apply {
+            setContent {
+                MaterialTheme {
+                    AppyworkProjectSelector(
+                        parsedBlocks = parsedBlocks,
+                        onProjectSelected = { project ->
+                            applyBlocksToProject(project)
+                        }
+                    )
+                }
+            }
+        }
+        contentContainer?.removeAllViews()
+        contentContainer?.addView(composeView)
+
+        ActiveAppTracker.addApp("appywork_${this.hashCode()}", "Appywork", "Code", 60)
+
+        btnClose?.setOnClickListener {
+            close()
+        }
+
+        btnFold?.setOnClickListener {
+            toggleMinimize(expandedContainer, bubble, density)
+        }
+        
+        bubble?.setOnClickListener {
+            toggleMinimize(expandedContainer, bubble, density)
+        }
+
+        btnSettings?.setOnClickListener {
+            val intent = Intent(context, AppyworkSettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+
+        topbar?.setOnTouchListener { _, event -> handleDrag(event) }
+        
+        bubble?.setOnTouchListener { _, event -> handleDrag(event, true) { toggleMinimize(expandedContainer, bubble, density) } }
+
+        btnResize?.setOnTouchListener { _, event -> handleResize(event, density) }
+
+        try {
+            windowManager.addView(floatingView, windowLayoutParams)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun toggleMinimize(expandedContainer: View?, bubble: View?, density: Float) {
+        isMinimized = !isMinimized
+        prefs.edit().putBoolean("isMinimized", isMinimized).apply()
+        if (isMinimized) {
+            expandedContainer?.visibility = View.GONE
+            bubble?.visibility = View.VISIBLE
+            
+            lastWidth = windowLayoutParams?.width ?: (320 * density).toInt()
+            lastHeight = windowLayoutParams?.height ?: (450 * density).toInt()
+            
+            windowLayoutParams?.width = (56 * density).toInt()
+            windowLayoutParams?.height = (56 * density).toInt()
+        } else {
+            expandedContainer?.visibility = View.VISIBLE
+            bubble?.visibility = View.GONE
+            
+            windowLayoutParams?.width = lastWidth
+            windowLayoutParams?.height = lastHeight
+        }
+        windowManager.updateViewLayout(floatingView, windowLayoutParams)
+    }
+
+    private fun handleDrag(event: MotionEvent, isBubble: Boolean = false, onClick: (() -> Unit)? = null): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                initialX = windowLayoutParams?.x ?: 0
+                initialY = windowLayoutParams?.y ?: 0
+                initialTouchX = event.rawX
+                initialTouchY = event.rawY
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                windowLayoutParams?.x = initialX + (event.rawX - initialTouchX).toInt()
+                windowLayoutParams?.y = initialY + (event.rawY - initialTouchY).toInt()
+                windowManager.updateViewLayout(floatingView, windowLayoutParams)
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                prefs.edit().putInt("lastX", windowLayoutParams?.x ?: 100).putInt("lastY", windowLayoutParams?.y ?: 200).apply()
+                val diffX = Math.abs(event.rawX - initialTouchX)
+                val diffY = Math.abs(event.rawY - initialTouchY)
+                if (diffX < 10 && diffY < 10) {
+                    onClick?.invoke()
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun handleResize(event: MotionEvent, density: Float): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                initialX = windowLayoutParams?.width ?: (320 * density).toInt()
+                initialY = windowLayoutParams?.height ?: (450 * density).toInt()
+                initialTouchX = event.rawX
+                initialTouchY = event.rawY
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val newWidth = initialX + (event.rawX - initialTouchX).toInt()
+                val newHeight = initialY + (event.rawY - initialTouchY).toInt()
+                windowLayoutParams?.width = max((200 * density).toInt(), newWidth)
+                windowLayoutParams?.height = max((200 * density).toInt(), newHeight)
+                lastWidth = windowLayoutParams?.width ?: 800
+                lastHeight = windowLayoutParams?.height ?: 1000
+                prefs.edit().putInt("lastWidth", lastWidth).putInt("lastHeight", lastHeight).apply()
+                windowManager.updateViewLayout(floatingView, windowLayoutParams)
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun applyBlocksToProject(project: AppyworkProject) {
+        val fileSystem = com.example.data.AppyworkFileSystem(context)
+        val dao = com.example.data.AppDatabase.getDatabase(context).appyworkDao()
+        
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            for (block in parsedBlocks) {
+                if (block.filePath != null && !block.isQuarantined) {
+                    // Write to virtual file system
+                    fileSystem.writeFile(project.id, block.filePath!!, block.code)
+                    
+                    // Update database node
+                    var node = dao.getFileNode(project.id, block.filePath!!)
+                    if (node == null) {
+                        node = com.example.data.AppyworkFileNode(
+                            projectId = project.id,
+                            path = block.filePath!!,
+                            localHash = block.code.hashCode().toString(),
+                            syncState = "NEW"
+                        )
+                        dao.insertFileNode(node)
+                    } else {
+                        val updatedNode = node.copy(
+                            localHash = block.code.hashCode().toString(),
+                            syncState = "MODIFIED"
+                        )
+                        dao.updateFileNode(updatedNode)
+                    }
+                }
+            }
+            
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                android.widget.Toast.makeText(context, "Applied ${parsedBlocks.size} blocks to ${project.name}", android.widget.Toast.LENGTH_SHORT).show()
+                close()
+            }
+        }
+    }
+
+    fun close() {
+        ActiveAppTracker.removeApp("appywork_${this.hashCode()}")
+        try {
+            floatingView?.let { windowManager.removeView(it) }
+        } catch (e: Exception) {}
+        floatingView = null
+        onClose()
+    }
+}
+
+@Composable
+fun AppyworkProjectSelector(parsedBlocks: List<ParsedCodeBlock>, onProjectSelected: (AppyworkProject) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val dao = remember { AppDatabase.getDatabase(context).appyworkDao() }
+    val projects by dao.getAllProjectsFlow().collectAsState(initial = emptyList())
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    
+    var selectedProject by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<AppyworkProject?>(null) }
+    var pushStatus by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    var isPushing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    var currentBlocks by androidx.compose.runtime.remember(parsedBlocks) { androidx.compose.runtime.mutableStateOf(parsedBlocks) }
+    
+    if (selectedProject == null) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (currentBlocks.isNotEmpty()) {
+                Text("Parsed Blocks: ${currentBlocks.size}", style = MaterialTheme.typography.titleMedium)
+                val validBlocks = currentBlocks.count { !it.isQuarantined && it.filePath != null }
+                Text("Valid: $validBlocks | Quarantined: ${currentBlocks.size - validBlocks}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 16.dp))
+            }
+
+            Text("Select Project:", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
+            
+            if (projects.isEmpty()) {
+                Text("No projects available. Please configure one in Settings.", color = MaterialTheme.colorScheme.error)
+            } else {
+                LazyColumn {
+                    items(projects) { project ->
+                        Card(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable { selectedProject = project }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(project.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(project.remoteUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        val project = selectedProject!!
+        val files by dao.getFilesForProjectFlow(project.id).collectAsState(initial = emptyList())
+        val unsyncedFiles = files.filter { it.syncState != "SYNCED" }
+        
+        var searchQuery by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+        var multiSelectMode by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+        var selectedFileIds by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(setOf<Int>()) }
+        
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                androidx.compose.material3.IconButton(onClick = { selectedProject = null; pushStatus = "" }) {
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Text(project.name, style = MaterialTheme.typography.titleMedium)
+            }
+            
+            Text(project.remoteUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 12.dp, bottom = 16.dp))
+            
+            if (currentBlocks.isNotEmpty()) {
+                val quarantined = currentBlocks.filter { it.isQuarantined }
+                if (quarantined.isNotEmpty()) {
+                    Text("Quarantine Resolution (${quarantined.size} remaining)", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
+                    val block = quarantined.first()
+                    Card(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Missing file path for code block:", style = MaterialTheme.typography.bodySmall)
+                            Text(block.code.take(100) + if (block.code.length > 100) "..." else "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            
+                            var manualPath by androidx.compose.runtime.remember(block.id) { androidx.compose.runtime.mutableStateOf("") }
+                            OutlinedTextField(
+                                value = manualPath,
+                                onValueChange = { manualPath = it },
+                                label = { Text("Enter file path") },
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            )
+                            
+                            Row(modifier = Modifier.padding(top = 8.dp)) {
+                                androidx.compose.material3.Button(
+                                    onClick = {
+                                        currentBlocks = currentBlocks.filter { it.id != block.id }
+                                    },
+                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Discard")
+                                }
+                                androidx.compose.material3.Button(
+                                    onClick = {
+                                        if (manualPath.isNotBlank()) {
+                                            val updatedBlock = block.copy(filePath = manualPath, isQuarantined = false)
+                                            currentBlocks = currentBlocks.map { if (it.id == block.id) updatedBlock else it }
+                                        }
+                                    },
+                                    modifier = Modifier.padding(start = 8.dp),
+                                    enabled = manualPath.isNotBlank()
+                                ) {
+                                    Text("Assign & Keep")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text("Ready to Apply: ${currentBlocks.size} Blocks", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(12.dp))
+                    LazyColumn(modifier = Modifier.heightIn(max = 200.dp).fillMaxWidth().padding(horizontal = 12.dp)) {
+                        items(currentBlocks) { b ->
+                            Text(b.filePath ?: "Unknown", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    androidx.compose.material3.Button(
+                        onClick = { 
+                            scope.launch {
+                                val fileSystem = com.example.data.AppyworkFileSystem(context)
+                                for (block in currentBlocks) {
+                                    if (block.filePath == null) continue
+                                    
+                                    val f = java.io.File(context.filesDir, "appywork_projects/${project.id}/${block.filePath}")
+                                    f.parentFile?.mkdirs()
+                                    if (!f.exists()) f.createNewFile()
+                                    
+                                    fileSystem.writeFile(project.id, block.filePath!!, block.code)
+                                    
+                                    var node = dao.getFileNode(project.id, block.filePath!!)
+                                    if (node == null) {
+                                        node = com.example.data.AppyworkFileNode(
+                                            projectId = project.id,
+                                            path = block.filePath!!,
+                                            localHash = "",
+                                            syncState = "NEW"
+                                        )
+                                        dao.insertFileNode(node)
+                                    } else {
+                                        val updatedNode = node.copy(syncState = "MODIFIED")
+                                        dao.updateFileNode(updatedNode)
+                                    }
+                                }
+                                currentBlocks = emptyList() // clear after applying
+                                // also trigger refresh of files...
+                                pushStatus = "Applied to local filesystem!"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Text("Apply ${currentBlocks.size} Blocks to Local FS")
+                    }
+                }
+            }
+            
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Search files") },
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    singleLine = true
+                )
+                androidx.compose.material3.IconButton(onClick = { multiSelectMode = !multiSelectMode }) {
+                    androidx.compose.material3.Icon(if (multiSelectMode) androidx.compose.material.icons.Icons.Default.Checklist else androidx.compose.material.icons.Icons.AutoMirrored.Filled.List, contentDescription = "Multi-select")
+                }
+                if (multiSelectMode && selectedFileIds.isNotEmpty()) {
+                    androidx.compose.material3.IconButton(onClick = { 
+                        scope.launch {
+                            val toDelete = files.filter { selectedFileIds.contains(it.id) }
+                            for (file in toDelete) {
+                                dao.deleteFileNode(file)
+                                val fileSystem = com.example.data.AppyworkFileSystem(context)
+                                val f = java.io.File(context.filesDir, "appywork_projects/${project.id}/${file.path}")
+                                f.delete()
+                            }
+                            selectedFileIds = setOf()
+                            multiSelectMode = false
+                        }
+                    }) {
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = "Delete selected")
+                    }
+                }
+                var showCreateDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                androidx.compose.material3.IconButton(onClick = { showCreateDialog = true }) {
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Add, contentDescription = "Create file")
+                }
+                
+                if (showCreateDialog) {
+                    var newFileName by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showCreateDialog = false },
+                        title = { Text("Create File") },
+                        text = {
+                            OutlinedTextField(
+                                value = newFileName,
+                                onValueChange = { newFileName = it },
+                                label = { Text("File path (e.g. src/main.js)") }
+                            )
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                scope.launch {
+                                    val f = java.io.File(context.filesDir, "appywork_projects/${project.id}/$newFileName")
+                                    f.parentFile?.mkdirs()
+                                    if (!f.exists()) {
+                                        f.createNewFile()
+                                        val node = com.example.data.AppyworkFileNode(
+                                            projectId = project.id,
+                                            path = newFileName,
+                                            localHash = "", // empty hash initially
+                                            syncState = "NEW"
+                                        )
+                                        dao.insertFileNode(node)
+                                    }
+                                }
+                                showCreateDialog = false
+                            }) { Text("Create") }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = { showCreateDialog = false }) { Text("Cancel") }
+                        }
+                    )
+                }
+            }
+            
+            Text("Unsynced Files: ${unsyncedFiles.size}", modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp))
+            
+            val filteredFiles = files.filter { it.path.contains(searchQuery, ignoreCase = true) }.sortedBy { it.path }
+            
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                items(filteredFiles) { file ->
+                    var expandedMenu by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                    Card(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp)
+                        .clickable {
+                            if (multiSelectMode) {
+                                selectedFileIds = if (selectedFileIds.contains(file.id)) {
+                                    selectedFileIds - file.id
+                                } else {
+                                    selectedFileIds + file.id
+                                }
+                            }
+                        },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selectedFileIds.contains(file.id)) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (multiSelectMode) {
+                                androidx.compose.material3.Checkbox(
+                                    checked = selectedFileIds.contains(file.id),
+                                    onCheckedChange = { checked ->
+                                        selectedFileIds = if (checked) selectedFileIds + file.id else selectedFileIds - file.id
+                                    }
+                                )
+                            }
+                            Text(file.path, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                            
+                            Box {
+                                androidx.compose.material3.IconButton(onClick = { expandedMenu = true }) {
+                                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.MoreVert, contentDescription = "Options")
+                                }
+                                androidx.compose.material3.DropdownMenu(
+                                    expanded = expandedMenu,
+                                    onDismissRequest = { expandedMenu = false }
+                                ) {
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text("Delete") },
+                                        onClick = {
+                                            scope.launch {
+                                                dao.deleteFileNode(file)
+                                                val fileSystem = com.example.data.AppyworkFileSystem(context)
+                                                val f = java.io.File(context.filesDir, "appywork_projects/${project.id}/${file.path}")
+                                                f.delete()
+                                            }
+                                            expandedMenu = false
+                                        }
+                                    )
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text("Download (.txt)") },
+                                        onClick = {
+                                            scope.launch {
+                                                val f = java.io.File(context.filesDir, "appywork_projects/${project.id}/${file.path}")
+                                                if (f.exists()) {
+                                                    val downloads = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                                                    val dest = java.io.File(downloads, "${file.path.replace('/', '_')}.txt")
+                                                    f.copyTo(dest, overwrite = true)
+                                                }
+                                            }
+                                            expandedMenu = false
+                                        }
+                                    )
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text("Copy content") },
+                                        onClick = {
+                                            val f = java.io.File(context.filesDir, "appywork_projects/${project.id}/${file.path}")
+                                            if (f.exists()) {
+                                                val text = f.readText()
+                                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Appywork file", text))
+                                            }
+                                            expandedMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (unsyncedFiles.isNotEmpty()) {
+                androidx.compose.material3.Button(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                val pwaDb = com.example.service.PwaDatabase.getDatabase(context)
+                                var pwas = pwaDb.pwaDao().getAllPwasSync()
+                                var existing = pwas.find { it.name == "Appywork: ${project.name}" }
+                                
+                                val projectDir = java.io.File(context.filesDir, "appywork_projects/${project.id}")
+                                val zipFile = java.io.File(context.filesDir, "appywork_${project.id}.zip")
+                                
+                                if (zipFile.exists()) zipFile.delete()
+                                
+                                java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile)).use { zos ->
+                                    projectDir.walkTopDown().forEach { file ->
+                                        if (file.isFile) {
+                                            val entryName = file.absolutePath.removePrefix(projectDir.absolutePath + "/")
+                                            zos.putNextEntry(java.util.zip.ZipEntry(entryName))
+                                            file.inputStream().use { it.copyTo(zos) }
+                                            zos.closeEntry()
+                                        }
+                                    }
+                                }
+                                
+                                val newEntry = existing?.copy(zipPath = zipFile.absolutePath) ?: com.example.service.PwaEntry(
+                                    name = "Appywork: ${project.name}",
+                                    zipPath = zipFile.absolutePath,
+                                    isLightweight = true,
+                                    useVirtualHost = true
+                                )
+                                
+                                if (existing == null) {
+                                    pwaDb.pwaDao().insertPwa(newEntry)
+                                    existing = pwaDb.pwaDao().getAllPwasSync().find { it.name == "Appywork: ${project.name}" }
+                                } else {
+                                    pwaDb.pwaDao().updatePwa(newEntry)
+                                }
+                                
+                                if (existing != null) {
+                                    val intent = android.content.Intent(context, com.example.service.SidebarService::class.java).apply {
+                                        action = "EXECUTE_ACTION"
+                                        putExtra("ACTION_ID", "pwa:${existing.id}")
+                                    }
+                                    context.startService(intent)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text("Live Preview (PWA)")
+                }
+                
+                androidx.compose.material3.Button(
+                    onClick = {
+                        isPushing = true
+                        pushStatus = "Starting push..."
+                        scope.launch {
+                            try {
+                                val fileSystem = com.example.data.AppyworkFileSystem(context)
+                                val token = project.authToken
+                                
+                                pushStatus = "Fetching latest commit..."
+                                val latestCommitSha = com.example.utils.GitHubApiClient.getLatestCommitSha(project.remoteUrl, token)
+                                
+                                pushStatus = "Uploading ${unsyncedFiles.size} files..."
+                                val blobMap = mutableListOf<Pair<String, String>>()
+                                for (file in unsyncedFiles) {
+                                    val content = fileSystem.readFile(project.id, file.path) ?: continue
+                                    val blobSha = com.example.utils.GitHubApiClient.createBlob(project.remoteUrl, token, content)
+                                    blobMap.add(Pair(file.path, blobSha))
+                                }
+                                
+                                pushStatus = "Creating tree..."
+                                val newTreeSha = com.example.utils.GitHubApiClient.createTree(project.remoteUrl, token, latestCommitSha, blobMap)
+                                
+                                pushStatus = "Creating commit..."
+                                val commitMsg = "Appywork Vibe Coding - Auto commit"
+                                val newCommitSha = com.example.utils.GitHubApiClient.createCommit(project.remoteUrl, token, commitMsg, newTreeSha, latestCommitSha)
+                                
+                                pushStatus = "Updating ref..."
+                                com.example.utils.GitHubApiClient.updateRef(project.remoteUrl, token, "main", newCommitSha) // default to main
+                                
+                                pushStatus = "Syncing local DB..."
+                                for (file in unsyncedFiles) {
+                                    dao.updateFileNode(file.copy(syncState = "SYNCED"))
+                                }
+                                
+                                pushStatus = "Push Successful!"
+                            } catch (e: Exception) {
+                                pushStatus = "Error: ${e.message}"
+                            } finally {
+                                isPushing = false
+                            }
+                        }
+                    },
+                    enabled = !isPushing,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text(if (isPushing) "Pushing..." else "Push to GitHub")
+                }
+            }
+            
+            if (pushStatus.isNotBlank()) {
+                Text(pushStatus, color = if (pushStatus.startsWith("Error")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp))
+            }
+        }
+    }
+}
