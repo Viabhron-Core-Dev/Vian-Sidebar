@@ -63,6 +63,5 @@ dependencies {
     implementation("androidx.camera:camera-view:1.3.4")
     implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
-    implementation("com.google.mlkit:translate:17.0.2")
     implementation("com.google.android.gms:play-services-mlkit-language-id:17.0.0")
 }

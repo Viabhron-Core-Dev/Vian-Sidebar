@@ -8,3 +8,10 @@
 * Added meta-data tag com.google.mlkit.vision.DEPENDENCIES to AndroidManifest.xml for barcode and ocr.
 * Verification: local build only (gradle assembleDebug successful).
 * No deviations.
+* 2026-08-08T16:23:02Z
+* Removed com.google.mlkit:translate entirely for now to reduce APK size, per user request.
+* Touched: app/build.gradle.kts
+* Translation floating window and popup will be implemented later, and the dependency added back then.
+* Marked in blueprint.
+* Verification: local build only (gradle clean assembleDebug successful).
+* No deviations.

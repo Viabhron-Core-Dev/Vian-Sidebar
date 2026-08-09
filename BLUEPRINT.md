@@ -44,10 +44,10 @@ The application follows a strictly isolated, hierarchical structure. Components 
 *   **Multiple Isolated Handles:** A Handle acts like an isolated root folder. Handle 1 and Handle 2 contain completely different content and configurations. There is NO sharing of state or items between different handles.
 *   **Hierarchical Flow:**
     *   **Handle** -> Detects **Gesture**
-    *   **Gesture** -> Triggers specific **Sidebar or Action**
-    *   **Sidebar** -> Acts as a container for **Sidebar Pages**
+    *   **Gesture** -> Triggers **Element (Action)** OR **Sidebar Container**
+    *   **Sidebar Container** -> Contains multiple **Sidebar Pages** (configured in Sidebar Settings)
     *   **Sidebar Page** -> Launches **Floating Windows or Mini-Apps**
-*   **Sidebar Container & Edit Button:** The Sidebar is a container that holds multiple pages. It has an "Edit" button that is *page-aware*. The action triggered by the Edit button is defined by the currently active page.
+*   **Sidebar Container & Edit Button:** The Sidebar is a container that holds one or more pages. Gestures can directly trigger elements, or they can open a Sidebar Container. Pages are configured within the Sidebar settings, not as direct gesture options. It has an "Edit" button that is *page-aware*. The action triggered by the Edit button is defined by the currently active page.
 *   **Strict Separation:** Every gesture within a handle is independent. Sidebars of two different gestures are completely separate.
 
 ## 5. Development & Code Re-use Policy
@@ -93,8 +93,9 @@ The legacy architecture relied on massive, monolithic services handling everythi
 *   Implement `onTrimMemory` logic for OS memory pressure fallback.
 
 **PHASE 6: Sidebar Container & Selective Loading**
-*   Establish `SidebarManager` (`feature/sidebar/`) to listen for intents.
-*   Build `SidebarView` container with ViewPager for lazy page instantiation (Freeze/Thaw UI logic).
+*   Establish `SidebarManager` (`feature/sidebar/`) to listen for intents and launch the appropriate Sidebar or Action Element based on the Gesture.
+*   Build `SidebarView` container that holds one or more pages (managed via Sidebar Settings).
+*   Implement ViewPager for lazy page instantiation (Freeze/Thaw UI logic). *Note: Ensure Handle 1's default sidebar remains semi-loaded for instant response, while all other sidebars and pages load strictly on-demand.*
 
 **PHASE 7: Primary Grid Migration**
 *   Migrate standard pages: `AppsPageView`, `AppTrackerPageView`, etc.
@@ -126,3 +127,6 @@ The legacy architecture relied on massive, monolithic services handling everythi
 *   **2026-08-08:** Executed Phase 1 - Created `core` package, migrated `LogKeeper` and extracted `App`, and created centralized `IconManager` with Material placeholders.
 *   **2026-08-08:** Executed Phase 2 - Migrated Data Layer Foundation (Room DAOs, Entities) and core receivers (`BootReceiver`, `MidnightResetReceiver`). Built successfully.
 *   **2026-08-08:** Executed Phase 3 - Created combined Welcome/Settings `PermissionManagerScreen` requesting all extensive permissions. Pre-seeded `SharedPreferences` with default Handle 1 configuration. Built successfully.
+*   **2026-08-08:** Optimization: Swapped ML Kit dependencies for Google Play Services unbundled equivalents to massively reduce APK size. Removed `com.google.mlkit:translate` entirely for now (no unbundled version exists); it will be re-added when the translation floating window and popup are implemented.
+*   **2026-08-08:** Executed Phase 4 - Deconstructed God Service by extracting `HandleManager`, `HandleShapeDrawable`, and `TriggerHandleView` into the `core/` and `util/` packages. Implemented `HandleService` as an independent, lightweight foreground service that manages gesture detection and dispatches intents to standard services. Removed hardcoded `instance` dependencies. Built successfully.
+*   **2026-08-08:** Executed Phase 5 - Established `FloatingWindowManager` and `FloatingWindow` base class in `core/` package. Implemented XML-based container `layout_floating_window_container.xml` with topbar drag/fullscreen and bottom-right controls (Close, minimize, resize). Created folded "bubble" state. Integrated `onTrimMemory` in `HandleService` to fold windows under memory pressure. Built successfully.

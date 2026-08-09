@@ -11,7 +11,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             LogKeeper.writeLog("BootReceiver", "Boot completed received")
             
-            val serviceIntent = Intent(context, SidebarService::class.java).apply {
+            val serviceIntent = Intent(context, com.example.core.HandleService::class.java).apply {
                 putExtra("OPEN_FROM_LAUNCHER", true)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

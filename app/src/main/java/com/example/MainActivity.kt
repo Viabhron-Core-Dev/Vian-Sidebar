@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.example.feature.settings.PermissionManagerScreen
 import com.example.feature.settings.SettingsActivity
-import com.example.service.SidebarService
+import com.example.core.HandleService
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startSidebarService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
-            val svcIntent = Intent(this, SidebarService::class.java).apply {
+            val svcIntent = Intent(this, com.example.core.HandleService::class.java).apply {
                 putExtra("OPEN_FROM_LAUNCHER", true)
             }
             ContextCompat.startForegroundService(this, svcIntent)
