@@ -12,3 +12,11 @@
 * Verification: N/A - text file update only.
 * Deviation: None
 * Follow-up: None
+
+* 2026-08-09T03:30:00-07:00
+* Fix Handle & Sidebar UI setup and routing
+* app/src/main/java/com/example/feature/settings/SettingsActivity.kt, app/src/main/java/com/example/feature/settings/HandlesListSettingsScreen.kt, app/src/main/java/com/example/feature/settings/HandleEditScreen.kt, app/src/main/java/com/example/feature/settings/SidebarSettingsScreen.kt, app/src/main/java/com/example/feature/settings/PageCustomizeScreen.kt
+* Ported handle management and sidebar settings screens from reference code. Updated `SettingsActivity.kt` to route from the Handle Management screen instead of defaulting to permissions page. Removed old God service dependencies (`FloatingReaderService` -> `HandleService`) and disabled unimplemented "Element" action configuration UI.
+* Verification: local build only (assembleDebug successful).
+* Deviation: None
+* Follow-up: None

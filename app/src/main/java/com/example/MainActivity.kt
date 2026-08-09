@@ -43,7 +43,6 @@ class MainActivity : ComponentActivity() {
                     PermissionManagerScreen(
                         onContinue = {
                             prefs.edit().putBoolean("first_launch", false).apply()
-                            preSeedHandleConfig()
                             startSidebarService()
                             startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
                             finish()
@@ -61,26 +60,6 @@ class MainActivity : ComponentActivity() {
                 putExtra("OPEN_FROM_LAUNCHER", true)
             }
             ContextCompat.startForegroundService(this, svcIntent)
-        }
-    }
-
-    private fun preSeedHandleConfig() {
-        val prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
-        if (!prefs.contains("handles_config")) {
-            val handlesArray = JSONArray()
-            val handle1 = JSONObject().apply {
-                put("id", "handle_1")
-                put("name", "Main Handle")
-                put("color", 0xFF6200EE.toInt())
-                val appsArray = JSONArray().apply {
-                    put("Home Grid")
-                    put("Log Keeper")
-                    put("eReader")
-                }
-                put("apps", appsArray)
-            }
-            handlesArray.put(handle1)
-            prefs.edit().putString("handles_config", handlesArray.toString()).apply()
         }
     }
 }

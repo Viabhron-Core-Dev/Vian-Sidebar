@@ -2,6 +2,7 @@ package com.example.core
 
 object FloatingWindowManager {
     private val windows = mutableListOf<FloatingWindow>()
+    val activeWindows: List<FloatingWindow> get() = windows.toList()
 
     fun addWindow(window: FloatingWindow) {
         if (!windows.contains(window)) {

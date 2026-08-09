@@ -13,6 +13,7 @@ object HandleManager {
         if (jsonStr == null) {
             list.add(HandleConfig(id = "sidebar", name = "Handle 1 | Right (Bottom)", enabled = true))
             prefs.edit().putString("handle_sidebar_tap", "toggle_sidebar").apply()
+            prefs.edit().putString("handle_sidebar_swipe_left", "open_page:default_hybrid").apply()
             return list
         }
         try {
@@ -22,6 +23,10 @@ object HandleManager {
                 val id = obj.optString("id")
                 if (!prefs.contains("handle_${id}_tap")) {
                     prefs.edit().putString("handle_${id}_tap", "toggle_sidebar").apply()
+                }
+                if (!prefs.contains("handle_${id}_swipe_left")) {
+                    val defaultPageId = if (id == "sidebar") "default_hybrid" else "default_hybrid_$id"
+                    prefs.edit().putString("handle_${id}_swipe_left", "open_page:$defaultPageId").apply()
                 }
                 list.add(HandleConfig(
                     id = id,
