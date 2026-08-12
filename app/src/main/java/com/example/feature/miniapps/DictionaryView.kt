@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-class DictionaryPageView(context: Context) : FrameLayout(context) {
+class DictionaryView(context: Context) : FrameLayout(context) {
 
     private val db = androidx.room.Room.databaseBuilder(context.applicationContext, DictionaryDatabase::class.java, "dictionary.db").fallbackToDestructiveMigration().build()
     private var tts: TextToSpeech? = null

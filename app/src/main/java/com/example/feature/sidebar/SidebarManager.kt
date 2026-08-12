@@ -19,16 +19,19 @@ class SidebarManager(
         if (intent == null) return
         val action = intent.action
         val handleId = intent.getStringExtra("handleId") ?: "sidebar"
+        val gesture = intent.getStringExtra("gesture") ?: "tap"
+        val containerId = "${handleId}_${gesture}"
+        
         
         AppLogger.d("SidebarManager", "handleIntent: action=$action handleId=$handleId")
         
         when (action) {
             "com.example.ACTION_TOGGLE_SIDEBAR" -> {
-                toggleSidebar(handleId, handleId)
+                toggleSidebar(handleId, containerId)
             }
             "com.example.ACTION_OPEN_PAGE" -> {
                 val pageId = intent.getStringExtra("pageType")
-                toggleSidebar(handleId, handleId, pageId)
+                toggleSidebar(handleId, containerId, pageId)
             }
             "com.example.ACTION_EXECUTE_ELEMENT" -> {
                 val elementId = intent.getStringExtra("elementId")

@@ -25,7 +25,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun SidebarSettingsScreen(handleId: String, initAction: String? = null, onBack: () -> Unit) {
+fun SidebarSettingsScreen(handleId: String, initAction: String? = null, initialEditPageId: String? = null, onBack: () -> Unit) {
     val configuration = LocalConfiguration.current
     val maxScreenWidth = configuration.screenWidthDp.toFloat()
     val maxScreenHeight = configuration.screenHeightDp.toFloat()
@@ -38,6 +38,14 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, onBack: 
     var pages by remember { mutableStateOf(PageManager.getPages(prefs, handleId)) }
     var defaultIndex by remember { mutableStateOf(PageManager.getDefaultPageIndex(prefs, handleId)) }
 
+    LaunchedEffect(initialEditPageId) {
+        if (initialEditPageId != null) {
+            val pageToEdit = pages.find { it.id == initialEditPageId }
+            if (pageToEdit != null) {
+                customisingPage = pageToEdit
+            }
+        }
+    }
     LaunchedEffect(initAction) {
         if (initAction != null && initAction.startsWith("open_page:")) {
             val type = initAction.removePrefix("open_page:")
@@ -53,6 +61,8 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, onBack: 
                     "hybrid_grid" -> "Hybrid Grid"
                     "app_tracker" -> "App Tracker"
                     "resources_tracker" -> "Resources Tracker"
+                    "media_player" -> "Media Player"
+                    "widget" -> "Android Widget"
                     else -> type.replaceFirstChar { it.uppercase() }
                 }
                 val newPage = com.example.utils.SidebarPage.createDefault(id = UUID.randomUUID().toString(), type = type, title = title)
@@ -346,6 +356,8 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, onBack: 
                             "hybrid_grid" to "Hybrid Grid",
                             "app_tracker" to "App Tracker",
                             "resources_tracker" to "Resources Tracker",
+                            "media_player" to "Media Player",
+                            "widget" to "Android Widget",
                         )
                         types.forEach { (type, title) ->
                             TextButton(onClick = {

@@ -15,12 +15,13 @@ import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.util.AppLogger
+import com.example.feature.miniapps.reader.ReaderHandleView
 
 class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListener {
-
     private lateinit var windowManager: WindowManager
     private lateinit var prefs: SharedPreferences
     private val triggerHandleViews = mutableListOf<TriggerHandleView>()
+    private var readerHandleView: ReaderHandleView? = null
 
     companion object {
         const val ACTION_RELOAD_HANDLES = "com.example.ACTION_RELOAD_HANDLES"
@@ -40,15 +41,17 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         prefs.registerOnSharedPreferenceChangeListener(this)
-
         startForegroundService()
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(reloadReceiver, IntentFilter(ACTION_RELOAD_HANDLES), Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(reloadReceiver, IntentFilter(ACTION_RELOAD_HANDLES))
         }
-
+        
+        readerHandleView = ReaderHandleView(this, prefs, windowManager)
+        if (prefs.getBoolean("reader_handle_enabled", false)) {
+            readerHandleView?.attach()
+        }
         reloadHandles()
     }
 
@@ -71,7 +74,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             .setSmallIcon(android.R.drawable.ic_menu_crop) // Placeholder icon
             .setContentIntent(pendingIntent)
             .build()
-
         startForeground(2, notification) // ID 2 so it doesn't conflict if there's ID 1
     }
 
@@ -79,7 +81,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         AppLogger.d("HandleService", "reloadHandles")
         triggerHandleViews.forEach { it.detach() }
         triggerHandleViews.clear()
-
         val handles = HandleManager.getHandles(prefs)
         for (handle in handles) {
             if (handle.enabled) {
@@ -95,11 +96,19 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             // Need to update or recreate
             if (key.endsWith("_height") || key.endsWith("_width") || key.endsWith("_y") || key.endsWith("_edge") || key.endsWith("_color") || key.endsWith("_opacity") || key.endsWith("_position")) {
                 triggerHandleViews.forEach { it.updatePosition() }
+                readerHandleView?.updatePosition()
             } else if (key == "is_handle_edit_mode") {
                 val editMode = prefs.getBoolean("is_handle_edit_mode", false)
                 triggerHandleViews.forEach { it.setVisibility(if (editMode) true else null) }
+                readerHandleView?.setVisibility(editMode)
             } else {
                 reloadHandles()
+            }
+        } else if (key == "reader_handle_enabled") {
+            if (prefs.getBoolean("reader_handle_enabled", false)) {
+                readerHandleView?.attach()
+            } else {
+                readerHandleView?.detach()
             }
         }
     }
@@ -122,6 +131,8 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         unregisterReceiver(reloadReceiver)
         triggerHandleViews.forEach { it.detach() }
         triggerHandleViews.clear()
+        readerHandleView?.detach()
+        readerHandleView = null
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

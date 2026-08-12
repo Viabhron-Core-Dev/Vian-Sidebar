@@ -1,18 +1,16 @@
 package com.example.feature.miniapps
 
 import android.content.Context
-import android.view.WindowManager
+import android.content.Intent
 import com.example.core.FloatingWindow
 import com.example.core.FloatingWindowManager
 
 object MiniAppManager {
     fun toggleApp(context: Context, pageType: String) {
-        // Check if window already exists in FloatingWindowManager
         val windows = FloatingWindowManager.activeWindows
         
+        // Handle specific standalone windows
         val existing = windows.find { 
-            (it is CalculatorFloatingWindow && pageType == "calculator") ||
-            (it is CompassFloatingWindow && pageType == "compass") ||
             (it is DictionaryFloatingWindow && pageType == "dictionary")
         }
         
@@ -21,13 +19,17 @@ object MiniAppManager {
             return
         }
 
-        val newWindow: FloatingWindow = when (pageType) {
-            "calculator" -> CalculatorFloatingWindow(context)
-            "compass" -> CompassFloatingWindow(context)
-            "dictionary" -> DictionaryFloatingWindow(context)
-            else -> return // Handle others later
+        when (pageType) {
+            "dictionary" -> {
+                FloatingWindowManager.addWindow(DictionaryFloatingWindow(context))
+            }
+            else -> {
+                // Forward generic PageWindows to the PageWindowService wrapper
+                val intent = Intent(context, com.example.service.PageWindowService::class.java)
+                intent.action = "TOGGLE"
+                intent.putExtra("PAGE_TYPE", pageType)
+                context.startService(intent)
+            }
         }
-
-        FloatingWindowManager.addWindow(newWindow)
     }
 }

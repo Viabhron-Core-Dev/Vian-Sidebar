@@ -32,7 +32,7 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
     var yPos by remember { mutableFloatStateOf(prefs.getInt("${prefix}y", 50).toFloat()) }
     var sizeWidth by remember { mutableFloatStateOf(prefs.getInt("${prefix}width", if (handleId == "reader") 16 else 6).toFloat()) }
     var sizeHeight by remember { mutableFloatStateOf(prefs.getInt("${prefix}height", if (handleId == "reader") 60 else 120).toFloat()) }
-    var colorHex by remember { mutableStateOf(prefs.getString("${prefix}color", if (handleId == "reader") "#44102d42" else "#3318304A") ?: "#3318304A") }
+    var colorHex by remember { mutableStateOf(prefs.getString("${prefix}color", if (handleId == "reader") "#44102d42" else "#809370DB") ?: "#809370DB") }
     var shape by remember { mutableStateOf(prefs.getString("${prefix}shape", if (handleId == "reader") "half_oval" else "triangle") ?: "triangle") }
     var edge by remember { mutableStateOf(prefs.getString("${prefix}edge", "right") ?: "right") }
     
@@ -94,7 +94,7 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 val presetColors = listOf(
-                    "#44102d42", "#3318304A", "#66000000", "#66FFFFFF", 
+                    "#44102d42", "#809370DB", "#66000000", "#66FFFFFF", 
                     "#80FF5252", "#804CAF50", "#802196F3", "#80FFEB3B", "#8087CEEB", "#1d2962ff"
                 )
                 presetColors.forEach { colorString ->

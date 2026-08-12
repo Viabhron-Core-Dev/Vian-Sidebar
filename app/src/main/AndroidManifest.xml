@@ -69,5 +69,76 @@
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="barcode,ocr" />
             
-    </application>
+    
+        <activity android:name=".feature.miniapps.reader.ReadAloudActivity" android:label="Read Aloud" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+        
+        <activity android:name=".feature.miniapps.translation.TranslationPopupActivity" android:label="Translate" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+        
+        <activity android:name=".feature.miniapps.translation.TranslationManagementActivity" android:label="Manage Translations" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        
+        <activity android:name=".feature.miniapps.DictionaryPopupActivity" android:label="Meaning" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".feature.miniapps.browser.BrowserReceiverActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:exported="true" android:label="Sidebar Browser">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+        
+        <service android:name=".feature.miniapps.browser.FloatingBrowserService" android:exported="false" />
+        <service android:name=".feature.miniapps.reader.FloatingReaderService" android:exported="false" />
+
+        <service android:name=".service.PageWindowService" android:exported="false" />
+        <service android:name=".service.FloatingTriggerService" android:exported="false" />
+            <activity android:name=".feature.settings.AddElementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".feature.settings.ActionPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+    
+        <service
+            android:name=".feature.system_hub.VianSideAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+</application>
 </manifest>

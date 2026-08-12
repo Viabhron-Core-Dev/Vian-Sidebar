@@ -6,9 +6,6 @@ import android.content.Intent
 import android.os.IBinder
 import android.appwidget.AppWidgetHost
 
-class FloatingTriggerService : Service() {
-    override fun onBind(intent: Intent?): IBinder? = null
-}
 
 object QuickTileHandler {
     fun handleQuickTileAction(context: Context, action: String) {}

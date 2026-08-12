@@ -236,6 +236,8 @@ fun HandleItem(
                                         "hybrid_grid" -> "Hybrid Grid"
                                         "app_tracker" -> "App Tracker"
                                         "resources_tracker" -> "Resources Tracker"
+                    "media_player" -> "Media Player"
+                    "widget" -> "Android Widget"
                                         "calculator" -> "Calculator"
                                         "scheduler" -> "Short Reminders"
                                         "compass" -> "Compass"
@@ -414,6 +416,8 @@ fun HandleItem(
                                             "hybrid_grid" to "Hybrid Grid",
                                             "app_tracker" to "App Tracker",
                                             "resources_tracker" to "Resources Tracker",
+                            "media_player" to "Media Player",
+                            "widget" to "Android Widget",
                                             "calculator" to "Calculator",
                                             "scheduler" to "Short Reminders",
                                             "compass" to "Compass",
@@ -480,6 +484,8 @@ fun HandleItem(
                                             "hybrid_grid" to "Hybrid Grid",
                                             "app_tracker" to "App Tracker",
                                             "resources_tracker" to "Resources Tracker",
+                            "media_player" to "Media Player",
+                            "widget" to "Android Widget",
                                             "calculator" to "Calculator",
                                             "scheduler" to "Short Reminders",
                                             "compass" to "Compass",

@@ -101,26 +101,58 @@ The legacy architecture relied on massive, monolithic services handling everythi
 *   Migrate standard pages: `AppsPageView`, `AppTrackerPageView`, etc.
 *   Connect them to the Sidebar container.
 
-**PHASE 8: Floating Apps & Utilities (Part 1)**
-*   Migrate essential mini-apps (Calculator, Dictionary, Compass, etc.).
-*   Apply unbind/rebind Freeze/Thaw mechanics.
+**PHASE 8: Floating Apps & Utilities (Part 1)
+* [x] Correct architecture: Revert Calculator and Compass to Sidebar Pages (`PageView`).
+* [x] Rename `DictionaryPageView` to `DictionaryView` to reflect its Floating Window status.
+* [x] Decouple `MiniAppManager` from page views.
+* [x] Migrate universal `PageWindowManager` and `PageWindowService` to spawn generic `PageViews` as floating windows.
+* [x] Migrate `FloatingTriggerService` (Persistent floating shortcut bubble).
 
-**PHASE 9: Floating Apps & Utilities (Part 2)**
-*   Migrate heavy mini-apps (eReader, Call Recorder, etc.).
-*   Migrate the local HTTP server (NanoHTTPD) and the PWA Loader framework to support running multiple WebViews concurrently.
+**PHASE 9: The UI Spines (Settings & Add Element)**
+*   Import `SettingsActivity`, `AddElementActivity`, and `ActionPickerActivity` mostly as-is from `reference/`.
+*   Wire up migrated pages/services; leave unmigrated features as harmless stubs.
+*   Prepare UI lists to send intents to our decoupled unified managers.
 
-**PHASE 10: Advanced Floating Grouping**
-*   Implement "Floating Button Stacking" logic for dragged/dropped bubbles via `ACTION_UP` bounding box collisions.
+**PHASE 10: The Background System Hub (Plugins)**
+*   Establish `VianSideAccessibilityService` as a unified System Tools Hub.
+*   Migrate `CallRecorderManager` as a 100% dormant plugin, waking only via `TelephonyManager`.
+*   Migrate `NetSpeedManager` as a screen-aware plugin (`ACTION_SCREEN_ON`/`OFF`).
+*   Migrate Hardware Controls (`QuickTileHandler`, `MediaVolumeHandler`, `DisplayHandler`).
 
-**PHASE 11: Granular Backup Engine**
-*   Build the modular JSON/ZIP selective Backup & Restore system.
+**PHASE 11: Sidebar On-Demand Optimization**
+*   Leverage existing `ViewPager2` lazy-loading. Implement lifecycle management to freeze/thaw background tasks (pause coroutines/polling when off-screen).
+*   Migrate remaining dual-mode pages: `SchedulerPageView`, `NotificationPageView`, `ResourcesTrackerPageView`.
 
-**PHASE 12: Finalization & Legacy Eradication**
-*   Run global `grep` to ensure zero dependencies on `reference/`.
-*   Delete the `reference/` directory entirely.
-*   Final `gradle assembleDebug`.
+**PHASE 12: Unified Z-Window Manager & Heavy Apps**
+*   Build a centralized Z-Window Manager (handling Z-Ordering and Dormant Folding/Bubbles).
+*   Migrate heavy Floating Apps to use the new manager:
+    *   `FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`.
+    *   `CursorManager` (Trackpad), `WorkNotesWindowManager`.
 
+**PHASE 13: OS Popups & Floating Browser**
+*   Migrate Text Selection Popups (`DictionaryPopupActivity`, `TranslationPopupActivity`).
+*   Migrate the Lightweight Floating Browser (Share Intents).
+*   Migrate eReader and Appywork sub-systems.
+
+**PHASE 14: PWA Engine**
+*   Migrate `PwaWindowManager`, `PwaServer`, and `PwaDatabase`.
+
+**PHASE 15: Polish, Launcher Prep & Finalization**
+*   Implement Advanced Floating Grouping (Bubble Stacking/Collisions).
+*   Build the Backup & Restore JSON framework.
+*   Prepare architecture hooks for the external Android Launcher merge.
+*   Eradicate the `reference/` directory entirely.
 ---
+
+*   **2026-08-11:** Implemented Phase 8.5: Migrated `MediaPlayerPageView` and `WidgetPageView`, wired them to `SidebarView.kt`, and added to Settings dropdowns.
+
+*   **2026-08-11:** Created Phase 8.5 to catch up on orphaned Sidebar Pages (`MediaPlayerPageView`, `WidgetPageView`) missed during Phase 7 grid migration.
+
+*   **2026-08-11:** Executed remainder of Phase 8: Migrated universal PageWindow wrapper and FloatingTriggerService. Phase 8 complete.
+
+*   **2026-08-11:** Updated Phase 9 blueprints to enforce strict architectural boundaries: separated Dual-Mode Pages (Scheduler, Notifications, Resources Tracker) from Floating-Only PageWindows (File Explorer, Local Terminal, Termux) which cannot be docked in the Sidebar.
+
+*   **2026-08-11:** Identified missing architecture in Floating Apps (Phase 8/9): Universal PageWindowManager, FloatingTriggerService, standalone floating windows (Cursor, Work Notes, PWA Loader), remaining Sidebar Pages (Scheduler, Notifications, Resources Tracker, File Explorer, Local Terminal, Termux), OS text selection popups, and Share-to-App lightweight browser. Corrected Calculator/Compass to Sidebar Pages and renamed DictionaryView.
 
 ## Migration Ledger
 *   **2026-08-08:** Modified blueprint and phase plan to explicitly detail background receivers, accessibility services, notification listeners, and the Appywork (Vibe Coding Hub) module.

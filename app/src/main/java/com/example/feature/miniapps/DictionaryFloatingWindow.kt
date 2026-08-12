@@ -7,11 +7,11 @@ import com.example.core.FloatingWindow
 
 class DictionaryFloatingWindow(context: Context) : FloatingWindow(context, "Dictionary") {
 
-    private var dictionaryView: DictionaryPageView? = null
+    private var dictionaryView: DictionaryView? = null
 
     override fun createContentView(): View {
         if (dictionaryView == null) {
-            dictionaryView = DictionaryPageView(context)
+            dictionaryView = DictionaryView(context)
         }
         return dictionaryView!!
     }

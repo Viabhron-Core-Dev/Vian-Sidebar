@@ -37,8 +37,8 @@ data class SidebarPage(
 
     companion object {
         fun createDefault(id: String, type: String, title: String): SidebarPage {
-            val wrap = when(type) { "calculator", "compass", "notification", "scheduler", "app_tracker", "resources_tracker" -> false else -> true }
-            val h = when(type) { "calculator" -> 450; "compass" -> 500; "notification", "scheduler", "resources_tracker", "widget", "widgets_grid", "hybrid_grid" -> 500; "app_tracker" -> 600; else -> 450 }
+            val wrap = when(type) { "calculator", "compass", "notification", "scheduler", "app_tracker", "resources_tracker", "media_player" -> false else -> true }
+            val h = when(type) { "calculator" -> 450; "compass" -> 500; "notification", "scheduler", "resources_tracker", "media_player", "widget", "widgets_grid", "hybrid_grid" -> 500; "app_tracker" -> 600; else -> 450 }
             return SidebarPage(
                 id = id, type = type, title = title,
                 wrapContentHeight = wrap, height = h, width = 320
@@ -72,6 +72,8 @@ object PageManager {
         if (!prefs.contains("hybrid_grid_" + defaultPageId)) {
             val jsonStr = "[{\"id\": \"system:ebook_reader\", \"cols\": 1, \"rows\": 1, \"x\": 0, \"y\": 0}, {\"id\": \"system:log_keeper\", \"cols\": 1, \"rows\": 1, \"x\": 1, \"y\": 0}]"
             prefs.edit().putString("hybrid_grid_" + defaultPageId, jsonStr).apply()
+            prefs.edit().putInt("hybrid_grid_cols_$defaultPageId", 3).apply()
+            prefs.edit().putBoolean("handle_${handleId}_sidebar_wrap_content", true).apply()
         }
         if (pagesJson == null) {
             // Default setup

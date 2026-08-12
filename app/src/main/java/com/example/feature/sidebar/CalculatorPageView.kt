@@ -1,4 +1,4 @@
-package com.example.feature.miniapps
+package com.example.feature.sidebar
 
 import android.content.Context
 import android.view.LayoutInflater

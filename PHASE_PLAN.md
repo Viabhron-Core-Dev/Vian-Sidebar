@@ -19,42 +19,64 @@
 - [x] Pre-seed `SharedPreferences` with Handle 1 default config (Home Grid, Log Keeper, eReader).
 
 ## PHASE 4: Handle Service Extraction
-- [ ] Deconstruct God Service: Migrate edge detection and gesture parsing to `HandleService` (`core/`).
-- [ ] Ensure it runs continuously and remains incredibly lightweight.
+- [x] Deconstruct God Service: Migrate edge detection and gesture parsing to `HandleService` (`core/`).
+- [x] Ensure it runs continuously and remains incredibly lightweight.
 
 ## PHASE 5: Window Manager & Z-Order System
-- [ ] Establish the central `WindowManager` for handling floating view lifecycles.
-- [ ] Implement `onTrimMemory` logic for OS memory pressure fallback.
+- [x] Establish the central `WindowManager` for handling floating view lifecycles.
+- [x] Implement `onTrimMemory` logic for OS memory pressure fallback.
 
 ## PHASE 6: Sidebar Container & Selective Loading
-- [ ] Establish `SidebarManager` (`feature/sidebar/`) to listen for intents.
-- [ ] Build `SidebarView` container with ViewPager for lazy page instantiation (Freeze/Thaw UI logic).
+- [x] Establish `SidebarManager` (`feature/sidebar/`) to listen for intents.
+- [x] Build `SidebarView` container with ViewPager for lazy page instantiation (Freeze/Thaw UI logic).
 
 ## PHASE 7: Primary Grid Migration
-- [ ] Migrate standard pages: `AppsPageView`, `AppTrackerPageView`, etc.
-- [ ] Connect them to the Sidebar container.
+- [x] Migrate standard pages: `AppsPageView`, `AppTrackerPageView`, etc.
+- [x] Connect them to the Sidebar container.
 
 ## PHASE 8: Floating Apps & Utilities (Part 1)
-- [ ] Migrate essential mini-apps (Calculator, Dictionary, Translation, Compass, etc.).
-- [ ] Apply unbind/rebind Freeze/Thaw mechanics.
-- [ ] Configure `PROCESS_TEXT` and `SEND` intent filters in `AndroidManifest.xml` for Dictionary, Translation, Read Aloud, and Browser so they appear in Android's native text selection context menu.
-- [ ] Migrate standalone system overlays like `NetSpeedManager`, hooking them into the WindowManager framework.
+- [x] Correct architecture: Revert Calculator and Compass to Sidebar Pages (`PageView`).
+- [x] Rename `DictionaryPageView` to `DictionaryView` to reflect its Floating Window status.
+- [x] Decouple `MiniAppManager` from page views.
+- [x] Migrate universal `PageWindowManager` and `PageWindowService` to spawn generic `PageViews` as floating windows.
+- [x] Migrate `FloatingTriggerService` (Persistent floating shortcut bubble).
 
-## PHASE 9: Floating Apps & Utilities (Part 2)
-- [ ] Migrate heavy mini-apps (eReader, Call Recorder, etc.).
-- [ ] Implement Call Recorder (`CallRecorderManager`) as a highly decoupled, modular feature that can be completely disabled or removed without breaking other app functionality.
-- [ ] Migrate Appywork as an isolated, modular Vibe Coding Hub. Ensure its `PROCESS_TEXT` intent, Git API stateless push, and embedded NanoHTTPD features are cleanly decoupled.
-- [ ] Migrate local HTTP server (NanoHTTPD) and PWA Loader architecture to support multiple concurrent floating WebView instances.
-- [ ] Migrate `VianSideAccessibilityService` utilities (Cursor, Auto-Scroll, Long Screenshot) and `ScreenRecordService`.
-- [ ] Migrate `AppNotificationListener` for notification tracking features.
+## PHASE 8.5: Orphaned Sidebar Pages Catch-up
+- [x] Migrate `MediaPlayerPageView` (Dockable Media Controls).
+- [x] Migrate `WidgetPageView` (Dockable Android AppWidget host).
+- [x] Wire both into `SidebarView.kt` router and settings menu.
 
-## PHASE 10: Advanced Floating Grouping
-- [ ] Implement "Floating Button Stacking" logic for dragged/dropped bubbles via `ACTION_UP` bounding box collisions.
+## PHASE 9: The UI Spines (Settings & Add Element)
+- [x] Import `SettingsActivity`, `AddElementActivity`, and `ActionPickerActivity` mostly as-is from `reference/`.
+- [x] Wire up migrated pages/services; leave unmigrated features as harmless stubs.
+- [x] Prepare UI lists to send intents to our decoupled unified managers.
 
-## PHASE 11: Granular Backup Engine
-- [ ] Build the modular JSON/ZIP selective Backup & Restore system.
+## PHASE 10: The Background System Hub (Plugins)
+- [ ] Establish `VianSideAccessibilityService` as a unified System Tools Hub.
+- [ ] Migrate `CallRecorderManager` as a 100% dormant plugin, waking only via `TelephonyManager`.
+- [ ] Migrate `NetSpeedManager` as a screen-aware plugin (`ACTION_SCREEN_ON`/`OFF`).
+- [ ] Migrate Hardware Controls (`QuickTileHandler`, `MediaVolumeHandler`, `DisplayHandler`).
 
-## PHASE 12: Finalization & Legacy Eradication
-- [ ] Run global `grep` to ensure zero dependencies on `reference/`.
-- [ ] Delete the `reference/` directory entirely.
-- [ ] Final `gradle assembleDebug`.
+## PHASE 11: Sidebar On-Demand Optimization
+- [ ] Leverage existing `ViewPager2` lazy-loading. Implement lifecycle management to freeze/thaw background tasks (pause coroutines/polling when off-screen).
+- [ ] Migrate remaining dual-mode pages: `SchedulerPageView`, `NotificationPageView`, `ResourcesTrackerPageView`.
+
+## PHASE 12: Unified Z-Window Manager & Heavy Apps
+- [ ] Build a centralized Z-Window Manager (handling Z-Ordering and Dormant Folding/Bubbles).
+- [ ] Migrate heavy Floating Apps to use the new manager:
+    - [ ] `FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`.
+    - [ ] `CursorManager` (Trackpad), `WorkNotesWindowManager`.
+
+## PHASE 13: OS Popups & Floating Browser
+- [ ] Migrate Text Selection Popups (`DictionaryPopupActivity`, `TranslationPopupActivity`).
+- [ ] Migrate the Lightweight Floating Browser (Share Intents).
+- [ ] Migrate eReader and Appywork sub-systems.
+
+## PHASE 14: PWA Engine
+- [ ] Migrate `PwaWindowManager`, `PwaServer`, and `PwaDatabase`.
+
+## PHASE 15: Polish, Launcher Prep & Finalization
+- [ ] Implement Advanced Floating Grouping (Bubble Stacking/Collisions).
+- [ ] Build the Backup & Restore JSON framework.
+- [ ] Prepare architecture hooks for the external Android Launcher merge.
+- [ ] Eradicate the `reference/` directory entirely.

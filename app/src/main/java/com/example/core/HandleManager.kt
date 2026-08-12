@@ -12,8 +12,9 @@ object HandleManager {
         val list = mutableListOf<HandleConfig>()
         if (jsonStr == null) {
             list.add(HandleConfig(id = "sidebar", name = "Handle 1 | Right (Bottom)", enabled = true))
-            prefs.edit().putString("handle_sidebar_tap", "toggle_sidebar").apply()
+            prefs.edit().putString("handle_sidebar_tap", "none").apply()
             prefs.edit().putString("handle_sidebar_swipe_left", "open_page:default_hybrid").apply()
+            prefs.edit().putString("handle_sidebar_color", "#809370DB").apply() // Light blue purple, 50% transparency
             return list
         }
         try {

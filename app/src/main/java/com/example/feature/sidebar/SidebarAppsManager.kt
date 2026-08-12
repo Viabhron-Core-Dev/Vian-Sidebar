@@ -618,6 +618,8 @@ class SidebarAppsManager(
                 "notifications" -> "Notifications"
                 "app_tracker" -> "App Tracker"
                 "resources_tracker" -> "Resources Tracker"
+                "media_player" -> "Media Player"
+                "widget" -> "Android Widget"
                 else -> "Page Window"
             }
             return SidebarItem.PageWindow(pageType, "Window: $title", android.R.drawable.ic_menu_gallery)
@@ -800,7 +802,11 @@ class SidebarAppsManager(
                     "notifications" -> "Notifications"
                     "app_tracker" -> "App Tracker"
                     "resources_tracker" -> "Resources Tracker"
+                "media_player" -> "Media Player"
+                "widget" -> "Android Widget"
                 "resources_tracker" -> "Resources Tracker"
+                "media_player" -> "Media Player"
+                "widget" -> "Android Widget"
                     else -> "Page Window"
                 }
                 result.add(SidebarItem.PageWindow(pageType, "Window: $title", android.R.drawable.ic_menu_gallery))
