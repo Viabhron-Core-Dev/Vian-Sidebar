@@ -37,7 +37,7 @@ class HybridGridPageView(
     context: Context,
     private val pageId: String,
     private val onHeightChanged: (Int) -> Unit
-) : FrameLayout(context) {
+) : FrameLayout(context), SidebarPageControllable {
 
     private val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
 
@@ -868,5 +868,14 @@ class HybridGridPageView(
         if (y < 0) y = 0
         if (y + totalHeight > screenHeight) y = screenHeight - totalHeight
         popupWindow.showAtLocation(anchor, Gravity.NO_GRAVITY, x, y)
+    }
+
+    override fun onEditClicked() {
+        val intent = android.content.Intent(context, com.example.HybridGridEditActivity::class.java).apply {
+            putExtra("PAGE_ID", pageId)
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+        context.sendBroadcast(android.content.Intent("com.example.CLOSE_SIDEBAR"))
     }
 }

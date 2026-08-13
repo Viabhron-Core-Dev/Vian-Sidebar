@@ -34,7 +34,7 @@ class AppsPageView(
     private val onCloseSidebar: () -> Unit,
     private val onHeightChanged: ((Int) -> Unit)? = null,
     private val onEditModeClicked: (() -> Unit)? = null
-) : FrameLayout(context) {
+) : FrameLayout(context), SidebarPageControllable {
 
     private val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
 
@@ -836,5 +836,14 @@ class AppsPageView(
                 icon.setColorFilter(android.graphics.Color.WHITE)
             }
         }
+    }
+
+    override fun onEditClicked() {
+        val intent = android.content.Intent(context, com.example.SidebarEditActivity::class.java).apply {
+            putExtra("PAGE_ID", pageConfig?.id ?: "")
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+        onCloseSidebar()
     }
 }

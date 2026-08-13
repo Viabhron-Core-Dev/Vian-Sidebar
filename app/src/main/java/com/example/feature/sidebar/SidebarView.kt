@@ -1,7 +1,4 @@
 package com.example.feature.sidebar
-import android.view.MotionEvent
-import android.view.ViewGroup
-import android.view.View
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -13,8 +10,12 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -23,11 +24,6 @@ import com.example.utils.SidebarPage
 import com.example.util.AppLogger
 import kotlin.math.max
 
-import com.example.feature.sidebar.AppsPageView
-import com.example.feature.sidebar.SidebarAppsManager
-import com.example.feature.sidebar.HybridGridPageView
-import com.example.feature.sidebar.WidgetsGridPageView
-import com.example.feature.sidebar.AppTrackerPageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,7 +31,6 @@ import kotlinx.coroutines.cancel
 
 @SuppressLint("ViewConstructor")
 class SidebarView(
-
     context: Context,
     private val prefs: SharedPreferences,
     private val windowManager: WindowManager,
@@ -44,15 +39,19 @@ class SidebarView(
     private val pageConfigs: List<SidebarPage>,
     private val defaultPageIndex: Int,
     private val onClose: () -> Unit
-) : LinearLayout(context) {
+) : FrameLayout(context) {
 
     private val wrapContent = prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
     private val layoutParams: WindowManager.LayoutParams
     private val viewPager: ViewPager2
+    private lateinit var container: FrameLayout
+    private lateinit var dotsLayout: LinearLayout
+    private val dots = mutableListOf<View>()
+    private lateinit var editButton: ImageView
     private var isAttached = false
     private val viewScope = CoroutineScope(Dispatchers.Main + Job())
     private val appsManagers = mutableMapOf<String, SidebarAppsManager>()
-    
+
     init {
         AppLogger.d("SidebarView", "Init sidebar for containerId: $containerId")
         val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -64,13 +63,13 @@ class SidebarView(
         val density = context.resources.displayMetrics.density
         val widthDp = prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 216))
         val widthPx = (widthDp * density).toInt()
-        
-                val heightPx = if (wrapContent) WindowManager.LayoutParams.WRAP_CONTENT else (prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 360)) * density).toInt()
-        
+
+        val heightPx = if (wrapContent) WindowManager.LayoutParams.WRAP_CONTENT else (prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 360)) * density).toInt()
+
         val legacyEdge = if (prefs.getBoolean("sidebar_position_left", false)) "left" else "right"
         val isRight = prefs.getString("handle_${physicalHandleId}_edge", if (physicalHandleId == "sidebar") legacyEdge else "right") == "right"
         val gravityEdge = if (isRight) Gravity.END else Gravity.START
-        
+
         layoutParams = WindowManager.LayoutParams(
             widthPx,
             heightPx,
@@ -80,10 +79,8 @@ class SidebarView(
         ).apply {
             gravity = gravityEdge or Gravity.BOTTOM
             x = 0
-            y = 0 // Wait, shouldn't y match handle position? We can just use 0 for now
+            y = 0
         }
-        
-        orientation = VERTICAL
 
         isFocusableInTouchMode = true
         setOnKeyListener { _, keyCode, event ->
@@ -94,10 +91,10 @@ class SidebarView(
                 false
             }
         }
-        
+
         val opacity = prefs.getFloat("handle_${containerId}_sidebar_transparency", prefs.getFloat("sidebar_transparency", 0.9f))
         val alphaInt = (opacity * 255).toInt().coerceIn(0, 255)
-        
+
         val drawable = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             val colorHex = prefs.getString("handle_${containerId}_sidebar_color", prefs.getString("sidebar_color", "#1E1E2E")) ?: "#1E1E2E"
@@ -106,9 +103,9 @@ class SidebarView(
             val g = Color.green(baseColor)
             val b = Color.blue(baseColor)
             setColor(Color.argb(alphaInt, r, g, b))
-            
+
             setStroke((1 * density).toInt(), Color.argb(80, 255, 255, 255))
-            
+
             val radius = 16f * density
             cornerRadii = if (isRight) {
                 floatArrayOf(radius, radius, 0f, 0f, 0f, 0f, radius, radius)
@@ -117,14 +114,8 @@ class SidebarView(
             }
         }
         background = drawable
-        
-        val marginDp = 8f
-        val marginPx = (marginDp * density).toInt()
-        setPadding(0, marginPx, 0, marginPx)
-        
 
-        // Topbar
-                val isLooping = pageConfigs.size > 2
+        val isLooping = pageConfigs.size > 2
         val startingIndex = if (isLooping) {
             val half = Int.MAX_VALUE / 2
             half - (half % pageConfigs.size) + max(0, defaultPageIndex)
@@ -132,22 +123,58 @@ class SidebarView(
             max(0, defaultPageIndex)
         }
 
-        val topBar = LinearLayout(context).apply {
-            orientation = HORIZONTAL
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#2A2A3C"))
-            setPadding((12 * density).toInt(), (8 * density).toInt(), (12 * density).toInt(), (8 * density).toInt())
+        val headerHeight = (36 * density).toInt()
+        val edgeMargin = (16 * density).toInt()
+
+        val header = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, headerHeight)
         }
 
-        // Edit Button
-        val editBtn = android.widget.ImageView(context).apply {
-            layoutParams = LayoutParams((24 * density).toInt(), (24 * density).toInt())
+        val closeText = TextView(context).apply {
+            text = "✕"
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            layoutParams = FrameLayout.LayoutParams(headerHeight, headerHeight).apply {
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                marginEnd = edgeMargin
+            }
+            setOnClickListener { onClose() }
+        }
+        header.addView(closeText)
+
+        val settingsBtn = android.widget.ImageView(context).apply {
+            setImageResource(android.R.drawable.ic_menu_preferences)
+            setColorFilter(Color.WHITE)
+            setPadding((8*density).toInt(), (8*density).toInt(), (8*density).toInt(), (8*density).toInt())
+            layoutParams = FrameLayout.LayoutParams(headerHeight, headerHeight).apply {
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                marginEnd = edgeMargin + headerHeight
+            }
+            setOnClickListener {
+                val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                context.startActivity(intent)
+                onClose()
+            }
+        }
+        header.addView(settingsBtn)
+
+        editButton = android.widget.ImageView(context).apply {
             setImageResource(android.R.drawable.ic_menu_edit)
             setColorFilter(Color.WHITE)
+            val pad = (8 * density).toInt()
+            setPadding(pad, pad, pad, pad)
+            layoutParams = FrameLayout.LayoutParams(headerHeight, headerHeight).apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                marginStart = edgeMargin
+            }
             setOnClickListener {
                 if (pageConfigs.isNotEmpty()) {
                     val currentItem = viewPager.currentItem
+                    val actualPosition = if (pageConfigs.size > 2) currentItem % pageConfigs.size else currentItem
+                    
                     val recyclerView = viewPager.getChildAt(0) as RecyclerView
                     val holder = recyclerView.findViewHolderForAdapterPosition(currentItem) as? SidebarPageViewHolder
                     var handledLocally = false
@@ -167,58 +194,32 @@ class SidebarView(
                     }
                     
                     if (!handledLocally) {
-                        val actualPosition = if (pageConfigs.size > 2) currentItem % pageConfigs.size else currentItem
-                        val currentPage = pageConfigs[actualPosition]
-                        val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java)
-                        intent.putExtra("sidebar_edit_page_id", currentPage.id)
-                        intent.putExtra("sidebar_container_id", containerId)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        // Fallback to Settings if the view doesn't implement its own editor
+                        val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
                         context.startActivity(intent)
                         onClose()
                     }
                 }
             }
         }
-        topBar.addView(editBtn)
+        header.addView(editButton)
 
-        // Title / Page Indicator
-        val titleText = TextView(context).apply {
-            layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            textSize = 14f
-            text = if (pageConfigs.isNotEmpty()) pageConfigs[startingIndex].title else "Sidebar"
-        }
-        topBar.addView(titleText)
-
-        // Settings Button
-        val settingsBtn = android.widget.ImageView(context).apply {
-            layoutParams = LayoutParams((24 * density).toInt(), (24 * density).toInt())
-            setImageResource(android.R.drawable.ic_menu_preferences)
-            setColorFilter(Color.WHITE)
-            setOnClickListener {
-                val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
-                onClose()
+        container = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = headerHeight
             }
         }
-        topBar.addView(settingsBtn)
 
-        addView(topBar)
-
-        // ViewPager
         viewPager = ViewPager2(context).apply {
             layoutParams = if (wrapContent) {
-                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
             } else {
-                LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f)
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             }
             offscreenPageLimit = if (containerId == "sidebar") 1 else ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
         }
-
-        
-
         
         viewPager.adapter = object : RecyclerView.Adapter<SidebarPageViewHolder>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SidebarPageViewHolder {
@@ -227,18 +228,31 @@ class SidebarView(
                 }
                 return SidebarPageViewHolder(frame)
             }
-
             override fun onBindViewHolder(holder: SidebarPageViewHolder, position: Int) {
                 if (pageConfigs.isEmpty()) return
                 val actualPosition = if (isLooping) position % pageConfigs.size else position
                 val config = pageConfigs[actualPosition]
-                
                 holder.bind(config)
             }
-            
             override fun getItemCount(): Int = if (isLooping) Int.MAX_VALUE else pageConfigs.size
         }
         
+        dotsLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
+                gravity = Gravity.CENTER
+            }
+        }
+        
+        setupDots(pageConfigs.size)
+
+        container.addView(viewPager)
+        header.addView(dotsLayout)
+
+        addView(header)
+        addView(container)
+
         viewPager.setCurrentItem(startingIndex, false)
 
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -246,7 +260,7 @@ class SidebarView(
                 super.onPageSelected(position)
                 if (pageConfigs.isNotEmpty()) {
                     val actualPosition = if (isLooping) position % pageConfigs.size else position
-                    titleText.text = pageConfigs[actualPosition].title
+                    
                 }
                 
                 // Notify lifecycle
@@ -264,10 +278,60 @@ class SidebarView(
                 }
             }
         })
-        
-        addView(viewPager)
     }
     
+    private fun setupDots(count: Int) {
+        dots.clear()
+        dotsLayout.removeAllViews()
+        if (count <= 1) {
+            dotsLayout.visibility = View.GONE
+            return
+        }
+        dotsLayout.visibility = View.VISIBLE
+        val density = context.resources.displayMetrics.density
+        val size = (8 * density).toInt()
+        val margin = (4 * density).toInt()
+        
+        for (i in 0 until count) {
+            val dot = View(context).apply {
+                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                    setMargins(margin, 0, margin, 0)
+                }
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(Color.WHITE)
+                }
+            }
+            dots.add(dot)
+            dotsLayout.addView(dot)
+        }
+        updateDots(0)
+    }
+    
+    private fun updateDots(position: Int) {
+        if (dots.isEmpty()) return
+        val density = context.resources.displayMetrics.density
+        
+        for (i in dots.indices) {
+            val bg = dots[i].background as? android.graphics.drawable.GradientDrawable
+            if (i == position) {
+                bg?.setStroke(0, Color.TRANSPARENT)
+                bg?.setColor(Color.WHITE)
+                dots[i].layoutParams = (dots[i].layoutParams as LinearLayout.LayoutParams).apply {
+                    width = (8 * density).toInt()
+                    height = (8 * density).toInt()
+                }
+            } else {
+                bg?.setStroke((1 * density).toInt(), Color.WHITE)
+                bg?.setColor(Color.TRANSPARENT)
+                dots[i].layoutParams = (dots[i].layoutParams as LinearLayout.LayoutParams).apply {
+                    width = (6 * density).toInt()
+                    height = (6 * density).toInt()
+                }
+            }
+        }
+    }
+
     fun attach() {
         if (!isAttached) {
             windowManager.addView(this, layoutParams)
@@ -275,7 +339,6 @@ class SidebarView(
         }
     }
     
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_OUTSIDE) {
             onClose()
@@ -291,6 +354,7 @@ class SidebarView(
         }
         return super.dispatchKeyEvent(event)
     }
+
     fun detach() {
         if (isAttached) {
             // Notify unselected before removing
@@ -310,14 +374,14 @@ class SidebarView(
     
     inner class SidebarPageViewHolder(private val frame: FrameLayout) : RecyclerView.ViewHolder(frame) {
         var pageView: View? = null
+
         fun bind(config: SidebarPage) {
             frame.removeAllViews()
-            // Here we instantiate the actual views lazily based on config type
             val context = frame.context
             
             pageView = when (config.type) {
-                "calculator" -> com.example.feature.sidebar.CalculatorPageView(context)
-                "compass" -> com.example.feature.sidebar.CompassPageView(context)
+                "calculator" -> CalculatorPageView(context)
+                "compass" -> CompassPageView(context)
                 "apps" -> {
                     val prefKey = "sidebar_apps_${physicalHandleId}_${config.id}"
                     val manager = appsManagers.getOrPut(prefKey) {
@@ -326,7 +390,7 @@ class SidebarView(
                     manager.ensureLoaded()
                     val p = AppsPageView(context, physicalHandleId, config, manager, viewScope,
                         onCloseSidebar = { onClose() },
-                                                onHeightChanged = { newHeight ->
+                        onHeightChanged = { newHeight ->
                             if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
                                 val params = viewPager.layoutParams
                                 if (params.height != newHeight) {
@@ -341,7 +405,7 @@ class SidebarView(
                     p
                 }
                 "hybrid_grid" -> {
-                                        HybridGridPageView(context, config.id) { newHeight ->
+                    HybridGridPageView(context, config.id) { newHeight ->
                         if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
                             val params = viewPager.layoutParams
                             if (params.height != newHeight) {
@@ -353,7 +417,7 @@ class SidebarView(
                     }
                 }
                 "widgets_grid" -> {
-                                        WidgetsGridPageView(context, config.id) { newHeight ->
+                    WidgetsGridPageView(context, config.id) { newHeight ->
                         if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
                             val params = viewPager.layoutParams
                             if (params.height != newHeight) {
@@ -391,9 +455,9 @@ class SidebarView(
                         }
                     }
                 }
-                "scheduler" -> com.example.feature.sidebar.SchedulerPageView(context, viewScope)
-                "notifications" -> com.example.feature.sidebar.NotificationPageView(context, { onClose() }, { /* TODO: onHideApp */ })
-                "resources_tracker" -> com.example.feature.sidebar.ResourcesTrackerPageView(context, viewScope)
+                "scheduler" -> SchedulerPageView(context, viewScope)
+                "notifications" -> NotificationPageView(context, { onClose() }, { /* TODO: onHideApp */ })
+                "resources_tracker" -> ResourcesTrackerPageView(context, viewScope)
                 else -> {
                     TextView(context).apply {
                         text = "Page: ${config.title}\nType: ${config.type}\n(Not Implemented)"

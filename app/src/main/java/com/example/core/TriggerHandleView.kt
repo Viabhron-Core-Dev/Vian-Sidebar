@@ -88,11 +88,11 @@ class TriggerHandleView(
         }
         
         val widthDp = try {
-            prefs.getInt("${prefix}width", if (handleId == "reader") 16 else 6)
+            prefs.getInt("${prefix}width", if (handleId == "reader") 16 else 12)
         } catch (e: Exception) {
             val str = prefs.getString("${prefix}width", "medium") ?: "medium"
             val map = mapOf("small" to 4, "medium" to 6, "large" to 10, "xlarge" to 16)
-            map[str] ?: (if (handleId == "reader") 16 else 6)
+            map[str] ?: (if (handleId == "reader") 16 else 12)
         }
         
         val heightPx = Utils.dpToPx(context, heightDp)
@@ -106,11 +106,11 @@ class TriggerHandleView(
             when (c) {
                 is Int -> c
                 is String -> android.graphics.Color.parseColor(c)
-                else -> android.graphics.Color.GRAY
+                else -> android.graphics.Color.parseColor(if (handleId == "reader") "#44102d42" else "#242962ff")
             }
-        } catch(e: Exception) { android.graphics.Color.GRAY }
+        } catch(e: Exception) { android.graphics.Color.parseColor(if (handleId == "reader") "#44102d42" else "#242962ff") }
         
-        val shapeStr = prefs.getString("${prefix}shape", "rectangle") ?: "rectangle"
+        val shapeStr = prefs.getString("${prefix}shape", if (handleId == "reader") "half_oval" else "slanted_block") ?: if (handleId == "reader") "half_oval" else "slanted_block"
         val edgeStrForShape = prefs.getString("${prefix}edge", "right") ?: "right"
         handleView?.background = HandleShapeDrawable(colorInt, shapeStr, edgeStrForShape)
         

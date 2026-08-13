@@ -30,7 +30,7 @@ class AppTrackerPageView(
     context: Context,
     private val onCloseSidebar: () -> Unit,
     private val onAppSelected: (String) -> Unit
-) : FrameLayout(context) {
+) : FrameLayout(context), SidebarPageControllable {
 
     private val recyclerView: RecyclerView
     private val tvEmpty: TextView
@@ -243,6 +243,14 @@ class AppTrackerPageView(
             val tvTitle: TextView = itemView.findViewById(R.id.tv_title)
             val tvSubtitle: TextView = itemView.findViewById(R.id.tv_subtitle)
         }
+    }
+
+    override fun onEditClicked() {
+        val intent = android.content.Intent(context, com.example.AppTrackerSettingsActivity::class.java).apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+        onCloseSidebar()
     }
 }
 

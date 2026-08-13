@@ -41,7 +41,7 @@ class WidgetsGridPageView(
     context: Context,
     private val pageId: String,
     private val onHeightChanged: (Int) -> Unit
-) : FrameLayout(context) {
+) : FrameLayout(context), SidebarPageControllable {
 
     private val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
 
@@ -362,5 +362,14 @@ class WidgetsGridPageView(
             }
             gridLayout.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, maxHeight)
             onHeightChanged(getCurrentHeightPx())
+    }
+
+    override fun onEditClicked() {
+        val intent = android.content.Intent(context, com.example.WidgetsGridEditActivity::class.java).apply {
+            putExtra("PAGE_ID", pageId)
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+        context.sendBroadcast(android.content.Intent("com.example.CLOSE_SIDEBAR"))
     }
 }
