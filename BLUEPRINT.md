@@ -18,9 +18,9 @@
 
 ## Next Steps (Phase 9+)
 - **Phase 9: The UI Spines (Settings & Add Element)**: Import `SettingsActivity`, `AddElementActivity`, and `ActionPickerActivity` mostly as-is. Wire up migrated pages/services; leave unmigrated features as harmless stubs.
-- **Phase 10: The Background System Hub (Plugins)**: Establish `VianSideAccessibilityService` as a unified System Tools Hub. Migrate `CallRecorderManager` (dormant), `NetSpeedManager` (screen-aware), and Hardware Controls.
-- **Phase 11: Sidebar On-Demand Optimization**: Leverage existing `ViewPager2` lazy-loading. Implement lifecycle management to freeze/thaw background tasks (pause coroutines/polling when off-screen). Migrate remaining dual-mode pages.
-- **Phase 12: Unified Z-Window Manager & Heavy Apps**: Build a centralized Z-Window Manager. Migrate heavy Floating Apps (`FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`, `CursorManager`, `WorkNotesWindowManager`).
-- **Phase 13: OS Popups & Floating Browser**: Migrate Text Selection Popups, Lightweight Floating Browser, eReader and Appywork sub-systems.
+- **Phase 10: The Background System Hub (Plugins & Accessibility)**: Establish `VianSideAccessibilityService` as a unified System Tools Hub (orchestrator loaded on-demand). Migrate `CallRecorderManager` (dormant), `NetSpeedManager` (screen-aware, no overlay, updates notification icon), and Hardware Controls.
+- **Phase 11: Sidebar On-Demand Optimization (COMPLETED)**: Leveraged existing `ViewPager2` lazy-loading.
+- **Phase 12: Unified Z-Window Manager & OS Popups**: Build a centralized Z-Window Manager. Migrate Text Selection Popups and Lightweight Floating Browser.
+- **Phase 13: Heavy Floating Mini-Apps (Pre-PWA Bridge)**: Migrate heavy Floating Apps (`FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`, `CursorManager` UI, `WorkNotesWindowManager`, and Appywork). These are the final heavy native windows before PWA.
 - **Phase 14: PWA Engine**: Migrate `PwaWindowManager`, `PwaServer`, and `PwaDatabase`.
 - **Phase 15: Polish, Launcher Prep & Finalization**: Implement Advanced Floating Grouping, Backup & Restore JSON framework, prepare architecture hooks for the external Android Launcher merge, and eradicate `reference/`.

@@ -266,8 +266,6 @@ class SidebarView(
         })
         
         addView(viewPager)
-
-        addView(viewPager)
     }
     
     fun attach() {
@@ -393,6 +391,9 @@ class SidebarView(
                         }
                     }
                 }
+                "scheduler" -> com.example.feature.sidebar.SchedulerPageView(context, viewScope)
+                "notifications" -> com.example.feature.sidebar.NotificationPageView(context, { onClose() }, { /* TODO: onHideApp */ })
+                "resources_tracker" -> com.example.feature.sidebar.ResourcesTrackerPageView(context, viewScope)
                 else -> {
                     TextView(context).apply {
                         text = "Page: ${config.title}\nType: ${config.type}\n(Not Implemented)"

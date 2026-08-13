@@ -16,12 +16,19 @@ import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.util.AppLogger
 import com.example.feature.miniapps.reader.ReaderHandleView
+import com.example.core.NetSpeedManager
+import com.example.feature.system_hub.CallRecorderManager
 
 class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListener {
     private lateinit var windowManager: WindowManager
     private lateinit var prefs: SharedPreferences
     private val triggerHandleViews = mutableListOf<TriggerHandleView>()
     private var readerHandleView: ReaderHandleView? = null
+    private var netSpeedManager: NetSpeedManager? = null
+    private var callRecorderManager: CallRecorderManager? = null
+    private var screenStateReceiver: BroadcastReceiver? = null
+    private var downSpeed: Long = 0
+    private var upSpeed: Long = 0
 
     companion object {
         const val ACTION_RELOAD_HANDLES = "com.example.ACTION_RELOAD_HANDLES"
@@ -53,6 +60,92 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             readerHandleView?.attach()
         }
         reloadHandles()
+    }
+
+
+    private fun setupNetSpeed() {
+        if (prefs.getBoolean("netspeed_enabled", false)) {
+            if (netSpeedManager == null) {
+                netSpeedManager = NetSpeedManager(this, prefs, 
+                    onSpeedUpdate = { down, up ->
+                        downSpeed = down
+                        upSpeed = up
+                        updateForegroundNotification()
+                    },
+                    onDailyDataUpdate = { _, _ -> }
+                )
+            }
+            netSpeedManager?.start()
+        } else {
+            netSpeedManager?.stop()
+            downSpeed = 0
+            upSpeed = 0
+            updateForegroundNotification()
+        }
+    }
+
+    private fun setupCallRecorder() {
+        if (callRecorderManager == null) {
+            callRecorderManager = CallRecorderManager(this, prefs)
+        }
+        if (prefs.getBoolean("call_recorder_enabled", false) || prefs.getBoolean("call_recorder_manual_enabled", false)) {
+            callRecorderManager?.startListening()
+        } else {
+            callRecorderManager?.stopListening()
+        }
+    }
+
+    private fun setupScreenStateReceiver() {
+        screenStateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    Intent.ACTION_SCREEN_ON -> {
+                        if (prefs.getBoolean("netspeed_enabled", false)) {
+                            netSpeedManager?.start()
+                        }
+                    }
+                    Intent.ACTION_SCREEN_OFF -> {
+                        netSpeedManager?.stop()
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        registerReceiver(screenStateReceiver, filter)
+    }
+    
+
+    
+    private fun formatSpeed(bytes: Long): String {
+        if (bytes < 1024) return "${bytes} B/s"
+        val kb = bytes / 1024.0
+        if (kb < 1024) return String.format("%.1f KB/s", kb)
+        val mb = kb / 1024.0
+        return String.format("%.1f MB/s", mb)
+    }
+
+    private fun updateForegroundNotification() {
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
+        
+        val contentText = if (prefs.getBoolean("netspeed_enabled", false)) {
+            "↓ ${formatSpeed(downSpeed)}   ↑ ${formatSpeed(upSpeed)}"
+        } else {
+            "Listening for edge gestures"
+        }
+        
+        val notification = NotificationCompat.Builder(this, "handle_channel")
+            .setContentTitle("Handles Active")
+            .setContentText(contentText)
+            .setSmallIcon(android.R.drawable.ic_menu_crop) // Placeholder icon
+            .setContentIntent(pendingIntent)
+            .build()
+        
+        val manager = getSystemService(NotificationManager::class.java)
+        manager?.notify(2, notification)
     }
 
     private fun startForegroundService() {
@@ -92,6 +185,12 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        if (key == "netspeed_enabled") {
+            setupNetSpeed()
+        } else if (key == "call_recorder_enabled" || key == "call_recorder_manual_enabled") {
+            setupCallRecorder()
+        }
+        
         if (key != null && (key.startsWith("handle_") || key == "handles_list")) {
             // Need to update or recreate
             if (key.endsWith("_height") || key.endsWith("_width") || key.endsWith("_y") || key.endsWith("_edge") || key.endsWith("_color") || key.endsWith("_opacity") || key.endsWith("_position")) {

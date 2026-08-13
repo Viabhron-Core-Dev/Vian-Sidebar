@@ -85,8 +85,7 @@ fun SettingsApp(startRoute: String, onFinish: () -> Unit) {
                 "data" -> DataSettingsScreen(
                     onBack = { currentRoute = "main" }
                 )
-                "pages" -> SidebarSettingsScreen(
-                    handleId = "sidebar",
+                "pages" -> PageManagementSettingsScreen(
                     onBack = { currentRoute = "main" }
                 )
                 "handles" -> HandlesListSettingsScreen(
@@ -667,8 +666,8 @@ fun ScreenCapSettingsScreen(onBack: () -> Unit) {
     }
 }
 
-@androidx.compose.runtime.Composable fun NetSpeedSettingsScreen(onBack: () -> Unit) {}
-@androidx.compose.runtime.Composable fun CallRecorderSettingsScreen(onBack: () -> Unit) {}
+
+
 @androidx.compose.runtime.Composable fun DictionarySettingsScreen(onBack: () -> Unit) {}
 @androidx.compose.runtime.Composable fun WelcomeScreen(onContinue: () -> Unit) {}
 @androidx.compose.runtime.Composable fun BrowserSettingsScreen(onBack: () -> Unit) {}

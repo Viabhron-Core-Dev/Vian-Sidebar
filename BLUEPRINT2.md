@@ -29,9 +29,9 @@ As we rebuild features from the reference folder, we will integrate the followin
 *   **Appywork (Vibe Coding Hub):**
     A specialized, modular floating code editor and Git management overlay (Appywork). It must be strictly isolated and easy to remove from the app, similar to the Call Recorder. It interacts with mobile browsers via `PROCESS_TEXT` ("Push via Appywork"), uses the WindowManager for floating UI, includes an embedded NanoHTTPD server for PWA preview, and performs stateless push operations via GitHub APIs.
 *   **System Overlays (NetSpeed):**
-    Standalone system indicators like the `NetSpeedManager` must be integrated into the new WindowManager framework so they can be toggled and managed alongside other floating utilities.
+    Standalone system indicators like the `NetSpeedManager` must strictly dynamically update the foreground notification icon ONLY. There is no floating overlay required. It must be tied to `ACTION_SCREEN_ON`/`OFF` to save battery.
 *   **Accessibility Suite & Screen Recording:**
-    Utilities that rely on `AccessibilityService` (Cursor, Auto-Scroll, Long Screenshot) and `MediaProjection` (Screen Record) must be decoupled from the core services. They should only be active when explicitly triggered.
+    The `VianSideAccessibilityService` must act as a modular orchestrator. Utilities that rely on it (Cursor, Auto-Scroll, Long Screenshot) and `MediaProjection` (Screen Record) must be decoupled and loaded *strictly on-demand*. They should only occupy memory when explicitly triggered.
 *   **Background Event Receivers:**
     Network stats monitoring (midnight reset), notification tracking (`NotificationListenerService`), and boot triggers (`BootReceiver`) must be migrated as lightweight background tasks that do not inflate the memory footprint of the core `HandleService`.
 *   **Iconography Placeholders:**
@@ -113,10 +113,10 @@ The legacy architecture relied on massive, monolithic services handling everythi
 *   Wire up migrated pages/services; leave unmigrated features as harmless stubs.
 *   Prepare UI lists to send intents to our decoupled unified managers.
 
-**PHASE 10: The Background System Hub (Plugins)**
-*   Establish `VianSideAccessibilityService` as a unified System Tools Hub.
+**PHASE 10: The Background System Hub (Plugins & Accessibility)**
+*   Establish `VianSideAccessibilityService` as a unified System Tools Hub (orchestrator for Cursor, AutoScroll, LongScreenshot, loaded strictly on-demand).
 *   Migrate `CallRecorderManager` as a 100% dormant plugin, waking only via `TelephonyManager`.
-*   Migrate `NetSpeedManager` as a screen-aware plugin (`ACTION_SCREEN_ON`/`OFF`).
+*   Migrate `NetSpeedManager` as a screen-aware plugin (`ACTION_SCREEN_ON`/`OFF`) updating the notification only (NO overlay).
 *   Migrate Hardware Controls (`QuickTileHandler`, `MediaVolumeHandler`, `DisplayHandler`).
 
 **PHASE 11: Sidebar On-Demand Optimization**

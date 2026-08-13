@@ -140,5 +140,15 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+        <service
+            android:name=".service.AppNotificationListener"
+            android:label="Vian Notification Listener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <activity android:name=".feature.settings.TagManagementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
 </application>
 </manifest>

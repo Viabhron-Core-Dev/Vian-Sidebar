@@ -1,34 +1,16 @@
-import os
-import glob
+import re
 
-def prepend_imports(filepath, imports):
-    with open(filepath, 'r') as f:
-        content = f.read()
+files_to_fix = [
+    'app/src/main/java/com/example/feature/sidebar/NotificationPageView.kt',
+    'app/src/main/java/com/example/feature/sidebar/SchedulerPageView.kt',
+]
+
+for file_path in files_to_fix:
+    with open(file_path, 'r') as f:
+        text = f.read()
     
-    # Insert right after the package declaration
-    lines = content.split('\n')
-    for i, line in enumerate(lines):
-        if line.startswith('package '):
-            for imp in imports:
-                lines.insert(i+1, imp)
-            break
+    text = text.replace('import com.example.R', 'import com.example.R\nimport com.example.core.LogKeeper\nimport com.example.feature.settings.TagManagementActivity')
     
-    with open(filepath, 'w') as f:
-        f.write('\n'.join(lines))
-
-prepend_imports('app/src/main/java/com/example/feature/sidebar/SidebarView.kt', [
-    'import android.view.ViewGroup'
-])
-
-for f in ['HybridGridPageView.kt', 'WidgetsGridPageView.kt', 'AppsPageView.kt']:
-    filepath = f"app/src/main/java/com/example/feature/sidebar/{f}"
-    if os.path.exists(filepath):
-        prepend_imports(filepath, [
-            'import com.example.service.FloatingTriggerService',
-            'import com.example.service.PageWindowService',
-            'import com.example.service.QuickTileHandler',
-            'import com.example.service.MediaVolumeHandler',
-            'import com.example.service.DisplayHandler',
-            'import com.example.service.AppWidgetHelper'
-        ])
+    with open(file_path, 'w') as f:
+        f.write(text)
 

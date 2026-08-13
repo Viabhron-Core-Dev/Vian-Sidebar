@@ -1,7 +1,22 @@
-- 2026-07-26T13:40:00-07:00
-- Removed the "Sidebar" option from the gesture category options for all handles.
-- Modified app/src/main/java/com/example/HandlesListSettingsScreen.kt
-- Updated `categoryOptions` in `HandlesListSettingsScreen` to only contain "Page" and "Action/Element", regardless of whether it is the "sidebar" handle or not.
-- Verified by local build (gradle :app:compileDebugKotlin)
-- No deviation from requested.
-- None
+# RECEIPTS_010.md
+
+- **Timestamp:** 2026-08-12T14:45
+- **Requested:** Implement Path B and PageManagementSettingsScreen.kt import.
+- **Files touched:**
+  - `app/src/main/java/com/example/feature/sidebar/SchedulerPageView.kt` (Imported from reference)
+  - `app/src/main/java/com/example/feature/sidebar/NotificationPageView.kt` (Imported from reference)
+  - `app/src/main/java/com/example/feature/sidebar/ResourcesTrackerPageView.kt` (Imported from reference)
+  - `app/src/main/java/com/example/utils/ActiveAppTracker.kt` (Imported from reference)
+  - `app/src/main/java/com/example/feature/settings/TagManagementActivity.kt` (Imported from reference)
+  - `app/src/main/java/com/example/feature/settings/PageManagementSettingsScreen.kt` (Imported from reference)
+  - `app/src/main/AndroidManifest.xml`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+  - `app/src/main/java/com/example/feature/settings/SettingsActivity.kt`
+- **What was done:**
+  - Imported `ActiveAppTracker.kt`, `SchedulerPageView.kt`, `NotificationPageView.kt`, `ResourcesTrackerPageView.kt`, `TagManagementActivity.kt`, and `PageManagementSettingsScreen.kt` from the `reference/` folder to the active `app/` structure.
+  - Corrected package definitions and fully-qualified references (e.g., `LogKeeper`, `TagManagementActivity`).
+  - Registered `AppNotificationListener` (with `BIND_NOTIFICATION_LISTENER_SERVICE`) and `TagManagementActivity` in `AndroidManifest.xml`.
+  - Updated `SidebarView.kt` instantiation block to map the `"scheduler"`, `"notifications"`, and `"resources_tracker"` configs to their respective imported view classes.
+  - Updated `SettingsActivity.kt` to route the `"pages"` setting directly to `PageManagementSettingsScreen` instead of `SidebarSettingsScreen`.
+- **Verification:** Local build only (`gradle compileDebugKotlin`). Success.
+- **Deviation:** None. Fully executed Path B (Migrate).

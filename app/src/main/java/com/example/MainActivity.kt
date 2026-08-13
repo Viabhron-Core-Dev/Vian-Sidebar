@@ -44,7 +44,9 @@ class MainActivity : ComponentActivity() {
                         onContinue = {
                             prefs.edit().putBoolean("first_launch", false).apply()
                             startSidebarService()
-                            startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+                            startActivity(Intent(this@MainActivity, SettingsActivity::class.java).apply {
+                                putExtra("start_route", "handles")
+                            })
                             finish()
                         },
                         isFirstLaunch = true

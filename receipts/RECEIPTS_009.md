@@ -1,17 +1,12 @@
-2026-08-05 21:10:00 - Implemented Simple File Explorer Floating Window
-- Files touched:
-  - `FileExplorerFloatingService.kt`
-  - `FileExplorerWindowManager.kt`
-  - `FileExplorerLauncherActivity.kt`
-  - `AndroidManifest.xml`
-- What was actually done:
-  - Created `FileExplorerFloatingService` and `FileExplorerWindowManager` using Jetpack Compose.
-  - Styled with a dark theme (Surface: #282B30, Background: #1E2124) as requested.
-  - Implemented top breadcrumb navigation for traversing directory hierarchies.
-  - Implemented file list with folder/file icons, modified date, and size using `LazyColumn`.
-  - Added multi-select support using `combinedClickable` (long press).
-  - Implemented core file operations: open (via `FileProvider` intent), copy, move(cut), rename, and delete for single and multiple selected files.
-  - Added bottom action bar that adapts to selection state (Search/Add/Refresh/Bookmarks when no selection; Delete/Copy/Cut/Rename/Info when files are selected).
-  - Added bookmarking capabilities allowing users to bookmark directories and access them via the Bookmarks dialog.
-  - Registered the service and launcher activity in `AndroidManifest.xml`.
-- How it was verified: local build only.
+# RECEIPTS_009.md
+
+- **Timestamp:** 2026-08-12T13:31
+- **Requested:** Implement fixes for Sidebar crash and Welcome screen routing.
+- **Files touched:**
+  - `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+  - `app/src/main/java/com/example/MainActivity.kt`
+- **What was done:**
+  - Removed the duplicate `addView(viewPager)` call in `SidebarView.kt` which was causing an `IllegalStateException` on instantiation.
+  - Modified the `onContinue` intent in `MainActivity.kt` to include `putExtra("start_route", "handles")`, correctly routing users to the Handle Management screen after the initial onboarding flow.
+- **Verification:** Local build only (`gradle compileDebugKotlin`). Success.
+- **Deviation:** None. The fixes were implemented exactly as discussed.
