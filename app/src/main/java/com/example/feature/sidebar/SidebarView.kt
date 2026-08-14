@@ -195,8 +195,14 @@ class SidebarView(
                     
                     if (!handledLocally) {
                         // Fallback to Settings if the view doesn't implement its own editor
+                        val pageConfig = pageConfigs.getOrNull(actualPosition)
                         val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            if (pageConfig != null) {
+                                putExtra("start_route", "pages_${containerId}|edit_page:${pageConfig.id}")
+                            } else {
+                                putExtra("start_route", "pages_${containerId}")
+                            }
                         }
                         context.startActivity(intent)
                         onClose()
@@ -218,7 +224,7 @@ class SidebarView(
             } else {
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             }
-            offscreenPageLimit = if (containerId == "sidebar") 1 else ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
+            offscreenPageLimit = if (physicalHandleId == "sidebar") 1 else ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
         }
         
         viewPager.adapter = object : RecyclerView.Adapter<SidebarPageViewHolder>() {
@@ -405,7 +411,7 @@ class SidebarView(
                     p
                 }
                 "hybrid_grid" -> {
-                    HybridGridPageView(context, config.id) { newHeight ->
+                    HybridGridPageView(context, config.id, viewScope) { newHeight ->
                         if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
                             val params = viewPager.layoutParams
                             if (params.height != newHeight) {
@@ -417,7 +423,7 @@ class SidebarView(
                     }
                 }
                 "widgets_grid" -> {
-                    WidgetsGridPageView(context, config.id) { newHeight ->
+                    WidgetsGridPageView(context, config.id, viewScope) { newHeight ->
                         if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
                             val params = viewPager.layoutParams
                             if (params.height != newHeight) {

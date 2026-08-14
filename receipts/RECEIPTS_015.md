@@ -1,14 +1,11 @@
-- 2026-07-26T15:25:00-07:00
-- Add a new "Utilities" subsection in Add element with a Blue light filter toggle.
-- Created `app/src/main/java/com/example/service/BlueLightFilterManager.kt`
-- Modified `app/src/main/java/com/example/service/SidebarAppsManager.kt`
-- Modified `app/src/main/java/com/example/service/DisplayHandler.kt`
-- Modified `app/src/main/java/com/example/service/AppsPageView.kt`
-- Modified `app/src/main/java/com/example/AddElementActivity.kt`
-- Added "Utilities" section above "App Custom" in `AddElementActivity.kt`.
-- Created `BlueLightFilterManager` object to manage a `SYSTEM_ALERT_WINDOW` that adds a transparent orange/yellow color filter (`#33FF8800`) across the whole screen while ignoring touches.
-- Exposed the `display:blue_light_filter` action logic in `DisplayHandler`, enabling the filter toggle and sending a broadcast (`UPDATE_SIDEBAR_ICONS`) to refresh the sidebar UI.
-- Updated `AppsPageView` to apply a `#FF9900` tint to the Blue light filter toggle button when it is active.
-- Verified by local build (gradle :app:compileDebugKotlin)
-- No deviation from requested.
-- None
+* Timestamp: 2026-08-14T09:46:00-07:00
+* One-line summary: Fixed the Fast-Load / Lazy-Load Sidebar Bug by correcting the ViewPager offscreen limit check.
+* Exact files touched:
+    * `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+* What was actually done:
+    * Changed the ViewPager2 `offscreenPageLimit` evaluation in `SidebarView.kt`.
+    * Replaced the incorrect `if (containerId == "sidebar")` check with `if (physicalHandleId == "sidebar")`.
+    * This restores the intended behavior where the primary sidebar (Hybrid Grid) is semi-loaded in memory for fast access, while dynamically generated secondary handles default to strict lazy-loading.
+* How it was verified: Local build.
+* Any deviation from what was requested: None, applied exactly the fix discussed.
+* Known issues: None.

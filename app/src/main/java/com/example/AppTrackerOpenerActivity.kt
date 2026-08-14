@@ -1,5 +1,5 @@
 package com.example
-import com.example.service.VianSideAccessibilityService
+import com.example.feature.system_hub.VianSideAccessibilityService
 
 import android.app.Activity
 import android.content.Context
@@ -26,7 +26,7 @@ class AppTrackerOpenerActivity : Activity() {
         }
         
         if (isAutoForceStop) {
-            com.example.service.VianSideAccessibilityService.isForceStopping = true
+            com.example.feature.system_hub.VianSideAccessibilityService.isForceStopping = true
         }
         
         openNext()
@@ -46,7 +46,7 @@ class AppTrackerOpenerActivity : Activity() {
             }
         } else {
             if (isAutoForceStop) {
-                com.example.service.VianSideAccessibilityService.isForceStopping = false
+                com.example.feature.system_hub.VianSideAccessibilityService.isForceStopping = false
             }
             finish()
         }
@@ -61,6 +61,6 @@ class AppTrackerOpenerActivity : Activity() {
     
     override fun onDestroy() {
         super.onDestroy()
-        com.example.service.VianSideAccessibilityService.isForceStopping = false
+        com.example.feature.system_hub.VianSideAccessibilityService.isForceStopping = false
     }
 }

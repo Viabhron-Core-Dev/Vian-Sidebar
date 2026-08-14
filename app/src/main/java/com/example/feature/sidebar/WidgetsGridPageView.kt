@@ -1,10 +1,10 @@
 package com.example.feature.sidebar
-import com.example.service.FloatingReaderService
-import com.example.service.VianSideAccessibilityService
-import com.example.service.AppWidgetHelper
-import com.example.service.DisplayHandler
-import com.example.service.MediaVolumeHandler
-import com.example.service.QuickTileHandler
+import com.example.feature.miniapps.reader.FloatingReaderService
+import com.example.feature.system_hub.VianSideAccessibilityService
+import com.example.core.AppWidgetHelper
+import com.example.feature.system_hub.DisplayHandler
+import com.example.feature.system_hub.MediaVolumeHandler
+import com.example.feature.system_hub.QuickTileHandler
 import com.example.service.FloatingTriggerService
 
 import android.appwidget.AppWidgetManager
@@ -40,12 +40,13 @@ data class GridWidgetItem(
 class WidgetsGridPageView(
     context: Context,
     private val pageId: String,
+    private val scope: CoroutineScope,
     private val onHeightChanged: (Int) -> Unit
 ) : FrameLayout(context), SidebarPageControllable {
 
     private val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
 
-    private val appsManager = SidebarAppsManager(context, prefs, CoroutineScope(Dispatchers.IO), "wg_${pageId}") {
+    private val appsManager = SidebarAppsManager(context, prefs, scope, "wg_${pageId}") {
         post { loadWidgets() }
     }
 
@@ -292,7 +293,7 @@ class WidgetsGridPageView(
                                 hostView.getLocationOnScreen(location)
                                 val x = location[0]
                                 var y = location[1] - popupLayout.measuredHeight
-                                if (y < 0) y = location[1] + hostView.height
+                                if (y < 0) y = location[1] + hostView.measuredHeight
                                 popupWindow?.showAtLocation(hostView, Gravity.NO_GRAVITY, x, y)
                                 true
                             }
@@ -306,7 +307,7 @@ class WidgetsGridPageView(
                             
                             label.text = parsed.label
                             
-                            CoroutineScope(Dispatchers.Main).launch {
+                            scope.launch {
                                 val bmp = appsManager.getIconBitmap(item.id)
                                 if (bmp != null) {
                                     icon.setImageBitmap(bmp)

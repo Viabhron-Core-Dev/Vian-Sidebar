@@ -1,17 +1,17 @@
-# RECEIPTS_011.md
-
-- **Timestamp:** 2026-08-12T15:00
-- **Requested:** Update blueprint with refined roadmap.
-- **Files touched:**
-  - `PHASE_PLAN.md`
-  - `BLUEPRINT.md`
-  - `BLUEPRINT2.md`
-- **What was done:**
-  - Updated `PHASE_PLAN.md` to re-order the phases per the user's constraints:
-    - Phase 10: Explicitly structured as a System Hub (Accessibility orchestrator). Clarified that NetSpeed operates without overlays (updating foreground notification dynamically on screen on/off). Modules like Cursor and AutoScroll are loaded strictly on-demand.
-    - Phase 11: Marked as COMPLETED.
-    - Phase 12: Unified Z-Window Manager & OS Popups.
-    - Phase 13: Heavy Floating Mini-Apps (Pre-PWA Bridge). Grouped File Explorer, Terminals, and Appywork together as the final heavy native windows before introducing the PWA engine.
-  - Updated `BLUEPRINT.md` and `BLUEPRINT2.md` to reflect the same structural philosophy, ensuring the distinction between on-demand loading, zero-overlay notifications, and the sequential flow of heavy native apps before PWA is documented.
-- **Verification:** Not tested (documentation update).
-- **Deviation:** None.
+* Timestamp: 2026-08-14T05:58:00-07:00
+* One-line summary: Migrated and connected missing Activity Pickers for the Add Element page
+* Exact files touched: 
+    * `app/src/main/AndroidManifest.xml`
+    * `app/src/main/java/com/example/feature/settings/AddElementActivity.kt`
+    * `app/src/main/java/com/example/feature/settings/AppPickerActivity.kt` (migrated)
+    * `app/src/main/java/com/example/feature/settings/ShortcutPickerActivity.kt` (migrated)
+    * `app/src/main/java/com/example/feature/settings/IntentPickerActivity.kt` (migrated)
+* What was actually done: 
+    * Ported the App, Shortcut, and Intent picker activities from the `reference/` directory to the active `feature/settings` module.
+    * Fixed internal dependency paths (e.g. `SidebarAppsManager`, `LogKeeper`, `AppInfo`) within the migrated activities.
+    * Registered the new activities in `AndroidManifest.xml`.
+    * Removed all `// Stubbed` dead-ends in `AddElementActivity.kt` and wired them up to launch their respective pickers via `startActivityForResult`.
+    * Implemented the inline Android `AlertDialog` logic for the "Link" item to allow users to input a custom title and URL.
+* How it was verified: local build only (Gradle compilation successful)
+* Any deviation from what was requested: None. Implemented exactly as planned in the previous discussion.
+* Known issues: The `startActivityForResult` API is officially deprecated in modern Android in favor of Activity Result Contracts, but remains fully functional. No architectural changes were made to respect strict migration isolation.

@@ -1,10 +1,10 @@
 package com.example.feature.sidebar
-import com.example.service.FloatingReaderService
-import com.example.service.VianSideAccessibilityService
-import com.example.service.AppWidgetHelper
-import com.example.service.DisplayHandler
-import com.example.service.MediaVolumeHandler
-import com.example.service.QuickTileHandler
+import com.example.feature.miniapps.reader.FloatingReaderService
+import com.example.feature.system_hub.VianSideAccessibilityService
+import com.example.core.AppWidgetHelper
+import com.example.feature.system_hub.DisplayHandler
+import com.example.feature.system_hub.MediaVolumeHandler
+import com.example.feature.system_hub.QuickTileHandler
 import com.example.service.FloatingTriggerService
 
 import android.appwidget.AppWidgetManager
@@ -36,12 +36,13 @@ import org.json.JSONObject
 class HybridGridPageView(
     context: Context,
     private val pageId: String,
+    private val scope: CoroutineScope,
     private val onHeightChanged: (Int) -> Unit
 ) : FrameLayout(context), SidebarPageControllable {
 
     private val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
 
-    private val appsManager = SidebarAppsManager(context, prefs, CoroutineScope(Dispatchers.IO), "hg_${pageId}") {
+    private val appsManager = SidebarAppsManager(context, prefs, scope, "hg_${pageId}") {
         post { loadWidgets() }
     }
 
@@ -302,7 +303,7 @@ class HybridGridPageView(
                                 hostView.getLocationOnScreen(location)
                                 val x = location[0]
                                 var y = location[1] - popupLayout.measuredHeight
-                                if (y < 0) y = location[1] + hostView.height
+                                if (y < 0) y = location[1] + hostView.measuredHeight
                                 popupWindow?.showAtLocation(hostView, Gravity.NO_GRAVITY, x, y)
                                 true
                             }
@@ -322,8 +323,8 @@ class HybridGridPageView(
                             
                             label.text = parsed.label
                             
-                            appsManager.bindIcon(item.id, icon, prefs, CoroutineScope(Dispatchers.Main)) {
-                                appsManager.bindIcon(item.id, icon, prefs, CoroutineScope(Dispatchers.Main)) {}
+                            appsManager.bindIcon(item.id, icon, prefs, scope) {
+                                appsManager.bindIcon(item.id, icon, prefs, scope) {}
                             }
                             
                             elementView.setOnClickListener {
@@ -362,15 +363,38 @@ class HybridGridPageView(
                                         context.startActivity(intent)
                                     } catch (e: Exception) {}
                                 } else if (parsed is SidebarItem.SystemAction) {
-                                    if (parsed.action == "screen_record") {
-                                        val intent = Intent(context, ScreenRecordActivity::class.java)
+                                    if (parsed.action == "log_keeper") {
+                                        val intent = Intent(context, com.example.LogKeeperActivity::class.java)
                                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         context.startActivity(intent)
-                                    } else {
+                                    } else if (parsed.action == "dictionary_floating" || parsed.action == "translation_floating" || parsed.action == "hybrid_grid_floating" || parsed.action == "dictionary_full" || parsed.action == "work_notes") {
                                         val intent = Intent(context, com.example.service.SidebarService::class.java)
                                         intent.action = "EXECUTE_ACTION"
                                         intent.putExtra("ACTION_ID", "system:" + parsed.action)
                                         context.startService(intent)
+                                    } else if (parsed.action == "ebook_reader") {
+                                        val intent = Intent(context, com.example.feature.miniapps.reader.FloatingReaderService::class.java)
+                                        intent.putExtra("UNFOLD", true)
+                                        context.startService(intent)
+                                    } else if (parsed.action == "screen_record") {
+                                        val intent = Intent(context, ScreenRecordActivity::class.java)
+                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    } else if (parsed.action == "settings") {
+                                        val intent = Intent(context, com.example.SettingsActivity::class.java)
+                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                    } else {
+                                        val service = com.example.feature.system_hub.VianSideAccessibilityService.instance
+                                        if (service != null && service.performAction(parsed.action)) {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "System action trigger: ${parsed.action}")
+                                        } else {
+                                            android.widget.Toast.makeText(context, "Please enable VianSide Accessibility Service", android.widget.Toast.LENGTH_SHORT).show()
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Failed system action trigger: ${parsed.action}")
+                                            val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            try { context.startActivity(intent) } catch (e: Exception) {}
+                                        }
                                     }
                                 } else if (parsed is SidebarItem.VolumeAction) {
                                     try {
@@ -575,7 +599,7 @@ class HybridGridPageView(
                 val label = holder.itemView.findViewById<android.widget.TextView>(com.example.R.id.app_label)
                 label.text = parsed.label
                 
-                appsManager.bindIcon(itemId, icon, prefs, CoroutineScope(Dispatchers.Main)) {}
+                appsManager.bindIcon(itemId, icon, prefs, scope) {}
                 
                 holder.itemView.setOnClickListener {
                     if (parsed is SidebarItem.App) {
@@ -812,7 +836,7 @@ class HybridGridPageView(
         popupView.background = popupBg
         
         val appWidgetManager = AppWidgetManager.getInstance(context)
-        val host = com.example.service.AppWidgetHelper.getHost(context)
+        val host = com.example.core.AppWidgetHelper.getHost(context)
         val info = appWidgetManager.getAppWidgetInfo(widget.widgetId)
         
         var popupWindow: PopupWindow? = null

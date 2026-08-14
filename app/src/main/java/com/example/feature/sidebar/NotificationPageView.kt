@@ -64,6 +64,15 @@ class NotificationPageView(
         recyclerView.layoutManager = LinearLayoutManager(context)
         recyclerView.adapter = adapter
 
+
+        findViewById<View>(R.id.btn_history).setOnClickListener {
+            val historyIntent = Intent(context, com.example.NotificationHistoryActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(historyIntent)
+            onCloseSidebar()
+        }
+        
         findViewById<View>(R.id.btn_grant).setOnClickListener {
             val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

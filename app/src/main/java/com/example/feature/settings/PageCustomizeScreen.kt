@@ -68,13 +68,38 @@ fun PageCustomizeScreen(
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
 
             item {
-                if (page.type == "apps" || page.type == "widgets_grid" || page.type == "hybrid_grid") {
+                if (page.type == "apps" || page.type == "widgets_grid" || page.type == "hybrid_grid" || page.type == "app_tracker") {
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
-                        onClick = { /* Not supported in this phase */ },
+                        onClick = {
+                            val targetClass = when (page.type) {
+                                "apps" -> com.example.SidebarEditActivity::class.java
+                                "widgets_grid" -> com.example.WidgetsGridEditActivity::class.java
+                                "hybrid_grid" -> com.example.HybridGridEditActivity::class.java
+                                "app_tracker" -> com.example.AppTrackerSettingsActivity::class.java
+                                else -> null
+                            }
+                            if (targetClass != null) {
+                                val intent = Intent(context, targetClass).apply {
+                                    if (page.type != "app_tracker") {
+                                        putExtra("PAGE_ID", page.id)
+                                    }
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     ) {
-                        Text(if (page.type == "apps") "EDIT APPS" else if (page.type == "hybrid_grid") "EDIT GRID" else "EDIT WIDGETS")
+                        Text(
+                            when (page.type) {
+                                "apps" -> "EDIT APPS"
+                                "hybrid_grid" -> "EDIT GRID"
+                                "widgets_grid" -> "EDIT WIDGETS"
+                                "app_tracker" -> "EDIT TRACKER"
+                                else -> "EDIT"
+                            }
+                        )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }

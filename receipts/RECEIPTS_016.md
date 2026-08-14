@@ -1,8 +1,12 @@
-- 2026-07-27T05:35:00-07:00
-- Fixed an issue where the Sidebar edit screen was not saving changes to the apps grid page.
-- Modified `app/src/main/java/com/example/SidebarEditActivity.kt`
-- In `SidebarEditActivity.kt`, the `saveIds()` function was incorrectly hardcoding the SharedPreferences save key as `sidebar_apps_${pageId}`. This meant it was saving changes to `sidebar_apps_default_apps`, whereas the Sidebar actually reads from `sidebar_apps_${handleId}_${pageId}` (e.g., `sidebar_apps_sidebar_default_apps`).
-- Added a `myPrefKey` string to `SidebarEditActivity` that correctly evaluates the full prefix based on the given Handle ID (such as `sidebar` or `trigger_left`) and updated the `saveIds()` function to save to this fully qualified key.
-- Verified by local build (gradle :app:compileDebugKotlin)
-- No deviation from requested.
-- None
+* Timestamp: 2026-08-14T09:51:33-07:00
+* One-line summary: Fixed the payload mismatch bug in IntentPickerActivity.
+* Exact files touched:
+    * `app/src/main/java/com/example/feature/settings/IntentPickerActivity.kt`
+* What was actually done:
+    * Modified the `onIntentSelected` callback inside `IntentPickerActivity.kt`.
+    * Previously, it returned raw `LABEL` and `URI` extras, which `AddElementActivity` ignored.
+    * It now correctly encodes the label and URI and constructs the standardized `"intent:$encodedLabel:$encodedUri"` format.
+    * The constructed ID is now passed back to `AddElementActivity` using the expected `ELEMENT_ID` key.
+* How it was verified: Local build.
+* Any deviation from what was requested: None, applied exactly the fix discussed.
+* Known issues: None.

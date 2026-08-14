@@ -23,7 +23,7 @@ import java.util.Locale
 
 class DictionaryView(context: Context) : FrameLayout(context) {
 
-    private val db = androidx.room.Room.databaseBuilder(context.applicationContext, DictionaryDatabase::class.java, "dictionary.db").fallbackToDestructiveMigration().build()
+    private val db = DictionaryDatabase.getInstance(context)
     private var tts: TextToSpeech? = null
     private var selectedEntry: DictionaryEntry? = null
     private val scope = CoroutineScope(Dispatchers.Main)

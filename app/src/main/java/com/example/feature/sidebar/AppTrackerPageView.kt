@@ -1,6 +1,6 @@
 package com.example.feature.sidebar
-import com.example.service.FloatingReaderService
-import com.example.service.VianSideAccessibilityService
+import com.example.feature.miniapps.reader.FloatingReaderService
+import com.example.feature.system_hub.VianSideAccessibilityService
 
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents

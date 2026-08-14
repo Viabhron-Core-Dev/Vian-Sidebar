@@ -128,6 +128,9 @@
         <service android:name=".service.FloatingTriggerService" android:exported="false" />
             <activity android:name=".feature.settings.AddElementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".feature.settings.ActionPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".feature.settings.AppPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".feature.settings.ShortcutPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".feature.settings.IntentPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
     
         <service
             android:name=".feature.system_hub.VianSideAccessibilityService"
@@ -151,5 +154,11 @@
         </service>
         <activity android:name=".feature.settings.TagManagementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".WidgetPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
-</application>
+        
+        <activity android:name=".HybridGridEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".WidgetsGridEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".SidebarEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".AppTrackerSettingsActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".NotificationHistoryActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+    </application>
 </manifest>

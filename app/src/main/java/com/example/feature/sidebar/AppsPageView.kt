@@ -1,11 +1,11 @@
 package com.example.feature.sidebar
 import com.example.LogKeeperActivity
-import com.example.service.FloatingReaderService
-import com.example.service.VianSideAccessibilityService
-import com.example.service.AppWidgetHelper
-import com.example.service.DisplayHandler
-import com.example.service.MediaVolumeHandler
-import com.example.service.QuickTileHandler
+import com.example.feature.miniapps.reader.FloatingReaderService
+import com.example.feature.system_hub.VianSideAccessibilityService
+import com.example.core.AppWidgetHelper
+import com.example.feature.system_hub.DisplayHandler
+import com.example.feature.system_hub.MediaVolumeHandler
+import com.example.feature.system_hub.QuickTileHandler
 import com.example.service.FloatingTriggerService
 
 import android.annotation.SuppressLint
@@ -154,7 +154,7 @@ class AppsPageView(
             val appWidgetInfo = appWidgetManager.getAppWidgetInfo(widgetId)
             
             if (appWidgetInfo != null) {
-                val widgetView = com.example.service.AppWidgetHelper.getHost(context).createView(context, widgetId, appWidgetInfo)
+                val widgetView = com.example.core.AppWidgetHelper.getHost(context).createView(context, widgetId, appWidgetInfo)
                 
                 val padding = (12 * density).toInt()
                 popupView.setPadding(padding, padding, padding, padding)
@@ -471,6 +471,11 @@ class AppsPageView(
                         val intent = android.content.Intent(context, com.example.service.SidebarService::class.java)
                         intent.action = "EXECUTE_ACTION"
                         intent.putExtra("ACTION_ID", "system:dictionary_full")
+                        context.startService(intent)
+                    } else if (item.action == "work_notes") {
+                        val intent = android.content.Intent(context, com.example.service.SidebarService::class.java)
+                        intent.action = "EXECUTE_ACTION"
+                        intent.putExtra("ACTION_ID", "system:work_notes")
                         context.startService(intent)
                     } else if (item.action == "ebook_reader") {
                         val intent = android.content.Intent(context, FloatingReaderService::class.java)

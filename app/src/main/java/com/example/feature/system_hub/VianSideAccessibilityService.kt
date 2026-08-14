@@ -20,10 +20,12 @@ class VianSideAccessibilityService : AccessibilityService() {
     private var autoScrollManager: AutoScrollManager? = null
     private var cursorManager: CursorManager? = null
     private var longScreenshotManager: LongScreenshotManager? = null
+    private var appKillerManager: AppKillerManager? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        appKillerManager = AppKillerManager(this)
         com.example.core.LogKeeper.writeLog("VianSideAccessibility", "Service connected")
         android.util.Log.d("VianSideAccessibility", "Service connected")
     }
@@ -62,29 +64,7 @@ class VianSideAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         
-        if (isForceStopping) {
-            val rootNode = rootInActiveWindow ?: return
-            
-            // We just watch for the "Force stop" button to be disabled.
-            // When it becomes disabled (meaning the user clicked it and confirmed it),
-            // or if it was already disabled, we perform the BACK action to go to the next app.
-            val forceStopNodes = rootNode.findAccessibilityNodeInfosByText("Force stop")
-            var buttonIsDisabled = false
-            for (node in forceStopNodes) {
-                if (node.isClickable && !node.isEnabled) {
-                    buttonIsDisabled = true
-                    break
-                } else if (node.parent?.isClickable == true && node.parent?.isEnabled == false) {
-                    buttonIsDisabled = true
-                    break
-                }
-            }
-            
-            if (buttonIsDisabled) {
-                // If the app is already force stopped (or just got stopped), go back to process next app
-                performGlobalAction(GLOBAL_ACTION_BACK)
-            }
-        }
+        appKillerManager?.handleAccessibilityEvent(event, rootInActiveWindow)
     }
 
     override fun onInterrupt() {
@@ -331,6 +311,10 @@ class VianSideAccessibilityService : AccessibilityService() {
     companion object {
         var instance: VianSideAccessibilityService? = null
             private set
-        var isForceStopping = false
+        var isForceStopping: Boolean
+            get() = instance?.appKillerManager?.isForceStopping ?: false
+            set(value) {
+                instance?.appKillerManager?.isForceStopping = value
+            }
     }
 }

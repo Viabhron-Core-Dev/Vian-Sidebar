@@ -228,6 +228,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         AppLogger.d("HandleService", "onDestroy")
         prefs.unregisterOnSharedPreferenceChangeListener(this)
         unregisterReceiver(reloadReceiver)
+        screenStateReceiver?.let { unregisterReceiver(it) }
         triggerHandleViews.forEach { it.detach() }
         triggerHandleViews.clear()
         readerHandleView?.detach()

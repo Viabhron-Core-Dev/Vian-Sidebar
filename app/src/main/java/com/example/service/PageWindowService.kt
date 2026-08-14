@@ -31,6 +31,9 @@ class PageWindowService : Service() {
             } else {
                 val title = getTitleForPageType(pageType)
                 val window = PageWindow(this, pageType, title)
+                window.onClose = {
+                    windows.remove(pageType)
+                }
                 windows[pageType] = window
                 window.show()
             }

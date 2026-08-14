@@ -12,15 +12,15 @@
 
 ## Next Steps
 - Validate Phase 8 architecture fixes (completed).
-- Phase 8.5 Complete. Proceeding to Phase 9.
+- Phase 12 (Part 1) Complete. Proceeding to Phase 12 Popups.
 ## Phase 8.5: Orphaned Sidebar Pages Catch-up
 - Migrate `MediaPlayerPageView` and `WidgetPageView` to the new Sidebar container.
 
 ## Next Steps (Phase 9+)
 - **Phase 9: The UI Spines (Settings & Add Element)**: Import `SettingsActivity`, `AddElementActivity`, and `ActionPickerActivity` mostly as-is. Wire up migrated pages/services; leave unmigrated features as harmless stubs.
-- **Phase 10: The Background System Hub (Plugins & Accessibility)**: Establish `VianSideAccessibilityService` as a unified System Tools Hub (orchestrator loaded on-demand). Migrate `CallRecorderManager` (dormant), `NetSpeedManager` (screen-aware, no overlay, updates notification icon), and Hardware Controls.
+- **Phase 10: The Background System Hub (Plugins & Accessibility) (COMPLETED)**: Established `VianSideAccessibilityService` as a unified System Tools Hub with on-demand module instantiation (Cursor, AutoScroll, Screenshot, AppKiller). Hardware controls, decoupled dormant CallRecorder, and screen-aware NetSpeedManager are successfully integrated.
 - **Phase 11: Sidebar On-Demand Optimization (COMPLETED)**: Leveraged existing `ViewPager2` lazy-loading.
-- **Phase 12: Unified Z-Window Manager & OS Popups**: Build a centralized Z-Window Manager. Migrate Text Selection Popups and Lightweight Floating Browser.
+- **Phase 12: Unified Z-Window Manager & OS Popups (Part 1 COMPLETE)**: Built a centralized Z-Window Manager (FloatingWindowManager) with automated Z-ordering, dormant folding, and magnetic grouping. (Popups and Floating Browser deferred to next step).
 - **Phase 13: Heavy Floating Mini-Apps (Pre-PWA Bridge)**: Migrate heavy Floating Apps (`FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`, `CursorManager` UI, `WorkNotesWindowManager`, and Appywork). These are the final heavy native windows before PWA.
 - **Phase 14: PWA Engine**: Migrate `PwaWindowManager`, `PwaServer`, and `PwaDatabase`.
 - **Phase 15: Polish, Launcher Prep & Finalization**: Implement Advanced Floating Grouping, Backup & Restore JSON framework, prepare architecture hooks for the external Android Launcher merge, and eradicate `reference/`.

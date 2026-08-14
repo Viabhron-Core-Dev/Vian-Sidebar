@@ -56,7 +56,7 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, initialE
                     "scheduler" -> "Short Reminders"
                     "calculator" -> "Calculator"
                     "compass" -> "Compass"
-                    "notifications" -> "Notifications"
+                    "notification" -> "Notifications"
                     "widgets_grid" -> "Widgets Grid"
                     "hybrid_grid" -> "Hybrid Grid"
                     "app_tracker" -> "App Tracker"
@@ -98,11 +98,7 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, initialE
         return
     }
     // Sidebar options
-    var sidebarColumns by remember { mutableStateOf(prefs.getInt("handle_${handleId}_sidebar_columns", prefs.getInt("sidebar_columns", 3))) }
-    var sidebarWidth by remember { mutableStateOf(prefs.getInt("handle_${handleId}_sidebar_width", prefs.getInt("sidebar_width", 216))) }
-    var sidebarHeight by remember { mutableStateOf(prefs.getInt("handle_${handleId}_sidebar_height", prefs.getInt("sidebar_height", 360))) }
-    var sidebarWrapContent by remember { mutableStateOf(prefs.getBoolean("handle_${handleId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))) }
-    var sidebarColorHex by remember { mutableStateOf(prefs.getString("handle_${handleId}_sidebar_color", prefs.getString("sidebar_color", "#000000")) ?: "#000000") }
+    var sidebarColorHex by remember { mutableStateOf(prefs.getString("handle_${handleId}_sidebar_color", prefs.getString("sidebar_color", "#1E1E2E")) ?: "#1E1E2E") }
     var sidebarTransparency by remember { mutableStateOf(prefs.getFloat("handle_${handleId}_sidebar_transparency", prefs.getFloat("sidebar_transparency", 0.9f))) }
     var showAddDialog by remember { mutableStateOf(false) }
     fun savePages() {
@@ -138,52 +134,6 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, initialE
                     modifier = Modifier.padding(16.dp, 8.dp)
                 )
                 ListItem(
-                    headlineContent = { Text("Width") },
-                    supportingContent = {
-                        Slider(
-                            value = sidebarWidth.toFloat(),
-                            onValueChange = { 
-                                sidebarWidth = it.toInt()
-                                prefs.edit().putInt("handle_${handleId}_sidebar_width", it.toInt()).apply()
-                            },
-                            valueRange = 100f..maxScreenWidth,
-                                steps = ((maxScreenWidth - 100f) / 10f).toInt()
-                        )
-                    },
-                    trailingContent = { Text("${sidebarWidth}dp") }
-                )
-                Divider()
-                ListItem(
-                    headlineContent = { Text("Height (Max)") },
-                    supportingContent = {
-                        Slider(
-                            value = sidebarHeight.toFloat(),
-                            onValueChange = { 
-                                sidebarHeight = it.toInt()
-                                prefs.edit().putInt("handle_${handleId}_sidebar_height", it.toInt()).apply()
-                            },
-                            valueRange = 300f..maxScreenHeight,
-                                steps = ((maxScreenHeight - 300f) / 10f).toInt()
-                        )
-                    },
-                    trailingContent = { Text("${sidebarHeight}dp") }
-                )
-                Divider()
-                ListItem(
-                    headlineContent = { Text("Wrap Content Height") },
-                    supportingContent = { Text("Shrink to fit content instead of fixed height") },
-                    trailingContent = {
-                        Switch(
-                            checked = sidebarWrapContent,
-                            onCheckedChange = { 
-                                sidebarWrapContent = it
-                                prefs.edit().putBoolean("handle_${handleId}_sidebar_wrap_content", it).apply()
-                            }
-                        )
-                    }
-                )
-                Divider()
-                ListItem(
                     headlineContent = { Text("Sidebar Color") },
                     supportingContent = {
                         Row(
@@ -191,7 +141,7 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, initialE
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             val presetColors = listOf(
-                                "#000000", "#FFFFFF", "#FF5252", "#4CAF50", "#2196F3", "#FFEB3B", "#87CEEB"
+                                "#1E1E2E", "#000000", "#FFFFFF", "#FF5252", "#4CAF50", "#2196F3", "#FFEB3B", "#87CEEB"
                             )
                             presetColors.forEach { colorString ->
                                 val parsedColor = try {
@@ -351,7 +301,7 @@ fun SidebarSettingsScreen(handleId: String, initAction: String? = null, initialE
                             "scheduler" to "Short Reminders",
                             "calculator" to "Calculator",
                             "compass" to "Compass",
-                            "notifications" to "Notifications",
+                            "notification" to "Notifications",
                             "widgets_grid" to "Widgets Grid",
                             "hybrid_grid" to "Hybrid Grid",
                             "app_tracker" to "App Tracker",

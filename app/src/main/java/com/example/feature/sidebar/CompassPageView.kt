@@ -11,7 +11,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.example.R
 
-class CompassPageView(context: Context) : FrameLayout(context), SensorEventListener {
+class CompassPageView(context: Context) : FrameLayout(context), SensorEventListener, SidebarPageControllable {
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private val magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
@@ -34,8 +34,16 @@ class CompassPageView(context: Context) : FrameLayout(context), SensorEventListe
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        // We defer to onPageSelected for battery saving, but if it's not managed by ViewPager, we fallback here
+    }
+    
+    override fun onPageSelected() {
         accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
         magnetometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+    }
+    
+    override fun onPageUnselected() {
+        sensorManager.unregisterListener(this)
     }
 
     override fun onDetachedFromWindow() {

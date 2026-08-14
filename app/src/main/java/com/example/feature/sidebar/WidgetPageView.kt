@@ -7,7 +7,7 @@ import android.graphics.Color
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.TextView
-import com.example.service.AppWidgetHelper
+import com.example.core.AppWidgetHelper
 
 @SuppressLint("ViewConstructor")
 class WidgetPageView(

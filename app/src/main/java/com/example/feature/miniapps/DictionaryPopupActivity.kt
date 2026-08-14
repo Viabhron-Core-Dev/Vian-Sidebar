@@ -75,7 +75,7 @@ class DictionaryPopupActivity : ComponentActivity() {
         }
         
         query = query.trim().split(Regex("\\s+")).firstOrNull()?.replace(Regex("[^a-zA-Z]"), "") ?: ""
-        val db = Room.databaseBuilder(applicationContext, DictionaryDatabase::class.java, "dictionary.db").fallbackToDestructiveMigration().build()
+        val db = DictionaryDatabase.getInstance(applicationContext)
         
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {

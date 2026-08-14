@@ -127,20 +127,26 @@ class AddElementActivity : ComponentActivity() {
         
         addHeader("Default actions")
         addItem(android.R.drawable.ic_menu_agenda, "App") {
-            // Stubbed
+            startActivityForResult(Intent(this, AppPickerActivity::class.java), 200)
         }
         addItem(android.R.drawable.ic_menu_share, "Shortcut") {
-            // Stubbed
+            startActivityForResult(Intent(this, ShortcutPickerActivity::class.java), 300)
         }
         addItem(android.R.drawable.ic_menu_manage, "Intent") {
-            // startActivityForResult(Intent(this, IntentPickerActivity::class.java), 301)
+            startActivityForResult(Intent(this, IntentPickerActivity::class.java), 301)
         }
         addItem(android.R.drawable.ic_menu_gallery, "Widget") {
-            // Stubbed
+            val intent = Intent(this, com.example.WidgetPickerActivity::class.java).apply {
+                putExtra("ACTION_TYPE", "RETURN_ID")
+            }
+            startActivityForResult(intent, 400)
         }
         
         addItem(android.R.drawable.ic_menu_gallery, "Popup Widget") {
-            // Stubbed
+            val intent = Intent(this, com.example.WidgetPickerActivity::class.java).apply {
+                putExtra("ACTION_TYPE", "RETURN_ID")
+            }
+            startActivityForResult(intent, 500)
         }
 
         addHeader("Special items")
@@ -175,13 +181,33 @@ class AddElementActivity : ComponentActivity() {
                 .show()
         }
         addItem(android.R.drawable.ic_menu_set_as, "Link") {
-            // Need a link picker in future, for now just create dummy link
-            val uuid = java.util.UUID.randomUUID().toString()
-            val linkJson = JSONObject().apply {
-                put("url", "https://google.com")
-                put("label", "Google")
+            val layout = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
             }
-            finishWithId("link:$uuid:${linkJson.toString()}")
+            val titleInput = android.widget.EditText(this).apply {
+                hint = "Title (e.g. Google)"
+            }
+            val urlInput = android.widget.EditText(this).apply {
+                hint = "URL (e.g. https://google.com)"
+            }
+            layout.addView(titleInput)
+            layout.addView(urlInput)
+            
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Add Link")
+                .setView(layout)
+                .setPositiveButton("OK") { _, _ ->
+                    val titleStr = titleInput.text.toString().takeIf { it.isNotEmpty() } ?: "Link"
+                    val urlStr = urlInput.text.toString().takeIf { it.isNotEmpty() } ?: "https://"
+                    val uuid = java.util.UUID.randomUUID().toString()
+                    val linkJson = JSONObject().apply {
+                        put("url", urlStr)
+                        put("label", titleStr)
+                    }
+                    finishWithId("link:$uuid:${linkJson.toString()}")
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
         addItem(android.R.drawable.ic_menu_close_clear_cancel, "Empty item") {
             val uuid = java.util.UUID.randomUUID().toString()

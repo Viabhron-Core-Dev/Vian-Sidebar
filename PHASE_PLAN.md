@@ -52,18 +52,18 @@
 - [x] Prepare UI lists to send intents to our decoupled unified managers.
 
 ## PHASE 10: The Background System Hub (Plugins & Accessibility)
-- [ ] Establish `VianSideAccessibilityService` as a unified System Tools Hub.
-- [ ] Implement module orchestrator for `CursorManager`, `AutoScrollManager`, and `LongScreenshotManager` (loaded STRICTLY on-demand, no background memory leak).
-- [ ] Migrate `CallRecorderManager` as a completely decoupled, dormant module.
-- [ ] Migrate `NetSpeedManager` to update the foreground notification dynamically. (CRITICAL: No overlay. Tied to `ACTION_SCREEN_ON`/`OFF` to save battery).
-- [ ] Migrate Hardware Controls (`QuickTileHandler`, `MediaVolumeHandler`, `DisplayHandler`).
+- [x] Establish `VianSideAccessibilityService` as a unified System Tools Hub.
+- [x] Implement module orchestrator for `CursorManager`, `AutoScrollManager`, `LongScreenshotManager`, and `AppKillerManager` (loaded STRICTLY on-demand, no background memory leak).
+- [x] Migrate `CallRecorderManager` as a completely decoupled, dormant module.
+- [x] Migrate `NetSpeedManager` to update the foreground notification dynamically. (CRITICAL: No overlay. Tied to `ACTION_SCREEN_ON`/`OFF` to save battery).
+- [x] Migrate Hardware Controls (`QuickTileHandler`, `MediaVolumeHandler`, `DisplayHandler`).
 
 ## PHASE 11: Sidebar On-Demand Optimization (COMPLETED)
 - [x] Leverage existing `ViewPager2` lazy-loading. Implement lifecycle management to freeze/thaw background tasks (pause coroutines/polling when off-screen).
 - [x] Migrate remaining dual-mode pages: `SchedulerPageView`, `NotificationPageView`, `ResourcesTrackerPageView`.
 
 ## PHASE 12: Unified Z-Window Manager & OS Popups
-- [ ] Build a centralized Z-Window Manager (handling Z-Ordering and Dormant Folding/Bubbles).
+- [x] Build a centralized Z-Window Manager (handling Z-Ordering and Dormant Folding/Bubbles).
 - [ ] Migrate Text Selection Popups (`DictionaryPopupActivity`, `TranslationPopupActivity`).
 - [ ] Migrate the Lightweight Floating Browser (Share Intents).
 

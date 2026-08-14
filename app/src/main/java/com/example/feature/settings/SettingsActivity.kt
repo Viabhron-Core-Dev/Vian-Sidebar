@@ -114,10 +114,19 @@ fun SettingsApp(startRoute: String, onFinish: () -> Unit) {
                 val remainder = currentRoute.removePrefix("pages_")
                 val parts = remainder.split("|")
                 val handleId = parts[0]
-                val initAction = if (parts.size > 1) parts[1] else null
+                var initAction: String? = null
+                var initialEditPageId: String? = null
+                if (parts.size > 1) {
+                    if (parts[1].startsWith("edit_page:")) {
+                        initialEditPageId = parts[1].removePrefix("edit_page:")
+                    } else {
+                        initAction = parts[1]
+                    }
+                }
                 SidebarSettingsScreen(
                     handleId = handleId,
                     initAction = initAction,
+                    initialEditPageId = initialEditPageId,
                     onBack = { currentRoute = "handles" }
                 )
             } else if (currentRoute.startsWith("handle_")) {

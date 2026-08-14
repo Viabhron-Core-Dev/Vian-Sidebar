@@ -33,10 +33,23 @@ class SidebarManager(
                 val pageId = intent.getStringExtra("pageType")
                 toggleSidebar(handleId, containerId, pageId)
             }
-            "com.example.ACTION_EXECUTE_ELEMENT" -> {
-                val elementId = intent.getStringExtra("elementId")
-                AppLogger.d("SidebarManager", "Execute element: $elementId")
-                // TODO: Execute action element
+            "com.example.ACTION_EXECUTE_ELEMENT", "EXECUTE_ACTION" -> {
+                val actionId = intent.getStringExtra("ACTION_ID") ?: intent.getStringExtra("elementId") ?: return
+                AppLogger.d("SidebarManager", "Execute action/element: $actionId")
+                when (actionId) {
+                    "system:dictionary_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
+                    "system:translation_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "translation")
+                    "system:hybrid_grid_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "hybrid_grid")
+                    "system:dictionary_full" -> {
+                        // TODO: Implement full dictionary if needed, for now just use floating
+                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
+                    }
+                    else -> {
+                        // Forward to MiniAppManager as generic
+                        val pageType = actionId.removePrefix("system:").removeSuffix("_floating")
+                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, pageType)
+                    }
+                }
             }
         }
     }

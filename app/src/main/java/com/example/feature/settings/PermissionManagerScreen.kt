@@ -245,7 +245,7 @@ private fun checkUsageAccess(context: Context): Boolean {
 
 private fun isAccessibilityServiceEnabled(context: Context): Boolean {
     // Assuming VianSideAccessibilityService is in service package
-    val expectedComponentName = ComponentName(context, "com.example.service.VianSideAccessibilityService")
+    val expectedComponentName = ComponentName(context, "com.example.feature.system_hub.VianSideAccessibilityService")
     val enabledServicesSetting = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
     if (enabledServicesSetting == null) return false
     val colonSplitter = TextUtils.SimpleStringSplitter(':')

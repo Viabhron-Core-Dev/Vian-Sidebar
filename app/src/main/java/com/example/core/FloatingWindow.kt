@@ -25,6 +25,8 @@ abstract class FloatingWindow(val context: Context, val title: String) {
     
     var isFolded = false
     var isFullScreen = false
+
+    var onClose: (() -> Unit)? = null
     
     private var preFullScreenWidth = 800
     private var preFullScreenHeight = 1000
@@ -48,6 +50,7 @@ abstract class FloatingWindow(val context: Context, val title: String) {
     }
     
     fun hide() {
+        onClose?.invoke()
         view?.let {
             windowManager.removeView(it)
             view = null
@@ -60,7 +63,19 @@ abstract class FloatingWindow(val context: Context, val title: String) {
     
     @SuppressLint("ClickableViewAccessibility", "InflateParams")
     private fun createContainerView(): View {
-        val container = LayoutInflater.from(context).inflate(R.layout.layout_floating_window_container, null)
+        // Custom wrapper to intercept all touches and bring window to front
+        val interceptorWrapper = object : FrameLayout(context) {
+            override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+                if (ev.action == MotionEvent.ACTION_DOWN) {
+                    if (FloatingWindowManager.focusedWindow != this@FloatingWindow) {
+                        FloatingWindowManager.bringToFront(this@FloatingWindow)
+                    }
+                }
+                return super.onInterceptTouchEvent(ev)
+            }
+        }
+        
+        val container = LayoutInflater.from(context).inflate(R.layout.layout_floating_window_container, interceptorWrapper, true)
         
         val tvTitle = container.findViewById<TextView>(R.id.window_title)
         tvTitle.text = title
@@ -96,7 +111,13 @@ abstract class FloatingWindow(val context: Context, val title: String) {
                     if (!isFullScreen) {
                         layoutParams?.x = initialX + (event.rawX - initialTouchX).toInt()
                         layoutParams?.y = initialY + (event.rawY - initialTouchY).toInt()
-                        windowManager.updateViewLayout(container, layoutParams)
+                        windowManager.updateViewLayout(this@FloatingWindow.view, layoutParams)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!isFullScreen) {
+                        FloatingWindowManager.checkCollisions(this@FloatingWindow)
                     }
                     true
                 }
@@ -139,7 +160,7 @@ abstract class FloatingWindow(val context: Context, val title: String) {
             }
         }
         
-        return container
+        return interceptorWrapper
     }
     
     private fun toggleFullScreen(container: View, topBar: View) {
@@ -231,6 +252,8 @@ abstract class FloatingWindow(val context: Context, val title: String) {
                         val dy = Math.abs(event.rawY - initialTouchY)
                         if (clickTime - lastClickTime < 300 && dx < 10 && dy < 10) {
                             unfold()
+                        } else {
+                            FloatingWindowManager.checkCollisions(this@FloatingWindow)
                         }
                         true
                     }

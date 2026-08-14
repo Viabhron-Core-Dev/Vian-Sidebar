@@ -5,6 +5,11 @@ import android.util.Log
 import com.example.core.LogKeeper
 
 class App : Application() {
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        com.example.core.FloatingWindowManager.onTrimMemory(level)
+    }
+
     override fun onCreate() {
         super.onCreate()
         LogKeeper.initialize(this)

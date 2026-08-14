@@ -1,8 +1,17 @@
-- 2026-07-26T14:23:00-07:00
-- Fixed an issue where the hybrid grid editor was not saving the newly added element directly to preferences and updating its own state. Also fixed the issue where app icons and widgets in the hybrid grid within the sidebar were restricted in size by `item_sidebar_app.xml`'s `maxWidth` constraints and `AppWidgetHostView` not receiving size updates.
-- Modified app/src/main/java/com/example/HybridGridEditActivity.kt
-- Modified app/src/main/java/com/example/service/HybridGridPageView.kt
-- In `HybridGridEditActivity`, directly updated `SharedPreferences` when adding a new element, broadcasted the update, and called `recreate()` to refresh the Compose UI. In `HybridGridPageView`, programmatically removed `maxWidth` and `maxHeight` constraints for `ImageView` components of added apps/folders/links, and called `updateAppWidgetSize` for `AppWidgetHostView`s so they scale proportionally within the calculated cell dimensions.
-- Verified by local build (gradle :app:compileDebugKotlin)
-- No deviation from requested.
-- None
+* Timestamp: 2026-08-14T06:20:00-07:00
+* One-line summary: Patched lifecycle management for mini-apps, grid pages, and E-Reader true fold logic.
+* Exact files touched:
+    * `app/src/main/java/com/example/core/FloatingWindow.kt`
+    * `app/src/main/java/com/example/service/PageWindowService.kt`
+    * `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+    * `app/src/main/java/com/example/feature/sidebar/HybridGridPageView.kt`
+    * `app/src/main/java/com/example/feature/sidebar/WidgetsGridPageView.kt`
+    * `app/src/main/java/com/example/feature/miniapps/reader/FloatingReaderService.kt`
+* What was actually done:
+    * PageWindowService Gap: Added `var onClose: (() -> Unit)?` to `FloatingWindow`, invoked on `hide()`. Registered `PageWindowService` to this hook to remove dead references from its tracker map when windows are closed from their own X button.
+    * Grid Unstructured Coroutines: Refactored `HybridGridPageView` and `WidgetsGridPageView` constructors to accept the parent `SidebarView`'s `viewScope`. Replaced raw `CoroutineScope(Dispatchers.Main)` and `CoroutineScope(Dispatchers.IO)` with this managed scope, ensuring icon loading stops cleanly when the sidebar detaches.
+    * Reader Teardown: Built `closeReader()` in `FloatingReaderService` which saves position, forcefully removes all layouts, and executes `stopSelf()`. Hooked this to the bottom control exit button (`btn_exit_bottom`).
+    * Reader Fold Logic (True Fold): Re-engineered `setFolded(true)` in `FloatingReaderService` to mirror `FloatingWindow`. It now unhooks the massive `floatingView` from `WindowManager` (saving GPU/composition memory without destroying book state) and spawns an independent, lightweight `bubbleView`. When tapped, the bubble removes itself and reattaches the `floatingView`.
+* How it was verified: local build only (gradle compileDebugKotlin successful)
+* Any deviation from what was requested: None.
+* Known issues: None.
