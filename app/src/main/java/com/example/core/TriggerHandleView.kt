@@ -159,6 +159,7 @@ class TriggerHandleView(
 
     private fun handleAction(gesture: String) {
         val action = prefs.getString("$prefix$gesture", "none") ?: "none"
+        com.example.core.LogKeeper.writeLog("Handle", "Handle ($handleId) gesture: $gesture -> action: $action")
         
         val sidebarIntent = Intent().apply {
             setClassName(context, "com.example.service.SidebarService")

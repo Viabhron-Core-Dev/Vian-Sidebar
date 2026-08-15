@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.example.utils.SidebarPage
 import com.example.util.AppLogger
+import com.example.core.AppWidgetHelper
 import kotlin.math.max
 
 import kotlinx.coroutines.CoroutineScope
@@ -193,9 +194,50 @@ class SidebarView(
                         }
                     }
                     
+                    val pageConfig = pageConfigs.getOrNull(actualPosition)
+                    if (pageConfig != null) {
+                        when (pageConfig.type) {
+                            "apps" -> {
+                                val intent = Intent(context, com.example.SidebarEditActivity::class.java).apply {
+                                    putExtra("PAGE_ID", pageConfig.id)
+                                    putExtra("CONTAINER_ID", containerId)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onClose()
+                                handledLocally = true
+                            }
+                            "widgets_grid" -> {
+                                val intent = Intent(context, com.example.WidgetsGridEditActivity::class.java).apply {
+                                    putExtra("PAGE_ID", pageConfig.id)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onClose()
+                                handledLocally = true
+                            }
+                            "hybrid_grid" -> {
+                                val intent = Intent(context, com.example.HybridGridEditActivity::class.java).apply {
+                                    putExtra("PAGE_ID", pageConfig.id)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onClose()
+                                handledLocally = true
+                            }
+                            "app_tracker" -> {
+                                val intent = Intent(context, com.example.AppTrackerSettingsActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onClose()
+                                handledLocally = true
+                            }
+                        }
+                    }
+                    
                     if (!handledLocally) {
                         // Fallback to Settings if the view doesn't implement its own editor
-                        val pageConfig = pageConfigs.getOrNull(actualPosition)
                         val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             if (pageConfig != null) {
@@ -266,7 +308,15 @@ class SidebarView(
                 super.onPageSelected(position)
                 if (pageConfigs.isNotEmpty()) {
                     val actualPosition = if (isLooping) position % pageConfigs.size else position
+                    updateDots(actualPosition)
                     
+                    val pageConfig = pageConfigs.getOrNull(actualPosition)
+                    if (::editButton.isInitialized) {
+                        val isEditable = pageConfig?.type in listOf("apps", "widgets_grid", "hybrid_grid", "app_tracker")
+                        editButton.visibility = if (isEditable) View.VISIBLE else View.INVISIBLE
+                    }
+                    
+                    AppWidgetHelper.startListening(context)
                 }
                 
                 // Notify lifecycle
@@ -340,6 +390,8 @@ class SidebarView(
 
     fun attach() {
         if (!isAttached) {
+            com.example.core.LogKeeper.writeLog("Sidebar", "Attached sidebar for containerId: $containerId")
+            AppWidgetHelper.startListening(context)
             windowManager.addView(this, layoutParams)
             isAttached = true
         }
@@ -347,6 +399,7 @@ class SidebarView(
     
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_OUTSIDE) {
+            com.example.core.LogKeeper.writeLog("Sidebar", "Outside touch detected, closing sidebar")
             onClose()
             return true
         }
@@ -363,6 +416,7 @@ class SidebarView(
 
     fun detach() {
         if (isAttached) {
+            com.example.core.LogKeeper.writeLog("Sidebar", "Detached sidebar for containerId: $containerId")
             // Notify unselected before removing
             val rcv = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
             rcv?.let {
@@ -372,6 +426,7 @@ class SidebarView(
                     (holder?.pageView as? SidebarPageControllable)?.onPageUnselected()
                 }
             }
+            AppWidgetHelper.stopListening()
             windowManager.removeView(this)
             isAttached = false
             viewScope.cancel()

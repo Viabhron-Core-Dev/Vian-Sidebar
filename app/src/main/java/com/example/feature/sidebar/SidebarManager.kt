@@ -36,18 +36,23 @@ class SidebarManager(
             "com.example.ACTION_EXECUTE_ELEMENT", "EXECUTE_ACTION" -> {
                 val actionId = intent.getStringExtra("ACTION_ID") ?: intent.getStringExtra("elementId") ?: return
                 AppLogger.d("SidebarManager", "Execute action/element: $actionId")
+                com.example.core.LogKeeper.writeLog("SidebarManager", "Execute action: $actionId")
                 when (actionId) {
-                    "system:dictionary_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
+                    "system:dictionary_floating", "system:dictionary_full" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
                     "system:translation_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "translation")
                     "system:hybrid_grid_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "hybrid_grid")
-                    "system:dictionary_full" -> {
-                        // TODO: Implement full dictionary if needed, for now just use floating
-                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
-                    }
                     else -> {
-                        // Forward to MiniAppManager as generic
-                        val pageType = actionId.removePrefix("system:").removeSuffix("_floating")
-                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, pageType)
+                        val isSystemAction = actionId.startsWith("system:")
+                        val systemActionKey = actionId.removePrefix("system:")
+                        val accessibilityService = com.example.feature.system_hub.VianSideAccessibilityService.instance
+                        if (isSystemAction && accessibilityService != null && accessibilityService.performAction(systemActionKey)) {
+                            com.example.core.LogKeeper.writeLog("SidebarManager", "Handled system action via Accessibility: $systemActionKey")
+                        } else if (actionId.endsWith("_floating") || actionId.startsWith("page_window:")) {
+                            val pageType = actionId.removePrefix("page_window:").removePrefix("system:").removeSuffix("_floating")
+                            com.example.feature.miniapps.MiniAppManager.toggleApp(context, pageType)
+                        } else {
+                            com.example.core.LogKeeper.writeLog("SidebarManager", "Ignored unrecognized action: $actionId")
+                        }
                     }
                 }
             }

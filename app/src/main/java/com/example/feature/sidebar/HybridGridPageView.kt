@@ -328,101 +328,143 @@ class HybridGridPageView(
                             }
                             
                             elementView.setOnClickListener {
-                                if (parsed is SidebarItem.App) {
-                                    val intent = context.packageManager.getLaunchIntentForPackage(parsed.packageName)
-                                    if (intent != null) {
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        try { context.startActivity(intent) } catch (e: Exception) {}
-                                    }
-                                } else if (parsed is SidebarItem.PageWindow) {
-                                    com.example.feature.miniapps.MiniAppManager.toggleApp(context, parsed.pageType)
-                                } else if (parsed is SidebarItem.FloatingTrigger) {
-                                    val intent = Intent(context, FloatingTriggerService::class.java)
-                                    intent.putExtra("TARGET_ID", parsed.targetId)
-                                    context.startService(intent)
-                                } else if (parsed is SidebarItem.Folder) {
-                                    showFolderPopup(elementView, parsed, appsManager)
-                                } else if (parsed is SidebarItem.PopupWidget) {
-                                    showWidgetPopup(elementView, parsed)
-                                } else if (parsed is SidebarItem.Link) {
-                                    try {
-                                        val intent = if (parsed.url.startsWith("intent:")) {
-                                            Intent.parseUri(parsed.url, Intent.URI_INTENT_SCHEME)
-                                        } else {
-                                            Intent(Intent.ACTION_VIEW, android.net.Uri.parse(parsed.url))
-                                        }
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {}
-                                } else if (parsed is SidebarItem.QuickTile) {
-                                    QuickTileHandler.handleQuickTileAction(context, parsed.action)
-                                } else if (parsed is SidebarItem.IntentAction) {
-                                    try {
-                                        val intent = Intent.parseUri(parsed.uri, Intent.URI_INTENT_SCHEME)
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {}
-                                } else if (parsed is SidebarItem.SystemAction) {
-                                    if (parsed.action == "log_keeper") {
-                                        val intent = Intent(context, com.example.LogKeeperActivity::class.java)
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    } else if (parsed.action == "dictionary_floating" || parsed.action == "translation_floating" || parsed.action == "hybrid_grid_floating" || parsed.action == "dictionary_full" || parsed.action == "work_notes") {
-                                        val intent = Intent(context, com.example.service.SidebarService::class.java)
-                                        intent.action = "EXECUTE_ACTION"
-                                        intent.putExtra("ACTION_ID", "system:" + parsed.action)
-                                        context.startService(intent)
-                                    } else if (parsed.action == "ebook_reader") {
-                                        val intent = Intent(context, com.example.feature.miniapps.reader.FloatingReaderService::class.java)
-                                        intent.putExtra("UNFOLD", true)
-                                        context.startService(intent)
-                                    } else if (parsed.action == "screen_record") {
-                                        val intent = Intent(context, ScreenRecordActivity::class.java)
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    } else if (parsed.action == "settings") {
-                                        val intent = Intent(context, com.example.SettingsActivity::class.java)
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    } else {
-                                        val service = com.example.feature.system_hub.VianSideAccessibilityService.instance
-                                        if (service != null && service.performAction(parsed.action)) {
-                                            com.example.core.LogKeeper.writeLog("HybridGrid", "System action trigger: ${parsed.action}")
-                                        } else {
-                                            android.widget.Toast.makeText(context, "Please enable VianSide Accessibility Service", android.widget.Toast.LENGTH_SHORT).show()
-                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Failed system action trigger: ${parsed.action}")
-                                            val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                when (parsed) {
+                                    is SidebarItem.App -> {
+                                        val intent = context.packageManager.getLaunchIntentForPackage(parsed.packageName)
+                                        if (intent != null) {
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            try { context.startActivity(intent) } catch (e: Exception) {}
+                                            try {
+                                                com.example.core.LogKeeper.writeLog("HybridGrid", "Launch app: ${parsed.packageName}")
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                com.example.core.LogKeeper.writeLog("HybridGrid", "Error launching app: ${e.message}")
+                                            }
                                         }
                                     }
-                                } else if (parsed is SidebarItem.VolumeAction) {
-                                    try {
-                                        MediaVolumeHandler.handleVolumeAction(context, parsed.stream, parsed.action)
-                                    } catch (e: Exception) {}
-                                } else if (parsed is SidebarItem.MediaAction) {
-                                    try {
-                                        MediaVolumeHandler.handleMediaAction(context, parsed.action)
-                                    } catch (e: Exception) {}
-                                } else if (parsed is SidebarItem.DisplayAction) {
-                                    try {
-                                        DisplayHandler.handleDisplayAction(context, parsed.action)
-                                    } catch (e: Exception) {}
-                                } else if (parsed is SidebarItem.SettingsShortcut) {
-                                    val settingsIntent = when (parsed.action) {
-                                        "wifi" -> Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
-                                        "bluetooth" -> Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)
-                                        "display" -> Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS)
-                                        "sound" -> Intent(android.provider.Settings.ACTION_SOUND_SETTINGS)
-                                        "location" -> Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                                        "apps" -> Intent(android.provider.Settings.ACTION_APPLICATION_SETTINGS)
-                                        "security" -> Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS)
-                                        "battery" -> Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS)
-                                        "date" -> Intent(android.provider.Settings.ACTION_DATE_SETTINGS)
-                                        else -> Intent(android.provider.Settings.ACTION_SETTINGS)
+                                    is SidebarItem.PageWindow -> {
+                                        com.example.core.LogKeeper.writeLog("HybridGrid", "Toggle page window: ${parsed.pageType}")
+                                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, parsed.pageType)
                                     }
-                                    settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    try { context.startActivity(settingsIntent) } catch (e: Exception) {}
+                                    is SidebarItem.FloatingTrigger -> {
+                                        val intent = Intent(context, FloatingTriggerService::class.java)
+                                        intent.putExtra("TARGET_ID", parsed.targetId)
+                                        context.startService(intent)
+                                    }
+                                    is SidebarItem.Folder -> {
+                                        showFolderPopup(elementView, parsed, appsManager)
+                                    }
+                                    is SidebarItem.PopupWidget -> {
+                                        showWidgetPopup(elementView, parsed)
+                                    }
+                                    is SidebarItem.Link -> {
+                                        try {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Open link: ${parsed.url}")
+                                            val intent = if (parsed.url.startsWith("intent:")) {
+                                                Intent.parseUri(parsed.url, Intent.URI_INTENT_SCHEME)
+                                            } else {
+                                                Intent(Intent.ACTION_VIEW, android.net.Uri.parse(parsed.url))
+                                            }
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Error opening link: ${e.message}")
+                                        }
+                                    }
+                                    is SidebarItem.QuickTile -> {
+                                        com.example.core.LogKeeper.writeLog("HybridGrid", "QuickTile action: ${parsed.action}")
+                                        QuickTileHandler.handleQuickTileAction(context, parsed.action)
+                                    }
+                                    is SidebarItem.IntentAction -> {
+                                        try {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "IntentAction: ${parsed.label}")
+                                            val intent = Intent.parseUri(parsed.uri, Intent.URI_INTENT_SCHEME)
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Error launching intent: ${e.message}")
+                                        }
+                                    }
+                                    is SidebarItem.SystemAction -> {
+                                        if (parsed.action == "log_keeper") {
+                                            val intent = Intent(context, com.example.LogKeeperActivity::class.java)
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(intent)
+                                        } else if (parsed.action == "dictionary_floating" || parsed.action == "translation_floating" || parsed.action == "hybrid_grid_floating" || parsed.action == "dictionary_full" || parsed.action == "work_notes") {
+                                            val intent = Intent(context, com.example.service.SidebarService::class.java)
+                                            intent.action = "EXECUTE_ACTION"
+                                            intent.putExtra("ACTION_ID", "system:" + parsed.action)
+                                            context.startService(intent)
+                                        } else if (parsed.action == "ebook_reader") {
+                                            val intent = Intent(context, com.example.feature.miniapps.reader.FloatingReaderService::class.java)
+                                            intent.putExtra("UNFOLD", true)
+                                            context.startService(intent)
+                                        } else if (parsed.action == "screen_record") {
+                                            val intent = Intent(context, ScreenRecordActivity::class.java)
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(intent)
+                                        } else if (parsed.action == "settings") {
+                                            val intent = Intent(context, com.example.SettingsActivity::class.java)
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(intent)
+                                        } else {
+                                            val service = com.example.feature.system_hub.VianSideAccessibilityService.instance
+                                            if (service != null && service.performAction(parsed.action)) {
+                                                com.example.core.LogKeeper.writeLog("HybridGrid", "System action trigger: ${parsed.action}")
+                                            } else {
+                                                android.widget.Toast.makeText(context, "Please enable VianSide Accessibility Service", android.widget.Toast.LENGTH_SHORT).show()
+                                                com.example.core.LogKeeper.writeLog("HybridGrid", "Failed system action trigger: ${parsed.action}")
+                                                val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                try { context.startActivity(intent) } catch (e: Exception) {}
+                                            }
+                                        }
+                                    }
+                                    is SidebarItem.VolumeAction -> {
+                                        try {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Volume action: ${parsed.stream}_${parsed.action}")
+                                            MediaVolumeHandler.handleVolumeAction(context, parsed.stream, parsed.action)
+                                        } catch (e: Exception) {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Volume action err: ${e.message}")
+                                        }
+                                    }
+                                    is SidebarItem.MediaAction -> {
+                                        try {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Media action: ${parsed.action}")
+                                            MediaVolumeHandler.handleMediaAction(context, parsed.action)
+                                        } catch (e: Exception) {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Media action err: ${e.message}")
+                                        }
+                                    }
+                                    is SidebarItem.DisplayAction -> {
+                                        try {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Display action: ${parsed.action}")
+                                            DisplayHandler.handleDisplayAction(context, parsed.action)
+                                        } catch (e: Exception) {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Display action err: ${e.message}")
+                                        }
+                                    }
+                                    is SidebarItem.SettingsShortcut -> {
+                                        val settingsIntent = when (parsed.action) {
+                                            "wifi" -> Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
+                                            "bluetooth" -> Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)
+                                            "display" -> Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS)
+                                            "sound" -> Intent(android.provider.Settings.ACTION_SOUND_SETTINGS)
+                                            "location" -> Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                            "apps" -> Intent(android.provider.Settings.ACTION_APPLICATION_SETTINGS)
+                                            "security" -> Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS)
+                                            "battery" -> Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS)
+                                            "date" -> Intent(android.provider.Settings.ACTION_DATE_SETTINGS)
+                                            else -> Intent(android.provider.Settings.ACTION_SETTINGS)
+                                        }
+                                        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        try {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Settings shortcut: ${parsed.action}")
+                                            context.startActivity(settingsIntent)
+                                        } catch (e: Exception) {
+                                            com.example.core.LogKeeper.writeLog("HybridGrid", "Settings shortcut err: ${e.message}")
+                                        }
+                                    }
+                                    else -> {}
                                 }
                             }
                             
@@ -602,80 +644,119 @@ class HybridGridPageView(
                 appsManager.bindIcon(itemId, icon, prefs, scope) {}
                 
                 holder.itemView.setOnClickListener {
-                    if (parsed is SidebarItem.App) {
-                        val intent = context.packageManager.getLaunchIntentForPackage(parsed.packageName)
-                        if (intent != null) {
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            try { context.startActivity(intent) } catch (e: Exception) {}
+                    when (parsed) {
+                        is SidebarItem.App -> {
+                            val intent = context.packageManager.getLaunchIntentForPackage(parsed.packageName)
+                            if (intent != null) {
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                try {
+                                    com.example.core.LogKeeper.writeLog("HybridGrid", "Launch folder app: ${parsed.packageName}")
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    com.example.core.LogKeeper.writeLog("HybridGrid", "Error launching folder app: ${e.message}")
+                                }
+                                popupWindow?.dismiss()
+                            }
+                        }
+                        is SidebarItem.PageWindow -> {
+                            com.example.core.LogKeeper.writeLog("HybridGrid", "Toggle folder page window: ${parsed.pageType}")
+                            com.example.feature.miniapps.MiniAppManager.toggleApp(context, parsed.pageType)
                             popupWindow?.dismiss()
                         }
-                    } else if (parsed is SidebarItem.PageWindow) {
-                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, parsed.pageType)
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.Link) {
-                        try {
-                            val intent = if (parsed.url.startsWith("intent:")) {
-                                Intent.parseUri(parsed.url, Intent.URI_INTENT_SCHEME)
-                            } else {
-                                Intent(Intent.ACTION_VIEW, android.net.Uri.parse(parsed.url))
+                        is SidebarItem.Link -> {
+                            try {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Open folder link: ${parsed.url}")
+                                val intent = if (parsed.url.startsWith("intent:")) {
+                                    Intent.parseUri(parsed.url, Intent.URI_INTENT_SCHEME)
+                                } else {
+                                    Intent(Intent.ACTION_VIEW, android.net.Uri.parse(parsed.url))
+                                }
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Error opening folder link: ${e.message}")
                             }
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                        } catch (e: Exception) {}
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.QuickTile) {
-                        QuickTileHandler.handleQuickTileAction(context, parsed.action)
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.IntentAction) {
-                        try {
-                            val intent = Intent.parseUri(parsed.uri, Intent.URI_INTENT_SCHEME)
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                        } catch (e: Exception) {}
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.SystemAction) {
-                        if (parsed.action == "screen_record") {
-                            val intent = Intent(context, ScreenRecordActivity::class.java)
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                        } else {
-                            val intent = Intent(context, com.example.service.SidebarService::class.java)
-                            intent.action = "EXECUTE_ACTION"
-                            intent.putExtra("ACTION_ID", "system:" + parsed.action)
-                            context.startService(intent)
+                            popupWindow?.dismiss()
                         }
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.VolumeAction) {
-                        try {
-                            MediaVolumeHandler.handleVolumeAction(context, parsed.stream, parsed.action)
-                        } catch (e: Exception) {}
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.MediaAction) {
-                        try {
-                            MediaVolumeHandler.handleMediaAction(context, parsed.action)
-                        } catch (e: Exception) {}
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.DisplayAction) {
-                        try {
-                            DisplayHandler.handleDisplayAction(context, parsed.action)
-                        } catch (e: Exception) {}
-                        popupWindow?.dismiss()
-                    } else if (parsed is SidebarItem.SettingsShortcut) {
-                        val settingsIntent = when (parsed.action) {
-                            "wifi" -> Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
-                            "bluetooth" -> Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)
-                            "display" -> Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS)
-                            "sound" -> Intent(android.provider.Settings.ACTION_SOUND_SETTINGS)
-                            "location" -> Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                            "apps" -> Intent(android.provider.Settings.ACTION_APPLICATION_SETTINGS)
-                            "security" -> Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS)
-                            "battery" -> Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS)
-                            "date" -> Intent(android.provider.Settings.ACTION_DATE_SETTINGS)
-                            else -> Intent(android.provider.Settings.ACTION_SETTINGS)
+                        is SidebarItem.QuickTile -> {
+                            com.example.core.LogKeeper.writeLog("HybridGrid", "Folder QuickTile: ${parsed.action}")
+                            QuickTileHandler.handleQuickTileAction(context, parsed.action)
+                            popupWindow?.dismiss()
                         }
-                        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        try { context.startActivity(settingsIntent) } catch (e: Exception) {}
-                        popupWindow?.dismiss()
+                        is SidebarItem.IntentAction -> {
+                            try {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder IntentAction: ${parsed.label}")
+                                val intent = Intent.parseUri(parsed.uri, Intent.URI_INTENT_SCHEME)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Error folder intent: ${e.message}")
+                            }
+                            popupWindow?.dismiss()
+                        }
+                        is SidebarItem.SystemAction -> {
+                            if (parsed.action == "screen_record") {
+                                val intent = Intent(context, ScreenRecordActivity::class.java)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                            } else {
+                                val intent = Intent(context, com.example.service.SidebarService::class.java)
+                                intent.action = "EXECUTE_ACTION"
+                                intent.putExtra("ACTION_ID", "system:" + parsed.action)
+                                context.startService(intent)
+                            }
+                            popupWindow?.dismiss()
+                        }
+                        is SidebarItem.VolumeAction -> {
+                            try {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Volume action: ${parsed.stream}_${parsed.action}")
+                                MediaVolumeHandler.handleVolumeAction(context, parsed.stream, parsed.action)
+                            } catch (e: Exception) {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Volume action err: ${e.message}")
+                            }
+                            popupWindow?.dismiss()
+                        }
+                        is SidebarItem.MediaAction -> {
+                            try {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Media action: ${parsed.action}")
+                                MediaVolumeHandler.handleMediaAction(context, parsed.action)
+                            } catch (e: Exception) {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Media action err: ${e.message}")
+                            }
+                            popupWindow?.dismiss()
+                        }
+                        is SidebarItem.DisplayAction -> {
+                            try {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Display action: ${parsed.action}")
+                                DisplayHandler.handleDisplayAction(context, parsed.action)
+                            } catch (e: Exception) {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Display action err: ${e.message}")
+                            }
+                            popupWindow?.dismiss()
+                        }
+                        is SidebarItem.SettingsShortcut -> {
+                            val settingsIntent = when (parsed.action) {
+                                "wifi" -> Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)
+                                "bluetooth" -> Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)
+                                "display" -> Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS)
+                                "sound" -> Intent(android.provider.Settings.ACTION_SOUND_SETTINGS)
+                                "location" -> Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                "apps" -> Intent(android.provider.Settings.ACTION_APPLICATION_SETTINGS)
+                                "security" -> Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS)
+                                "battery" -> Intent(android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS)
+                                "date" -> Intent(android.provider.Settings.ACTION_DATE_SETTINGS)
+                                else -> Intent(android.provider.Settings.ACTION_SETTINGS)
+                            }
+                            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            try {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Settings shortcut: ${parsed.action}")
+                                context.startActivity(settingsIntent)
+                            } catch (e: Exception) {
+                                com.example.core.LogKeeper.writeLog("HybridGrid", "Folder Settings shortcut err: ${e.message}")
+                            }
+                            popupWindow?.dismiss()
+                        }
+                        else -> {}
                     }
                 }
                 
