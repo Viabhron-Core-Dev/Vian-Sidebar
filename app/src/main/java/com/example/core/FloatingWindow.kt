@@ -3,16 +3,22 @@ package com.example.core
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Build
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.WindowManager
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.example.R
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 abstract class FloatingWindow(val context: Context, val title: String) {
@@ -32,6 +38,11 @@ abstract class FloatingWindow(val context: Context, val title: String) {
     private var preFullScreenHeight = 1000
     private var preFullScreenX = 100
     private var preFullScreenY = 100
+
+    // Keyboard avoidance properties
+    private var originalYBeforeKeyboard: Int? = null
+    private var isShiftedForKeyboard = false
+    private var globalLayoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     
     fun show() {
         if (isFolded) {
@@ -42,6 +53,7 @@ abstract class FloatingWindow(val context: Context, val title: String) {
         if (view == null) {
             view = createContainerView()
             setupLayoutParams()
+            setupKeyboardAvoidance()
             windowManager.addView(view, layoutParams)
         } else {
             view?.visibility = View.VISIBLE
@@ -51,6 +63,7 @@ abstract class FloatingWindow(val context: Context, val title: String) {
     
     fun hide() {
         onClose?.invoke()
+        removeKeyboardAvoidance()
         view?.let {
             windowManager.removeView(it)
             view = null
@@ -58,6 +71,97 @@ abstract class FloatingWindow(val context: Context, val title: String) {
         bubbleView?.let {
             windowManager.removeView(it)
             bubbleView = null
+        }
+    }
+
+    private fun setupKeyboardAvoidance() {
+        val currentView = view ?: return
+        
+        // Listen to focus changes on any child EditText to toggle FLAG_NOT_FOCUSABLE
+        currentView.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
+            if (newFocus is EditText) {
+                setWindowFocusable(true)
+            } else {
+                setWindowFocusable(false)
+            }
+        }
+
+        // GlobalLayoutListener to detect when keyboard opens/closes
+        globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+            val root = view ?: return@OnGlobalLayoutListener
+            if (isFullScreen) return@OnGlobalLayoutListener
+
+            val rect = Rect()
+            root.getWindowVisibleDisplayFrame(rect)
+            val screenHeight = context.resources.displayMetrics.heightPixels
+            val keypadHeight = screenHeight - rect.bottom
+
+            // Threshold of 150dp or ~0.15 screen height indicates soft keyboard is open
+            if (keypadHeight > screenHeight * 0.15) {
+                val currentY = layoutParams?.y ?: 0
+                val currentHeight = layoutParams?.height ?: root.height
+
+                if (!isShiftedForKeyboard) {
+                    originalYBeforeKeyboard = currentY
+                }
+
+                val windowBottom = currentY + currentHeight
+                val keyboardTop = screenHeight - keypadHeight
+
+                // If bottom of window is covered by keyboard
+                if (windowBottom > keyboardTop) {
+                    val overlap = windowBottom - keyboardTop + 24 // extra margin
+                    val targetY = max(0, currentY - overlap)
+                    if (layoutParams?.y != targetY) {
+                        layoutParams?.y = targetY
+                        isShiftedForKeyboard = true
+                        try {
+                            windowManager.updateViewLayout(root, layoutParams)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+            } else {
+                // Keyboard closed -> return to original place
+                if (isShiftedForKeyboard && originalYBeforeKeyboard != null) {
+                    layoutParams?.y = originalYBeforeKeyboard!!
+                    isShiftedForKeyboard = false
+                    originalYBeforeKeyboard = null
+                    try {
+                        windowManager.updateViewLayout(root, layoutParams)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+        currentView.viewTreeObserver.addOnGlobalLayoutListener(globalLayoutListener)
+    }
+
+    private fun removeKeyboardAvoidance() {
+        globalLayoutListener?.let { listener ->
+            view?.viewTreeObserver?.removeOnGlobalLayoutListener(listener)
+        }
+        globalLayoutListener = null
+    }
+
+    fun setWindowFocusable(focusable: Boolean) {
+        val root = view ?: return
+        val params = layoutParams ?: return
+        val currentFlags = params.flags
+        val newFlags = if (focusable) {
+            currentFlags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        } else {
+            currentFlags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        }
+        if (newFlags != currentFlags) {
+            params.flags = newFlags
+            try {
+                windowManager.updateViewLayout(root, params)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
     
@@ -117,6 +221,9 @@ abstract class FloatingWindow(val context: Context, val title: String) {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!isFullScreen) {
+                        if (isShiftedForKeyboard) {
+                            originalYBeforeKeyboard = layoutParams?.y
+                        }
                         FloatingWindowManager.checkCollisions(this@FloatingWindow)
                     }
                     true

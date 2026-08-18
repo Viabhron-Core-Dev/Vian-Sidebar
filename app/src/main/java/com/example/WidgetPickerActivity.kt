@@ -217,9 +217,35 @@ fun WidgetPickerScreen(
     val context = LocalContext.current
     val pm = context.packageManager
     
-    // Group by app name
+    data class AppGroup(
+        val appName: String,
+        val appIcon: Drawable?,
+        val widgets: List<AppWidgetProviderInfo>
+    )
+
+    // Group by actual Application Name instead of individual widget label
     val grouped = remember(providers) {
-        providers.groupBy { it.loadLabel(pm).toString() }.toSortedMap()
+        providers.groupBy { provider ->
+            provider.provider.packageName
+        }.mapNotNull { (pkg, widgetList) ->
+            try {
+                val appInfo = pm.getApplicationInfo(pkg, 0)
+                val appName = pm.getApplicationLabel(appInfo).toString()
+                val appIcon = pm.getApplicationIcon(appInfo)
+                AppGroup(
+                    appName = appName,
+                    appIcon = appIcon,
+                    widgets = widgetList.sortedBy { it.loadLabel(pm).toString() }
+                )
+            } catch (e: Exception) {
+                val fallbackName = widgetList.firstOrNull()?.loadLabel(pm)?.toString() ?: pkg
+                AppGroup(
+                    appName = fallbackName,
+                    appIcon = null,
+                    widgets = widgetList.sortedBy { it.loadLabel(pm).toString() }
+                )
+            }
+        }.sortedBy { it.appName.lowercase() }
     }
 
     Surface(
@@ -229,8 +255,8 @@ fun WidgetPickerScreen(
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().clickable(onClick = onCancel)) {
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.8f)
+                    .fillMaxWidth(0.92f)
+                    .fillMaxHeight(0.85f)
                     .clickable(enabled = false, onClick = {}), // consume clicks
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -239,37 +265,61 @@ fun WidgetPickerScreen(
                     Text(
                         text = "Choose a Widget",
                         style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
                     
                     LazyColumn(modifier = Modifier.weight(1f)) {
-                        grouped.forEach { (appName, appProviders) ->
-                            item {
-                                Text(
-                                    text = appName,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp)
-                                )
+                        grouped.forEach { appGroup ->
+                            item(key = appGroup.appName + "_" + (appGroup.widgets.firstOrNull()?.provider?.packageName ?: "")) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                        .padding(vertical = 8.dp, horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (appGroup.appIcon != null) {
+                                        val iconBitmap = drawableToBitmap(appGroup.appIcon)
+                                        Image(
+                                            bitmap = iconBitmap.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    Text(
+                                        text = appGroup.appName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "(${appGroup.widgets.size})",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
                             }
-                            items(appProviders) { provider ->
-                                    val spanX = if (android.os.Build.VERSION.SDK_INT >= 31) provider.targetCellWidth else Math.max(1, Math.round(provider.minWidth / 70.0).toInt())
-                                    val spanY = if (android.os.Build.VERSION.SDK_INT >= 31) provider.targetCellHeight else Math.max(1, Math.round(provider.minHeight / 70.0).toInt())
-                                    val is1x1 = spanX <= 1 && spanY <= 1
-                                    val isSidebar = actionType == "ADD_ELEMENT" || actionType == "RETURN_ID"
-                                    val enabled = true
-                                    
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(enabled = enabled) { onWidgetSelected(provider) }
-                                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                    // Try to load icon
-                                    val iconDrawable = provider.loadIcon(context, context.resources.displayMetrics.densityDpi)
-                                    if (iconDrawable != null) {
-                                        val bitmap = drawableToBitmap(iconDrawable)
+                            items(appGroup.widgets, key = { it.provider.flattenToString() + "_" + it.loadLabel(pm) }) { provider ->
+                                val spanX = if (android.os.Build.VERSION.SDK_INT >= 31) provider.targetCellWidth else Math.max(1, Math.round(provider.minWidth / 70.0).toInt())
+                                val spanY = if (android.os.Build.VERSION.SDK_INT >= 31) provider.targetCellHeight else Math.max(1, Math.round(provider.minHeight / 70.0).toInt())
+                                val enabled = true
+                                
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(enabled = enabled) { onWidgetSelected(provider) }
+                                        .padding(vertical = 10.dp, horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Try to load preview image first, then fallback to icon
+                                    val previewDrawable = provider.loadPreviewImage(context, context.resources.displayMetrics.densityDpi)
+                                        ?: provider.loadIcon(context, context.resources.displayMetrics.densityDpi)
+                                    if (previewDrawable != null) {
+                                        val bitmap = drawableToBitmap(previewDrawable)
                                         Image(
                                             bitmap = bitmap.asImageBitmap(),
                                             contentDescription = null,
@@ -284,7 +334,7 @@ fun WidgetPickerScreen(
                                     
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = provider.loadLabel(pm),
+                                            text = provider.loadLabel(pm).toString().ifEmpty { appGroup.appName },
                                             style = MaterialTheme.typography.bodyLarge,
                                             color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                                             maxLines = 1,
@@ -297,6 +347,9 @@ fun WidgetPickerScreen(
                                         )
                                     }
                                 }
+                            }
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
                     }

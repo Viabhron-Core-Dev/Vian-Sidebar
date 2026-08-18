@@ -129,13 +129,26 @@ The legacy architecture relied on massive, monolithic services handling everythi
     *   `FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`.
     *   `CursorManager` (Trackpad), `WorkNotesWindowManager`.
 
-**PHASE 13: OS Popups & Floating Browser**
-*   Migrate Text Selection Popups (`DictionaryPopupActivity`, `TranslationPopupActivity`).
-*   Migrate the Lightweight Floating Browser (Share Intents).
-*   Migrate eReader and Appywork sub-systems.
+**PHASE 13: Heavy Floating Mini-Apps & Appywork (Pre-PWA Bridge)**
+*   **Phase 13.1 (Heavy Native Windows):** Migrate `FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`, `CursorManager` UI, `WorkNotesWindowManager`.
+*   **Phase 13.2 (eReader Subsystem):** Migrate eReader reading canvas, EPUB engine, and reading settings.
+*   **Phase 13.3 (Appywork - Deprecatable Vibe-Coding Module):**
+    *   Migrate `AppyworkWindowManager`, `AppyworkFloatingService`, `AppyworkParser`, and `AppyworkDao` strictly isolated inside `feature/appywork/`.
+    *   Use dedicated `AppyworkDatabase` so main Room DB schema remains clean.
+    *   Wire via decoupled Intent Action (`ACTION_OPEN_APPYWORK`) so it can be excised in a single step with zero side-effects when the external AI Host App replaces its functionality.
 
-**PHASE 14: PWA Engine**
-*   Migrate `PwaWindowManager`, `PwaServer`, and `PwaDatabase`.
+**PHASE 14: PWA Engine & External AI App Integration**
+*   **Phase 14.1 (Local PWA Core):** Migrate `PwaServer` (NanoHTTPD local server), `PwaWindowManager`, `PwaDatabase`, and `PwaImportActivity` from `reference/` to `feature/pwa/`.
+*   **Phase 14.2 (Dual-Mode Execution):**
+    *   Floating Window (`isLightweight = true`): Draggable, resizable, dockable overlay via `PwaWindowManager`.
+    *   Fullscreen Container (`isLightweight = false`): Dedicated `PwaActivity` WebView wrapper.
+*   **Phase 14.3 (Remote AI Host App IPC & ContentProvider Sync):**
+    *   Implement `RemotePwaRepository` using `ContentResolver` to query `content://<ai_app_authority>/pwas`.
+    *   Stream PWA assets via `ParcelFileDescriptor` (`openFile`) without copying assets to disk.
+    *   Update `SidebarBridge.kt` so `saveData()` syncs state back to the external AI App's database.
+*   **Phase 14.4 (Headless Local AI Inference Client):**
+    *   Define AIDL interfaces (`IAiInferenceService.aidl`, `IAiCallback.aidl`) in `com.example.ai`.
+    *   Provide optional floating chat bubble binding to the external AI Host App for background token streaming without launching full UI.
 
 **PHASE 15: Polish, Launcher Prep & Finalization**
 *   Implement Advanced Floating Grouping (Bubble Stacking/Collisions).

@@ -271,10 +271,16 @@ class SidebarEditActivity : ComponentActivity() {
             com.example.util.AppLogger.d("SidebarEdit", "Saved ${localIds.size} items to apps grid.")
         }
         
-        val updateIntent = Intent(this, com.example.feature.miniapps.reader.FloatingReaderService::class.java).apply {
-            action = "UPDATE_CONFIG"
+        try {
+            if (com.example.feature.miniapps.reader.FloatingReaderService.isRunning) {
+                val updateIntent = Intent(this, com.example.feature.miniapps.reader.FloatingReaderService::class.java).apply {
+                    action = "UPDATE_CONFIG"
+                }
+                startService(updateIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        startService(updateIntent)
     }
 
     private fun setupItemTouchHelper() {

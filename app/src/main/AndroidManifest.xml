@@ -14,6 +14,17 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <queries>
+        <intent>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
 
     <application
         android:name=".App"
@@ -121,11 +132,23 @@
             </intent-filter>
         </activity>
         
-        <service android:name=".feature.miniapps.browser.FloatingBrowserService" android:exported="false" />
-        <service android:name=".feature.miniapps.reader.FloatingReaderService" android:exported="false" />
+        <service
+            android:name=".feature.miniapps.browser.FloatingBrowserService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+        <service
+            android:name=".feature.miniapps.reader.FloatingReaderService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|microphone" />
 
-        <service android:name=".service.PageWindowService" android:exported="false" />
-        <service android:name=".service.FloatingTriggerService" android:exported="false" />
+        <service
+            android:name=".service.PageWindowService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+        <service
+            android:name=".service.FloatingTriggerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
             <activity android:name=".feature.settings.AddElementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".feature.settings.ActionPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".feature.settings.AppPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />

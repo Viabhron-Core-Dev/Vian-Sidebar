@@ -21,6 +21,13 @@
 - **Phase 10: The Background System Hub (Plugins & Accessibility) (COMPLETED)**: Established `VianSideAccessibilityService` as a unified System Tools Hub with on-demand module instantiation (Cursor, AutoScroll, Screenshot, AppKiller). Hardware controls, decoupled dormant CallRecorder, and screen-aware NetSpeedManager are successfully integrated.
 - **Phase 11: Sidebar On-Demand Optimization (COMPLETED)**: Leveraged existing `ViewPager2` lazy-loading.
 - **Phase 12: Unified Z-Window Manager & OS Popups (Part 1 COMPLETE)**: Built a centralized Z-Window Manager (FloatingWindowManager) with automated Z-ordering, dormant folding, and magnetic grouping. (Popups and Floating Browser deferred to next step).
-- **Phase 13: Heavy Floating Mini-Apps (Pre-PWA Bridge)**: Migrate heavy Floating Apps (`FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`, `CursorManager` UI, `WorkNotesWindowManager`, and Appywork). These are the final heavy native windows before PWA.
-- **Phase 14: PWA Engine**: Migrate `PwaWindowManager`, `PwaServer`, and `PwaDatabase`.
+- **Phase 13: Heavy Floating Mini-Apps & Appywork (Pre-PWA Bridge)**: 
+  - **13.1**: Heavy Native Floating Windows (`FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`, `CursorManager` UI, `WorkNotesWindowManager`).
+  - **13.2**: eReader Subsystem (Floating canvas, EPUB reader engine).
+  - **13.3**: Appywork (Isolated & Deprecatable Vibe-Coding Module) in `feature/appywork/` with decoupled Intent trigger and dedicated DB, allowing zero-risk excision once external AI Host App is ready.
+- **Phase 14: PWA Engine & External AI App Integration**:
+  - **14.1**: Local PWA Runner Core (`PwaServer`, `PwaWindowManager`, `PwaDatabase`, `PwaImportActivity`).
+  - **14.2**: Dual-Mode Windowing (Floating overlay for `isLightweight = true` vs Fullscreen `PwaActivity` for `isLightweight = false`).
+  - **14.3**: Remote AI Host App IPC (`RemotePwaRepository` / `ContentResolver` querying `content://<ai_app_authority>/pwas`, asset streaming via `openFile()`, state sync via `SidebarBridge.saveData()`).
+  - **14.4**: Headless Local AI Inference Client (AIDL streaming client for background token inference).
 - **Phase 15: Polish, Launcher Prep & Finalization**: Implement Advanced Floating Grouping, Backup & Restore JSON framework, prepare architecture hooks for the external Android Launcher merge, and eradicate `reference/`.

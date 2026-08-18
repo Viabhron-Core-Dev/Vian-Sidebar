@@ -37,6 +37,13 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
 class FloatingReaderService : Service() {
 
+    companion object {
+        var isRunning = false
+            private set
+        var instance: FloatingReaderService? = null
+            private set
+    }
+
 //     private var serviceLifecycleOwner: ServiceLifecycleOwner? = null
     private lateinit var windowManager: WindowManager
     private lateinit var floatingView: View
@@ -160,7 +167,8 @@ class FloatingReaderService : Service() {
     override fun onCreate() {
 //         // com.example.utils.ActiveAppTracker.addApp("floating_reader", "eBook Reader", "Reader", 30)
         super.onCreate()
-        // instance = this
+        instance = this
+        isRunning = true
         
 //         serviceLifecycleOwner = ServiceLifecycleOwner()
         // serviceLifecycleOwner?.onCreate()
@@ -2172,7 +2180,8 @@ class FloatingReaderService : Service() {
         if (this::prefs.isInitialized) {
             prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         }
-        // instance = null
+        instance = null
+        isRunning = false
 
         
         saveCurrentPosition()
