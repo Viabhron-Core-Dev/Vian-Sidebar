@@ -72,14 +72,15 @@ class SidebarManager(
             closeSidebar()
         }
         
-        val pages = PageManager.getPages(prefs, containerId)
+        val pages = PageManager.getPages(prefs, physicalHandleId)
+        val cleanTargetId = targetPageId?.removePrefix("open_page:")
         
         // Find target index based on targetPageId or fallback to default
-        val targetIndex = if (targetPageId != null) {
-            val idx = pages.indexOfFirst { it.id == targetPageId }
-            if (idx != -1) idx else PageManager.getDefaultPageIndex(prefs, containerId)
+        val targetIndex = if (cleanTargetId != null) {
+            val idx = pages.indexOfFirst { it.id == cleanTargetId || it.type == cleanTargetId }
+            if (idx != -1) idx else PageManager.getDefaultPageIndex(prefs, physicalHandleId)
         } else {
-            PageManager.getDefaultPageIndex(prefs, containerId)
+            PageManager.getDefaultPageIndex(prefs, physicalHandleId)
         }
         
         sidebarView = SidebarView(context, prefs, windowManager, physicalHandleId, containerId, pages, targetIndex) {

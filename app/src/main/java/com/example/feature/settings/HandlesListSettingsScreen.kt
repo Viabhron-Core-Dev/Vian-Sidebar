@@ -399,7 +399,17 @@ fun HandleItem(
                             "sidebar" to "Sidebar"
                         )
                         var selectedCategory by remember { mutableStateOf(categoryOptions.first().first) }
-                        var selectedPageType by remember { mutableStateOf(if (pageConfigs.isNotEmpty()) pageConfigs.first().type else "") }
+                        val pageOptions = if (pageConfigs.isNotEmpty()) {
+                            pageConfigs.map { it.id to "${it.title} (${it.type})" }
+                        } else {
+                            listOf(
+                                "default_hybrid" to "Home Grid",
+                                "apps" to "Apps Grid",
+                                "widgets_grid" to "Widgets Grid",
+                                "hybrid_grid" to "Hybrid Grid"
+                            )
+                        }
+                        var selectedPageType by remember { mutableStateOf(pageOptions.first().first) }
                         
                         AlertDialog(
                             onDismissRequest = { showChangeGestureDialog = false },
@@ -410,20 +420,6 @@ fun HandleItem(
                                     
                                     if (selectedCategory == "page") {
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        val pageOptions = listOf(
-                                            "apps" to "Apps Grid",
-                                            "widgets_grid" to "Widgets Grid",
-                                            "hybrid_grid" to "Hybrid Grid",
-                                            "app_tracker" to "App Tracker",
-                                            "resources_tracker" to "Resources Tracker",
-                            "media_player" to "Media Player",
-                            "widget" to "Android Widget",
-                                            "calculator" to "Calculator",
-                                            "scheduler" to "Short Reminders",
-                                            "compass" to "Compass",
-                                            "notifications" to "Notifications"
-                                        )
-                                        if (selectedPageType.isEmpty()) selectedPageType = "apps"
                                         ActionDropdown("Select Page", selectedPageType, pageOptions) { selectedPageType = it }
                                     }
                                 }
@@ -465,7 +461,17 @@ fun HandleItem(
                             "sidebar" to "Sidebar"
                         )
                         var selectedCategory by remember { mutableStateOf(categoryOptions.first().first) }
-                        var selectedPageType by remember { mutableStateOf(if (pageConfigs.isNotEmpty()) pageConfigs.first().type else "") }
+                        val pageOptions = if (pageConfigs.isNotEmpty()) {
+                            pageConfigs.map { it.id to "${it.title} (${it.type})" }
+                        } else {
+                            listOf(
+                                "default_hybrid" to "Home Grid",
+                                "apps" to "Apps Grid",
+                                "widgets_grid" to "Widgets Grid",
+                                "hybrid_grid" to "Hybrid Grid"
+                            )
+                        }
+                        var selectedPageType by remember { mutableStateOf(pageOptions.first().first) }
                         
                         AlertDialog(
                             onDismissRequest = { showAddGestureDialog = false },
@@ -478,20 +484,6 @@ fun HandleItem(
                                     
                                     if (selectedCategory == "page") {
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        val pageOptions = listOf(
-                                            "apps" to "Apps Grid",
-                                            "widgets_grid" to "Widgets Grid",
-                                            "hybrid_grid" to "Hybrid Grid",
-                                            "app_tracker" to "App Tracker",
-                                            "resources_tracker" to "Resources Tracker",
-                            "media_player" to "Media Player",
-                            "widget" to "Android Widget",
-                                            "calculator" to "Calculator",
-                                            "scheduler" to "Short Reminders",
-                                            "compass" to "Compass",
-                                            "notifications" to "Notifications"
-                                        )
-                                        if (selectedPageType.isEmpty()) selectedPageType = "apps"
                                         ActionDropdown("Select Page", selectedPageType, pageOptions) { selectedPageType = it }
                                     }
                                 }

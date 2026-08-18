@@ -64,7 +64,18 @@ data class SidebarPage(
 }
 
 object PageManager {
-    fun getPages(prefs: SharedPreferences, handleId: String): List<SidebarPage> {
+    fun getCleanHandleId(handleOrContainerId: String): String {
+        return when {
+            handleOrContainerId.contains("_swipe_") -> handleOrContainerId.substringBefore("_swipe_")
+            handleOrContainerId.endsWith("_tap") -> handleOrContainerId.removeSuffix("_tap")
+            handleOrContainerId.endsWith("_double_tap") -> handleOrContainerId.removeSuffix("_double_tap")
+            handleOrContainerId.endsWith("_long_press") -> handleOrContainerId.removeSuffix("_long_press")
+            else -> handleOrContainerId
+        }
+    }
+
+    fun getPages(prefs: SharedPreferences, rawHandleId: String): List<SidebarPage> {
+        val handleId = getCleanHandleId(rawHandleId)
         val legacy = if (handleId == "sidebar") prefs.getString("sidebar_pages", null) else null
         val pagesJson = prefs.getString("handle_${handleId}_pages", legacy)
         val defaultPageId = if (handleId == "sidebar") "default_hybrid" else "default_hybrid_$handleId"
@@ -80,11 +91,12 @@ object PageManager {
             return listOf(defaultPage)
         }
         val list = mutableListOf<SidebarPage>()
+        val seenIds = mutableSetOf<String>()
         try {
             val arr = JSONArray(pagesJson)
             for (i in 0 until arr.length()) {
                 val page = SidebarPage.fromJson(arr.getJSONObject(i))
-                if (page.type != "dictionary" && page.type != "pwa_loader") {
+                if (page.type != "dictionary" && page.type != "pwa_loader" && seenIds.add(page.id)) {
                     list.add(page)
                 }
             }
@@ -93,20 +105,24 @@ object PageManager {
             return listOf(defaultPage)
         }
         
-        return list
+        return if (list.isEmpty()) listOf(defaultPage) else list
     }
 
-    fun savePages(prefs: SharedPreferences, handleId: String, pages: List<SidebarPage>) {
+    fun savePages(prefs: SharedPreferences, rawHandleId: String, pages: List<SidebarPage>) {
+        val handleId = getCleanHandleId(rawHandleId)
         val arr = JSONArray()
-        pages.forEach { arr.put(it.toJson()) }
+        val seenIds = mutableSetOf<String>()
+        pages.filter { seenIds.add(it.id) }.forEach { arr.put(it.toJson()) }
         prefs.edit().putString("handle_${handleId}_pages", arr.toString()).apply()
     }
 
-    fun getDefaultPageIndex(prefs: SharedPreferences, handleId: String): Int {
+    fun getDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String): Int {
+        val handleId = getCleanHandleId(rawHandleId)
         return prefs.getInt("handle_${handleId}_default_page_index", prefs.getInt("sidebar_default_page_index", 0))
     }
 
-    fun saveDefaultPageIndex(prefs: SharedPreferences, handleId: String, index: Int) {
+    fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int) {
+        val handleId = getCleanHandleId(rawHandleId)
         prefs.edit().putInt("handle_${handleId}_default_page_index", index).apply()
     }
 }

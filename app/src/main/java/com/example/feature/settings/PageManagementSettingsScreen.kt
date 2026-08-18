@@ -21,16 +21,16 @@ import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PageManagementSettingsScreen(onBack: () -> Unit) {
+fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE) }
     
-    var pages by remember { mutableStateOf(PageManager.getPages(prefs, "sidebar")) }
-    var defaultIndex by remember { mutableStateOf(PageManager.getDefaultPageIndex(prefs, "sidebar")) }
+    var pages by remember { mutableStateOf(PageManager.getPages(prefs, handleId)) }
+    var defaultIndex by remember { mutableStateOf(PageManager.getDefaultPageIndex(prefs, handleId)) }
     
     var showAddDialog by remember { mutableStateOf(false) }
 
-    DisposableEffect(context) {
+    DisposableEffect(context, handleId) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: android.content.Intent?) {
                 if (intent?.action == "WIDGET_PAGE_CREATED") {
@@ -41,7 +41,7 @@ fun PageManagementSettingsScreen(onBack: () -> Unit) {
                         val page = SidebarPage.createDefault(id = "widget:$widgetId", type = "widget", title = title)
                         newPages.add(page)
                         pages = newPages
-                        PageManager.savePages(prefs, "sidebar", pages)
+                        PageManager.savePages(prefs, handleId, pages)
                     }
                 }
             }
@@ -57,9 +57,8 @@ fun PageManagementSettingsScreen(onBack: () -> Unit) {
     }
     
     fun savePages() {
-        PageManager.savePages(prefs, "sidebar", pages)
-        PageManager.saveDefaultPageIndex(prefs, "sidebar", defaultIndex)
-        // Notify service to reload pages if needed? We can just send a broadcast or let service reload on next show.
+        PageManager.savePages(prefs, handleId, pages)
+        PageManager.saveDefaultPageIndex(prefs, handleId, defaultIndex)
     }
     
     Scaffold(
