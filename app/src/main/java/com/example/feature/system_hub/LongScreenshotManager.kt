@@ -91,48 +91,54 @@ class LongScreenshotManager(private val service: AccessibilityService) {
         if (!isRunning || !isPlaying) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            service.takeScreenshot(android.view.Display.DEFAULT_DISPLAY, service.mainExecutor, object : TakeScreenshotCallback {
-                override fun onSuccess(screenshotResult: AccessibilityService.ScreenshotResult) {
-                    executor.execute {
-                        try {
-                            val hwBuffer = screenshotResult.hardwareBuffer
-                            val colorSpace = screenshotResult.colorSpace
-                            val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, colorSpace)
-                            if (bitmap != null) {
-                                // Crop top and bottom 15% to remove headers/footers (status bar, bottom nav, sticky headers)
-                                val cropTop = (bitmap.height * 0.15).toInt()
-                                val cropBottom = (bitmap.height * 0.15).toInt()
-                                val croppedHeight = bitmap.height - cropTop - cropBottom
-                                
-                                val copyBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
-                                val croppedBitmap = if (croppedHeight > 0 && copyBitmap != null) {
-                                    Bitmap.createBitmap(copyBitmap, 0, cropTop, copyBitmap.width, croppedHeight)
-                                } else {
-                                    copyBitmap ?: bitmap
+            try {
+                service.takeScreenshot(android.view.Display.DEFAULT_DISPLAY, service.mainExecutor, object : TakeScreenshotCallback {
+                    override fun onSuccess(screenshotResult: AccessibilityService.ScreenshotResult) {
+                        executor.execute {
+                            try {
+                                val hwBuffer = screenshotResult.hardwareBuffer
+                                val colorSpace = screenshotResult.colorSpace
+                                val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, colorSpace)
+                                if (bitmap != null) {
+                                    // Crop top and bottom 15% to remove headers/footers (status bar, bottom nav, sticky headers)
+                                    val cropTop = (bitmap.height * 0.15).toInt()
+                                    val cropBottom = (bitmap.height * 0.15).toInt()
+                                    val croppedHeight = bitmap.height - cropTop - cropBottom
+                                    
+                                    val copyBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+                                    val croppedBitmap = if (croppedHeight > 0 && copyBitmap != null) {
+                                        Bitmap.createBitmap(copyBitmap, 0, cropTop, copyBitmap.width, croppedHeight)
+                                    } else {
+                                        copyBitmap ?: bitmap
+                                    }
+                                    
+                                    val file = File(cacheDir, "part_${parts.size}.png")
+                                    FileOutputStream(file).use { out ->
+                                        croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                    }
+                                    parts.add(file)
                                 }
+                                hwBuffer.close()
                                 
-                                val file = File(cacheDir, "part_${parts.size}.png")
-                                FileOutputStream(file).use { out ->
-                                    croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                if (isRunning && isPlaying) {
+                                    handler.post { scrollAndContinue() }
                                 }
-                                parts.add(file)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                handler.post { stop() }
                             }
-                            hwBuffer.close()
-                            
-                            if (isRunning && isPlaying) {
-                                handler.post { scrollAndContinue() }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            handler.post { stop() }
                         }
                     }
-                }
 
-                override fun onFailure(errorCode: Int) {
-                    handler.post { stop() }
-                }
-            })
+                    override fun onFailure(errorCode: Int) {
+                        handler.post { stop() }
+                    }
+                })
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(service, "Failed to capture screenshot", Toast.LENGTH_SHORT).show()
+                stop()
+            }
         } else {
             Toast.makeText(service, "Long screenshot requires Android 11+", Toast.LENGTH_SHORT).show()
             stop()

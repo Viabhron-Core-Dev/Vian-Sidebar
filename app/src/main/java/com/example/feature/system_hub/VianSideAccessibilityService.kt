@@ -144,28 +144,33 @@ class VianSideAccessibilityService : AccessibilityService() {
         val saveLocation = prefs.getString("save_location", "Default (Pictures/Screenshots)") ?: "Default (Pictures/Screenshots)"
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && saveLocation != "Default (Pictures/Screenshots)") {
-            takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
-                override fun onSuccess(screenshotResult: ScreenshotResult) {
-                    try {
-                        val hwBuffer = screenshotResult.hardwareBuffer
-                        val colorSpace = screenshotResult.colorSpace
-                        val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, colorSpace)
-                        if (bitmap != null) {
-                            saveBitmapToCustomLocation(bitmap, saveLocation)
-                        } else {
+            try {
+                takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+                    override fun onSuccess(screenshotResult: ScreenshotResult) {
+                        try {
+                            val hwBuffer = screenshotResult.hardwareBuffer
+                            val colorSpace = screenshotResult.colorSpace
+                            val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, colorSpace)
+                            if (bitmap != null) {
+                                saveBitmapToCustomLocation(bitmap, saveLocation)
+                            } else {
+                                performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
+                            }
+                            hwBuffer.close()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                             performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
                         }
-                        hwBuffer.close()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                    }
+
+                    override fun onFailure(errorCode: Int) {
                         performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
                     }
-                }
-
-                override fun onFailure(errorCode: Int) {
-                    performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
-                }
-            })
+                })
+            } catch (e: Exception) {
+                e.printStackTrace()
+                performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
+            }
         } else {
             performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
         }
@@ -207,35 +212,42 @@ class VianSideAccessibilityService : AccessibilityService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Toast.makeText(this, "Preparing Screen Capture...", Toast.LENGTH_SHORT).show()
             Handler(Looper.getMainLooper()).postDelayed({
-                takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
-                override fun onSuccess(screenshotResult: ScreenshotResult) {
-                    try {
-                        val hwBuffer = screenshotResult.hardwareBuffer
-                        val colorSpace = screenshotResult.colorSpace
-                        val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, colorSpace)
-                        if (bitmap != null) {
-                            val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
-                            launchCropActivity(softwareBitmap)
-                        } else {
-                            Handler(Looper.getMainLooper()).post {
-                                Toast.makeText(this@VianSideAccessibilityService, "Failed to get screenshot", Toast.LENGTH_SHORT).show()
+                try {
+                    takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+                        override fun onSuccess(screenshotResult: ScreenshotResult) {
+                            try {
+                                val hwBuffer = screenshotResult.hardwareBuffer
+                                val colorSpace = screenshotResult.colorSpace
+                                val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, colorSpace)
+                                if (bitmap != null) {
+                                    val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+                                    launchCropActivity(softwareBitmap)
+                                } else {
+                                    Handler(Looper.getMainLooper()).post {
+                                        Toast.makeText(this@VianSideAccessibilityService, "Failed to get screenshot", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                hwBuffer.close()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                Handler(Looper.getMainLooper()).post {
+                                    Toast.makeText(this@VianSideAccessibilityService, "Error reading screenshot", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
-                        hwBuffer.close()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(this@VianSideAccessibilityService, "Error reading screenshot", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
 
-                override fun onFailure(errorCode: Int) {
+                        override fun onFailure(errorCode: Int) {
+                            Handler(Looper.getMainLooper()).post {
+                                Toast.makeText(this@VianSideAccessibilityService, "Failed to take screenshot", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    })
+                } catch (e: Exception) {
+                    e.printStackTrace()
                     Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(this@VianSideAccessibilityService, "Failed to take screenshot", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@VianSideAccessibilityService, "Screenshot capability unavailable", Toast.LENGTH_SHORT).show()
                     }
                 }
-            })
             }, 400) // Delay to let sidebar close
         } else {
             Toast.makeText(this, "Screen QR Scanner requires Android 11+", Toast.LENGTH_LONG).show()

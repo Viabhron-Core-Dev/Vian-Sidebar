@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <queries>
         <intent>
@@ -183,5 +184,25 @@
         <activity android:name=".SidebarEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".AppTrackerSettingsActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".NotificationHistoryActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity
+            android:name=".feature.sidebar.ScreenRecordActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false" />
+        <service
+            android:name=".service.ScreenRecordService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+        <activity
+            android:name=".feature.system_hub.BarcodeScannerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiteReader" />
+        <activity
+            android:name=".feature.system_hub.QRCropActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+        <activity
+            android:name=".feature.system_hub.RecordingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiteReader" />
     </application>
 </manifest>

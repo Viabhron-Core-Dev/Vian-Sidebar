@@ -60,11 +60,14 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             readerHandleView?.attach()
         }
         reloadHandles()
+        setupScreenStateReceiver()
+        setupNetSpeed()
+        setupCallRecorder()
     }
 
 
     private fun setupNetSpeed() {
-        if (prefs.getBoolean("netspeed_enabled", false)) {
+        if (prefs.getBoolean("netspeed_enabled", false) || prefs.getBoolean("speed_indicator_enabled", false)) {
             if (netSpeedManager == null) {
                 netSpeedManager = NetSpeedManager(this, prefs, 
                     onSpeedUpdate = { down, up ->
@@ -131,19 +134,28 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
         
-        val contentText = if (prefs.getBoolean("netspeed_enabled", false)) {
+        val isNetSpeedActive = prefs.getBoolean("netspeed_enabled", false) || prefs.getBoolean("speed_indicator_enabled", false)
+        val contentText = if (isNetSpeedActive) {
             "↓ ${formatSpeed(downSpeed)}   ↑ ${formatSpeed(upSpeed)}"
         } else {
             "Listening for edge gestures"
         }
+        val contentTitle = if (isNetSpeedActive) "Internet Speed Monitor" else "Handles Active"
         
-        val notification = NotificationCompat.Builder(this, "handle_channel")
-            .setContentTitle("Handles Active")
+        val builder = NotificationCompat.Builder(this, "handle_channel")
+            .setContentTitle(contentTitle)
             .setContentText(contentText)
-            .setSmallIcon(android.R.drawable.ic_menu_crop) // Placeholder icon
             .setContentIntent(pendingIntent)
-            .build()
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+            
+        if (isNetSpeedActive) {
+            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(downSpeed))
+        } else {
+            builder.setSmallIcon(android.R.drawable.ic_menu_crop)
+        }
         
+        val notification = builder.build()
         val manager = getSystemService(NotificationManager::class.java)
         manager?.notify(2, notification)
     }
@@ -161,12 +173,28 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
         
-        val notification = NotificationCompat.Builder(this, "handle_channel")
-            .setContentTitle("Handles Active")
-            .setContentText("Listening for edge gestures")
-            .setSmallIcon(android.R.drawable.ic_menu_crop) // Placeholder icon
+        val isNetSpeedActive = prefs.getBoolean("netspeed_enabled", false) || prefs.getBoolean("speed_indicator_enabled", false)
+        val contentTitle = if (isNetSpeedActive) "Internet Speed Monitor" else "Handles Active"
+        val contentText = if (isNetSpeedActive) {
+            "↓ ${formatSpeed(downSpeed)}   ↑ ${formatSpeed(upSpeed)}"
+        } else {
+            "Listening for edge gestures"
+        }
+        
+        val builder = NotificationCompat.Builder(this, "handle_channel")
+            .setContentTitle(contentTitle)
+            .setContentText(contentText)
             .setContentIntent(pendingIntent)
-            .build()
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+            
+        if (isNetSpeedActive) {
+            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(downSpeed))
+        } else {
+            builder.setSmallIcon(android.R.drawable.ic_menu_crop)
+        }
+        
+        val notification = builder.build()
         startForeground(2, notification) // ID 2 so it doesn't conflict if there's ID 1
     }
 
@@ -185,7 +213,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if (key == "netspeed_enabled") {
+        if (key == "netspeed_enabled" || key == "speed_indicator_enabled") {
             setupNetSpeed()
         } else if (key == "call_recorder_enabled" || key == "call_recorder_manual_enabled") {
             setupCallRecorder()

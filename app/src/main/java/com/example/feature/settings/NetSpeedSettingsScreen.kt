@@ -47,7 +47,9 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE) }
     
-    var speedIndicatorEnabled by remember { mutableStateOf(prefs.getBoolean("speed_indicator_enabled", false)) }
+    var speedIndicatorEnabled by remember { 
+        mutableStateOf(prefs.getBoolean("netspeed_enabled", prefs.getBoolean("speed_indicator_enabled", false))) 
+    }
     var speedUnits by remember { mutableStateOf(prefs.getString("speed_units", "Auto") ?: "Auto") }
     var dataUnits by remember { mutableStateOf(prefs.getString("data_units", "Auto") ?: "Auto") }
 
@@ -83,7 +85,7 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("NetSpeed Settings") },
+            title = { Text("Internet Speed Monitor") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -93,13 +95,16 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
                 ListItem(
-                    headlineContent = { Text("Enable Net Speed Overlay") },
+                    headlineContent = { Text("Enable Internet Speed Monitor") },
                     trailingContent = {
                         Switch(
                             checked = speedIndicatorEnabled,
                             onCheckedChange = {
                                 speedIndicatorEnabled = it
-                                prefs.edit().putBoolean("speed_indicator_enabled", it).apply()
+                                prefs.edit()
+                                    .putBoolean("netspeed_enabled", it)
+                                    .putBoolean("speed_indicator_enabled", it)
+                                    .apply()
                             }
                         )
                     }

@@ -102,9 +102,9 @@ fun SettingsApp(startRoute: String, onFinish: () -> Unit) {
                 "dict" -> DictionarySettingsScreen(
                     onBack = { currentRoute = "main" }
                 )
-                "permissions" -> WelcomeScreen(
-                    onContinue = { currentRoute = "main" },
-                    
+                "permissions" -> PermissionManagerScreen(
+                    isFirstLaunch = false,
+                    onContinue = { currentRoute = "main" }
                 )
                 "browser" -> BrowserSettingsScreen(
                     onBack = { currentRoute = "main" }
@@ -175,7 +175,7 @@ fun MainSettingsScreen(onNavigateToReader: () -> Unit, onNavigateToGeneral: () -
                 )
                 Divider()
                 ListItem(
-                    headlineContent = { Text("NetSpeed Indicator Settings") },
+                    headlineContent = { Text("Internet Speed Monitor") },
                     supportingContent = { Text("Toggle, units, and data usage statistics") },
                     modifier = Modifier.clickable { onNavigateToNetSpeed() }
                 )
