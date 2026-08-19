@@ -52,6 +52,18 @@ class SidebarView(
     private var isAttached = false
     private val viewScope = CoroutineScope(Dispatchers.Main + Job())
     private val appsManagers = mutableMapOf<String, SidebarAppsManager>()
+    private val dimOverlay: View
+
+    fun setDimmed(dimmed: Boolean) {
+        if (dimmed) {
+            dimOverlay.visibility = View.VISIBLE
+            dimOverlay.animate().alpha(0.5f).setDuration(180).start()
+        } else {
+            dimOverlay.animate().alpha(0f).setDuration(180).withEndAction {
+                dimOverlay.visibility = View.GONE
+            }.start()
+        }
+    }
 
     init {
         AppLogger.d("SidebarView", "Init sidebar for containerId: $containerId")
@@ -301,6 +313,25 @@ class SidebarView(
         addView(header)
         addView(container)
 
+        val dimDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(Color.BLACK)
+            val radius = 16f * density
+            cornerRadii = if (isRight) {
+                floatArrayOf(radius, radius, 0f, 0f, 0f, 0f, radius, radius)
+            } else {
+                floatArrayOf(0f, 0f, radius, radius, radius, radius, 0f, 0f)
+            }
+        }
+        dimOverlay = View(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+            background = dimDrawable
+            alpha = 0f
+            visibility = View.GONE
+            isClickable = false
+        }
+        addView(dimOverlay)
+
         viewPager.setCurrentItem(startingIndex, false)
 
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -451,6 +482,7 @@ class SidebarView(
                     manager.ensureLoaded()
                     val p = AppsPageView(context, physicalHandleId, config, manager, viewScope,
                         onCloseSidebar = { onClose() },
+                        onDimSidebar = { dimmed -> setDimmed(dimmed) },
                         onHeightChanged = { newHeight ->
                             if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
                                 val params = viewPager.layoutParams
@@ -465,8 +497,11 @@ class SidebarView(
                     p.updateData(manager.activeItems)
                     p
                 }
-                "hybrid_grid" -> {
-                    HybridGridPageView(context, config.id, viewScope) { newHeight ->
+                "hybrid_grid", "default_hybrid" -> {
+                    val pageId = if (config.type == "default_hybrid" && !config.id.startsWith("default_hybrid")) "default_hybrid" else config.id
+                    HybridGridPageView(context, pageId, viewScope, containerId,
+                        onDimSidebar = { dimmed -> setDimmed(dimmed) }
+                    ) { newHeight ->
                         if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
                             val params = viewPager.layoutParams
                             if (params.height != newHeight) {
@@ -517,7 +552,7 @@ class SidebarView(
                     }
                 }
                 "scheduler" -> SchedulerPageView(context, viewScope)
-                "notifications" -> NotificationPageView(context, { onClose() }, { /* TODO: onHideApp */ })
+                "notifications", "notification" -> NotificationPageView(context, { onClose() }, { /* TODO: onHideApp */ })
                 "resources_tracker" -> ResourcesTrackerPageView(context, viewScope)
                 else -> {
                     TextView(context).apply {

@@ -75,16 +75,18 @@ object PageManager {
     }
 
     fun getPages(prefs: SharedPreferences, rawHandleId: String): List<SidebarPage> {
-        val handleId = getCleanHandleId(rawHandleId)
-        val legacy = if (handleId == "sidebar") prefs.getString("sidebar_pages", null) else null
-        val pagesJson = prefs.getString("handle_${handleId}_pages", legacy)
-        val defaultPageId = if (handleId == "sidebar") "default_hybrid" else "default_hybrid_$handleId"
+        val cleanHandleId = getCleanHandleId(rawHandleId)
+        val containerSpecificJson = prefs.getString("handle_${rawHandleId}_pages", null)
+        val legacy = if (rawHandleId == "sidebar" || cleanHandleId == "sidebar") prefs.getString("sidebar_pages", null) else null
+        val pagesJson = containerSpecificJson ?: prefs.getString("handle_${cleanHandleId}_pages", legacy)
+        
+        val defaultPageId = if (rawHandleId == "sidebar") "default_hybrid" else "default_hybrid_$rawHandleId"
         val defaultPage = SidebarPage(id = defaultPageId, type = "hybrid_grid", title = "Home Grid")
         if (!prefs.contains("hybrid_grid_" + defaultPageId)) {
             val jsonStr = "[{\"id\": \"system:ebook_reader\", \"cols\": 1, \"rows\": 1, \"x\": 0, \"y\": 0}, {\"id\": \"system:log_keeper\", \"cols\": 1, \"rows\": 1, \"x\": 1, \"y\": 0}]"
             prefs.edit().putString("hybrid_grid_" + defaultPageId, jsonStr).apply()
             prefs.edit().putInt("hybrid_grid_cols_$defaultPageId", 3).apply()
-            prefs.edit().putBoolean("handle_${handleId}_sidebar_wrap_content", true).apply()
+            prefs.edit().putBoolean("handle_${rawHandleId}_sidebar_wrap_content", true).apply()
         }
         if (pagesJson == null) {
             // Default setup
@@ -96,8 +98,17 @@ object PageManager {
             val arr = JSONArray(pagesJson)
             for (i in 0 until arr.length()) {
                 val page = SidebarPage.fromJson(arr.getJSONObject(i))
-                if (page.type != "dictionary" && page.type != "pwa_loader" && seenIds.add(page.id)) {
-                    list.add(page)
+                val sanitizedType = if (page.type == "default_hybrid") "hybrid_grid" else page.type
+                val sanitizedTitle = if (page.title.equals("default_hybrid", ignoreCase = true)) "Home Grid" else page.title
+                val sanitizedPage = if (sanitizedType != page.type || sanitizedTitle != page.title) {
+                    page.copy(type = sanitizedType, title = sanitizedTitle)
+                } else page
+                
+                // Prevent duplicate home grids if one is already present
+                val isDuplicateHomeGrid = (sanitizedPage.type == "hybrid_grid" && list.any { it.type == "hybrid_grid" && it.id == defaultPageId })
+                
+                if (sanitizedPage.type != "dictionary" && sanitizedPage.type != "pwa_loader" && !isDuplicateHomeGrid && seenIds.add(sanitizedPage.id)) {
+                    list.add(sanitizedPage)
                 }
             }
         } catch (e: Exception) {
@@ -109,20 +120,18 @@ object PageManager {
     }
 
     fun savePages(prefs: SharedPreferences, rawHandleId: String, pages: List<SidebarPage>) {
-        val handleId = getCleanHandleId(rawHandleId)
         val arr = JSONArray()
         val seenIds = mutableSetOf<String>()
         pages.filter { seenIds.add(it.id) }.forEach { arr.put(it.toJson()) }
-        prefs.edit().putString("handle_${handleId}_pages", arr.toString()).apply()
+        prefs.edit().putString("handle_${rawHandleId}_pages", arr.toString()).apply()
     }
 
     fun getDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String): Int {
-        val handleId = getCleanHandleId(rawHandleId)
-        return prefs.getInt("handle_${handleId}_default_page_index", prefs.getInt("sidebar_default_page_index", 0))
+        val cleanHandleId = getCleanHandleId(rawHandleId)
+        return prefs.getInt("handle_${rawHandleId}_default_page_index", prefs.getInt("handle_${cleanHandleId}_default_page_index", prefs.getInt("sidebar_default_page_index", 0)))
     }
 
     fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int) {
-        val handleId = getCleanHandleId(rawHandleId)
-        prefs.edit().putInt("handle_${handleId}_default_page_index", index).apply()
+        prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index).apply()
     }
 }

@@ -44,70 +44,80 @@ class SettingsActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsApp(startRoute: String, onFinish: () -> Unit) {
-    var navigateToPermissions by remember { mutableStateOf(false) }
-    var currentRoute by remember { mutableStateOf(startRoute) }
+    val backStack = remember { androidx.compose.runtime.mutableStateListOf(startRoute) }
+    val currentRoute = backStack.lastOrNull() ?: "main"
+    
+    fun navigateTo(route: String) {
+        if (backStack.lastOrNull() != route) {
+            backStack.add(route)
+        }
+    }
+    
+    fun navigateBack() {
+        if (backStack.size > 1) {
+            backStack.removeAt(backStack.size - 1)
+        } else {
+            onFinish()
+        }
+    }
     
     androidx.activity.compose.BackHandler {
-        if (currentRoute == "main" || currentRoute == startRoute) {
-            onFinish()
-        } else {
-            currentRoute = "main"
-        }
+        navigateBack()
     }
     
     Scaffold { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (currentRoute) {
                 "main" -> MainSettingsScreen(
-                    onNavigateToDict = { currentRoute = "dict" },
-                    onNavigateToReader = { currentRoute = "reader" },
-                    onNavigateToGeneral = { currentRoute = "general" },
-                    onNavigateToNetSpeed = { currentRoute = "netspeed" },
-                    onNavigateToData = { currentRoute = "data" },
-                    onNavigateToPages = { currentRoute = "pages" },
-                    onNavigateToHandles = { currentRoute = "handles" },
-                    onNavigateToCallRecorder = { currentRoute = "call_recorder" },
-                    onNavigateToScreenCap = { currentRoute = "screencap" },
-                    onNavigateToPermissions = { currentRoute = "permissions" },
-                    onNavigateToBrowser = { currentRoute = "browser" },
-                    onBack = onFinish
+                    onNavigateToDict = { navigateTo("dict") },
+                    onNavigateToReader = { navigateTo("reader") },
+                    onNavigateToGeneral = { navigateTo("general") },
+                    onNavigateToNetSpeed = { navigateTo("netspeed") },
+                    onNavigateToData = { navigateTo("data") },
+                    onNavigateToPages = { navigateTo("pages") },
+                    onNavigateToHandles = { navigateTo("handles") },
+                    onNavigateToCallRecorder = { navigateTo("call_recorder") },
+                    onNavigateToScreenCap = { navigateTo("screencap") },
+                    onNavigateToPermissions = { navigateTo("permissions") },
+                    onNavigateToBrowser = { navigateTo("browser") },
+                    onBack = { navigateBack() }
                 )
                 "reader" -> ReaderSettingsScreen(
-                    onBack = { if (startRoute == "reader") onFinish() else currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "general" -> SidebarSettingsScreen(
                     handleId = "sidebar",
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "netspeed" -> NetSpeedSettingsScreen(
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "data" -> DataSettingsScreen(
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "pages" -> PageManagementSettingsScreen(
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "handles" -> HandlesListSettingsScreen(
-                    onNavigateToHandle = { currentRoute = "handle_$it" },
-                    onNavigateToSidebarSettings = { currentRoute = "pages_$it" },
-                    onBack = { currentRoute = "main" }
+                    onNavigateToHandle = { navigateTo("handle_$it") },
+                    onNavigateToSidebarSettings = { navigateTo("pages_$it") },
+                    onBack = { navigateBack() }
                 )
                 "call_recorder" -> CallRecorderSettingsScreen(
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "screencap" -> ScreenCapSettingsScreen(
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "dict" -> DictionarySettingsScreen(
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
                 "permissions" -> PermissionManagerScreen(
                     isFirstLaunch = false,
-                    onContinue = { currentRoute = "main" }
+                    onContinue = { navigateBack() }
                 )
                 "browser" -> BrowserSettingsScreen(
-                    onBack = { currentRoute = "main" }
+                    onBack = { navigateBack() }
                 )
             }
             if (currentRoute.startsWith("pages_")) {
@@ -127,13 +137,13 @@ fun SettingsApp(startRoute: String, onFinish: () -> Unit) {
                     handleId = handleId,
                     initAction = initAction,
                     initialEditPageId = initialEditPageId,
-                    onBack = { currentRoute = "handles" }
+                    onBack = { navigateBack() }
                 )
             } else if (currentRoute.startsWith("handle_")) {
                 val handleId = currentRoute.removePrefix("handle_")
                 HandleEditScreen(
                     handleId = handleId,
-                    onBack = { currentRoute = "handles" }
+                    onBack = { navigateBack() }
                 )
             }
         }

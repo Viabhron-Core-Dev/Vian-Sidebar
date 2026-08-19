@@ -34,6 +34,12 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.sp
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.os.Build
+
 data class AppUsageInfo(
     val packageName: String,
     val appName: String,
@@ -59,6 +65,10 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     var hasPermission by remember { 
         mutableStateOf(hasUsageStatsPermission(context))
     }
+
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
 
     var usageData by remember { mutableStateOf<List<AppUsageInfo>>(emptyList()) }
     var timePeriod by remember { mutableStateOf("Daily") } // Daily, Weekly, Monthly
@@ -99,12 +109,17 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                     trailingContent = {
                         Switch(
                             checked = speedIndicatorEnabled,
-                            onCheckedChange = {
-                                speedIndicatorEnabled = it
+                            onCheckedChange = { enabled ->
+                                speedIndicatorEnabled = enabled
                                 prefs.edit()
-                                    .putBoolean("netspeed_enabled", it)
-                                    .putBoolean("speed_indicator_enabled", it)
+                                    .putBoolean("netspeed_enabled", enabled)
+                                    .putBoolean("speed_indicator_enabled", enabled)
                                     .apply()
+                                if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                        notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                }
                             }
                         )
                     }

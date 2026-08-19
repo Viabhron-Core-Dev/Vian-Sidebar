@@ -68,7 +68,7 @@ fun PageCustomizeScreen(
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
 
             item {
-                if (page.type == "apps" || page.type == "widgets_grid" || page.type == "hybrid_grid" || page.type == "app_tracker") {
+                if (page.type == "apps" || page.type == "widgets_grid" || page.type == "hybrid_grid" || page.type == "app_tracker" || page.type == "notification" || page.type == "notifications") {
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
@@ -77,11 +77,12 @@ fun PageCustomizeScreen(
                                 "widgets_grid" -> com.example.WidgetsGridEditActivity::class.java
                                 "hybrid_grid" -> com.example.HybridGridEditActivity::class.java
                                 "app_tracker" -> com.example.AppTrackerSettingsActivity::class.java
+                                "notification", "notifications" -> com.example.NotificationHistoryActivity::class.java
                                 else -> null
                             }
                             if (targetClass != null) {
                                 val intent = Intent(context, targetClass).apply {
-                                    if (page.type != "app_tracker") {
+                                    if (page.type == "apps" || page.type == "widgets_grid" || page.type == "hybrid_grid") {
                                         putExtra("PAGE_ID", page.id)
                                     }
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -96,7 +97,8 @@ fun PageCustomizeScreen(
                                 "apps" -> "EDIT APPS"
                                 "hybrid_grid" -> "EDIT GRID"
                                 "widgets_grid" -> "EDIT WIDGETS"
-                                "app_tracker" -> "EDIT TRACKER"
+                                "app_tracker" -> "VIEW APP TRACKER"
+                                "notification", "notifications" -> "NOTIFICATION HISTORY"
                                 else -> "EDIT"
                             }
                         )

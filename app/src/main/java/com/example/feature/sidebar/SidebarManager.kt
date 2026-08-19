@@ -72,15 +72,19 @@ class SidebarManager(
             closeSidebar()
         }
         
-        val pages = PageManager.getPages(prefs, physicalHandleId)
+        // Load pages specifically for this container (handle + gesture)
+        val pages = PageManager.getPages(prefs, containerId)
         val cleanTargetId = targetPageId?.removePrefix("open_page:")
         
-        // Find target index based on targetPageId or fallback to default
+        // Find target index based on targetPageId or fallback to default (first page / 0)
         val targetIndex = if (cleanTargetId != null) {
-            val idx = pages.indexOfFirst { it.id == cleanTargetId || it.type == cleanTargetId }
-            if (idx != -1) idx else PageManager.getDefaultPageIndex(prefs, physicalHandleId)
+            val effectiveTarget = if (cleanTargetId.startsWith("default_hybrid")) "hybrid_grid" else cleanTargetId
+            val idx = pages.indexOfFirst { 
+                it.id == cleanTargetId || it.type == cleanTargetId || it.type == effectiveTarget || (effectiveTarget == "hybrid_grid" && (it.id.startsWith("default_hybrid") || it.type == "hybrid_grid"))
+            }
+            if (idx != -1) idx else PageManager.getDefaultPageIndex(prefs, containerId)
         } else {
-            PageManager.getDefaultPageIndex(prefs, physicalHandleId)
+            PageManager.getDefaultPageIndex(prefs, containerId)
         }
         
         sidebarView = SidebarView(context, prefs, windowManager, physicalHandleId, containerId, pages, targetIndex) {

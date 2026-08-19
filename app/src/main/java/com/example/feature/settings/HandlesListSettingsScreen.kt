@@ -52,7 +52,6 @@ fun HandlesListSettingsScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 val newId = UUID.randomUUID().toString()
-                prefs.edit().putString("handle_${newId}_tap", "toggle_sidebar").apply()
                 handles = handles + HandleConfig(id = newId, name = "Handle ${handles.size + 1}", enabled = true)
                 save()
             }) {
@@ -233,15 +232,14 @@ fun HandleItem(
                                     val pageTitle = when(pageType) {
                                         "apps" -> "Apps Grid"
                                         "widgets_grid" -> "Widgets Grid"
-                                        "hybrid_grid" -> "Hybrid Grid"
+                                        "hybrid_grid" -> "Home Grid"
                                         "app_tracker" -> "App Tracker"
                                         "resources_tracker" -> "Resources Tracker"
-                    "media_player" -> "Media Player"
-                    "widget" -> "Android Widget"
+                                        "media_player" -> "Media Player"
                                         "calculator" -> "Calculator"
                                         "scheduler" -> "Short Reminders"
                                         "compass" -> "Compass"
-                                        "notifications" -> "Notifications"
+                                        "notifications", "notification" -> "Notifications"
                                         else -> "Page"
                                     }
                                     val newPage = com.example.utils.SidebarPage(id = UUID.randomUUID().toString(), type = pageType, title = pageTitle)
@@ -256,12 +254,41 @@ fun HandleItem(
                     if (gesturesMap.isEmpty()) {
                         Text("No gestures assigned.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                     } else {
+                        val configuredPages = com.example.utils.PageManager.getPages(prefs, handle.id)
                         gesturesMap.forEach { (gesture, action) ->
                             val actionName = when {
-                                action == "toggle_sidebar" -> "Sidebar (Default)"
-                                action == "toggle_reader" -> "Toggle Reader"
-                                action.startsWith("open_page:") -> "Page: ${action.removePrefix("open_page:")}"
-                                action.startsWith("action:") -> "Action: ${action.removePrefix("action:")}"
+                                action == "toggle_sidebar" -> "Sidebar (Default / Active Page)"
+                                action == "toggle_reader" -> "Toggle Floating Reader"
+                                action.startsWith("open_page:") -> {
+                                    val targetId = action.removePrefix("open_page:")
+                                    val matchedPage = configuredPages.find { 
+                                        it.id == targetId || it.type == targetId || (targetId.startsWith("default_hybrid") && it.type == "hybrid_grid")
+                                    }
+                                    if (matchedPage != null) "Sidebar: ${matchedPage.title}" else "Sidebar: $targetId"
+                                }
+                                action.startsWith("action_") || action.startsWith("action:") -> {
+                                    val act = action.removePrefix("action_").removePrefix("action:")
+                                    when (act) {
+                                        "screenshot" -> "Action: Take Screenshot"
+                                        "long_screenshot" -> "Action: Long Screenshot"
+                                        "lock_screen" -> "Action: Lock Screen"
+                                        "notifications" -> "Action: Notifications Panel"
+                                        "quick_settings" -> "Action: Quick Settings"
+                                        "recents" -> "Action: Recent Apps"
+                                        "home" -> "Action: Go Home"
+                                        "back" -> "Action: Back"
+                                        "splitscreen" -> "Action: Split Screen"
+                                        "cursor" -> "Action: Virtual Cursor"
+                                        "auto_scroll" -> "Action: Auto Scroll"
+                                        "barcode_scanner" -> "Action: Secure Camera Scanner"
+                                        "qr_scan" -> "Action: Secure Screen Scanner"
+                                        else -> "Action: " + act.replace("_", " ").replaceFirstChar { it.uppercase() }
+                                    }
+                                }
+                                action.startsWith("open_element:") -> {
+                                    val elem = action.removePrefix("open_element:").removePrefix("page_window:").removePrefix("system:")
+                                    "Element: " + elem.replace("_", " ").replaceFirstChar { it.uppercase() }
+                                }
                                 else -> action
                             }
                             
@@ -293,12 +320,12 @@ fun HandleItem(
                                             expanded = showGestureMenu,
                                             onDismissRequest = { showGestureMenu = false }
                                         ) {
-                                            if (action == "toggle_sidebar") {
+                                            if (action == "toggle_sidebar" || action.startsWith("open_page:")) {
                                                 DropdownMenuItem(
                                                     text = { Text("Sidebar Settings") },
                                                     onClick = {
                                                         showGestureMenu = false
-                                                        onNavigateToSidebarSettings(gesture, null)
+                                                        onNavigateToSidebarSettings(gesture, if (action == "toggle_sidebar") null else action)
                                                     }
                                                 )
                                             }
@@ -389,55 +416,85 @@ fun HandleItem(
                         )
                     }
                     
+                    val elementActionOptions = listOf(
+                        "action_screenshot" to "Take Screenshot",
+                        "action_long_screenshot" to "Long Screenshot",
+                        "action_lock_screen" to "Lock Screen",
+                        "action_notifications" to "Notifications Panel",
+                        "action_quick_settings" to "Quick Settings",
+                        "action_recents" to "Recent Apps",
+                        "action_home" to "Go Home",
+                        "action_back" to "Back",
+                        "action_splitscreen" to "Split Screen",
+                        "action_cursor" to "Virtual Cursor",
+                        "action_auto_scroll" to "Auto Scroll",
+                        "action_barcode_scanner" to "Secure Camera Scanner",
+                        "action_qr_scan" to "Secure Screen Scanner",
+                        "toggle_reader" to "Toggle Floating Reader",
+                        "open_element:page_window:calculator" to "Calculator (Floating)",
+                        "open_element:page_window:compass" to "Compass (Floating)",
+                        "open_element:page_window:dictionary" to "Dictionary (Floating)"
+                    )
+
+                    val availableSidebarPresets = listOf(
+                        "open_page:default_hybrid" to "Home Grid (Hybrid)",
+                        "open_page:apps" to "Apps Grid",
+                        "open_page:widgets_grid" to "Widgets Grid",
+                        "open_page:scheduler" to "Short Reminders",
+                        "open_page:calculator" to "Calculator",
+                        "open_page:compass" to "Compass",
+                        "open_page:notification" to "Notifications",
+                        "open_page:app_tracker" to "App Tracker",
+                        "open_page:resources_tracker" to "Resources Tracker",
+                        "open_page:media_player" to "Media Player"
+                    )
+
                     if (showChangeGestureDialog) {
-                        val context = LocalContext.current
                         val pageConfigs = com.example.utils.PageManager.getPages(prefs, handle.id)
-                        
                         val categoryOptions = listOf(
-                            "page" to "Page",
-                            "element" to "Action/Element",
-                            "sidebar" to "Sidebar"
+                            "sidebar" to "Sidebar",
+                            "element" to "Action / Element"
                         )
-                        var selectedCategory by remember { mutableStateOf(categoryOptions.first().first) }
-                        val pageOptions = if (pageConfigs.isNotEmpty()) {
-                            pageConfigs.map { it.id to "${it.title} (${it.type})" }
-                        } else {
-                            listOf(
-                                "default_hybrid" to "Home Grid",
-                                "apps" to "Apps Grid",
-                                "widgets_grid" to "Widgets Grid",
-                                "hybrid_grid" to "Hybrid Grid"
-                            )
+                        var selectedCategory by remember { mutableStateOf("sidebar") }
+                        
+                        val sidebarPageOptions = mutableListOf(
+                            "toggle_sidebar" to "Default / Current Active Page"
+                        )
+                        if (pageConfigs.isNotEmpty()) {
+                            sidebarPageOptions.addAll(pageConfigs.map { "open_page:${it.id}" to "${it.title} (${it.type})" })
                         }
-                        var selectedPageType by remember { mutableStateOf(pageOptions.first().first) }
+                        availableSidebarPresets.forEach { preset ->
+                            if (sidebarPageOptions.none { it.first == preset.first }) {
+                                sidebarPageOptions.add(preset)
+                            }
+                        }
+                        
+                        var selectedSidebarOption by remember { mutableStateOf(sidebarPageOptions.first().first) }
+                        var selectedElementOption by remember { mutableStateOf(elementActionOptions.first().first) }
                         
                         AlertDialog(
                             onDismissRequest = { showChangeGestureDialog = false },
                             title = { Text("Change Action for ${gestureLabels[gestureToChange] ?: gestureToChange}") },
                             text = {
                                 Column {
-                                    ActionDropdown("Type/Content", selectedCategory, categoryOptions) { selectedCategory = it }
+                                    ActionDropdown("Category", selectedCategory, categoryOptions) { selectedCategory = it }
+                                    Spacer(modifier = Modifier.height(12.dp))
                                     
-                                    if (selectedCategory == "page") {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        ActionDropdown("Select Page", selectedPageType, pageOptions) { selectedPageType = it }
+                                    if (selectedCategory == "sidebar") {
+                                        ActionDropdown("Select Sidebar Page / Behavior", selectedSidebarOption, sidebarPageOptions) { selectedSidebarOption = it }
+                                    } else {
+                                        ActionDropdown("Select Action / Element", selectedElementOption, elementActionOptions) { selectedElementOption = it }
                                     }
                                 }
                             },
                             confirmButton = {
                                 TextButton(onClick = {
                                     if (selectedCategory == "sidebar") {
-                                        updateGesture(gestureToChange, "toggle_sidebar")
-                                        showChangeGestureDialog = false
-                                    } else if (selectedCategory == "page") {
-                                        if (selectedPageType.isNotEmpty()) {
-                                            updateGesture(gestureToChange, "open_page:$selectedPageType")
-                                            showChangeGestureDialog = false
-                                        }
-                                    } else if (selectedCategory == "element") {
-                                        // Not supported in this phase
-                                        showChangeGestureDialog = false
+                                        updateGesture(gestureToChange, selectedSidebarOption)
+                                    } else {
+                                        updateGesture(gestureToChange, selectedElementOption)
                                     }
+                                    showChangeGestureDialog = false
                                 }) {
                                     Text("Change")
                                 }
@@ -451,27 +508,29 @@ fun HandleItem(
                     }
 
                     if (showAddGestureDialog) {
-                        val context = LocalContext.current
                         val pageConfigs = com.example.utils.PageManager.getPages(prefs, handle.id)
-                        var selectedGesture by remember { mutableStateOf(gestureKeys.first { !gesturesMap.containsKey(it) } ?: gestureKeys.first()) }
+                        var selectedGesture by remember { mutableStateOf(gestureKeys.firstOrNull { !gesturesMap.containsKey(it) } ?: gestureKeys.first()) }
                         
                         val categoryOptions = listOf(
-                            "page" to "Page",
-                            "element" to "Action/Element",
-                            "sidebar" to "Sidebar"
+                            "sidebar" to "Sidebar",
+                            "element" to "Action / Element"
                         )
-                        var selectedCategory by remember { mutableStateOf(categoryOptions.first().first) }
-                        val pageOptions = if (pageConfigs.isNotEmpty()) {
-                            pageConfigs.map { it.id to "${it.title} (${it.type})" }
-                        } else {
-                            listOf(
-                                "default_hybrid" to "Home Grid",
-                                "apps" to "Apps Grid",
-                                "widgets_grid" to "Widgets Grid",
-                                "hybrid_grid" to "Hybrid Grid"
-                            )
+                        var selectedCategory by remember { mutableStateOf("sidebar") }
+                        
+                        val sidebarPageOptions = mutableListOf(
+                            "toggle_sidebar" to "Default / Current Active Page"
+                        )
+                        if (pageConfigs.isNotEmpty()) {
+                            sidebarPageOptions.addAll(pageConfigs.map { "open_page:${it.id}" to "${it.title} (${it.type})" })
                         }
-                        var selectedPageType by remember { mutableStateOf(pageOptions.first().first) }
+                        availableSidebarPresets.forEach { preset ->
+                            if (sidebarPageOptions.none { it.first == preset.first }) {
+                                sidebarPageOptions.add(preset)
+                            }
+                        }
+                        
+                        var selectedSidebarOption by remember { mutableStateOf(sidebarPageOptions.first().first) }
+                        var selectedElementOption by remember { mutableStateOf(elementActionOptions.first().first) }
                         
                         AlertDialog(
                             onDismissRequest = { showAddGestureDialog = false },
@@ -479,29 +538,25 @@ fun HandleItem(
                             text = {
                                 Column {
                                     ActionDropdown("Select Gesture", selectedGesture, gestureKeys.filter { !gesturesMap.containsKey(it) }.map { it to (gestureLabels[it] ?: it) }) { selectedGesture = it }
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    ActionDropdown("Type/Content", selectedCategory, categoryOptions) { selectedCategory = it }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    ActionDropdown("Category", selectedCategory, categoryOptions) { selectedCategory = it }
+                                    Spacer(modifier = Modifier.height(12.dp))
                                     
-                                    if (selectedCategory == "page") {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        ActionDropdown("Select Page", selectedPageType, pageOptions) { selectedPageType = it }
+                                    if (selectedCategory == "sidebar") {
+                                        ActionDropdown("Select Sidebar Page / Behavior", selectedSidebarOption, sidebarPageOptions) { selectedSidebarOption = it }
+                                    } else {
+                                        ActionDropdown("Select Action / Element", selectedElementOption, elementActionOptions) { selectedElementOption = it }
                                     }
                                 }
                             },
                             confirmButton = {
                                 TextButton(onClick = {
                                     if (selectedCategory == "sidebar") {
-                                        updateGesture(selectedGesture, "toggle_sidebar")
-                                        showAddGestureDialog = false
-                                    } else if (selectedCategory == "page") {
-                                        if (selectedPageType.isNotEmpty()) {
-                                            updateGesture(selectedGesture, "open_page:$selectedPageType")
-                                            showAddGestureDialog = false
-                                        }
-                                    } else if (selectedCategory == "element") {
-                                        // Not supported in this phase
-                                        showAddGestureDialog = false
+                                        updateGesture(selectedGesture, selectedSidebarOption)
+                                    } else {
+                                        updateGesture(selectedGesture, selectedElementOption)
                                     }
+                                    showAddGestureDialog = false
                                 }) {
                                     Text("Add")
                                 }

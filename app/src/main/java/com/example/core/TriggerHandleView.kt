@@ -191,8 +191,8 @@ class TriggerHandleView(
             sidebarIntent.action = "com.example.ACTION_OPEN_PAGE"
             sidebarIntent.putExtra("pageType", pageType)
             context.startService(sidebarIntent)
-        } else if (action.startsWith("action_")) {
-            val sysAction = action.removePrefix("action_")
+        } else if (action.startsWith("action_") || action.startsWith("action:")) {
+            val sysAction = action.removePrefix("action_").removePrefix("action:")
             val accIntent = Intent("com.example.ACTION_ACCESSIBILITY_PERFORM").apply {
                 putExtra("action", sysAction)
             }

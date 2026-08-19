@@ -32,6 +32,7 @@ class AppsPageView(
     private val manager: SidebarAppsManager,
     private val serviceScope: CoroutineScope,
     private val onCloseSidebar: () -> Unit,
+    private val onDimSidebar: ((Boolean) -> Unit)? = null,
     private val onHeightChanged: ((Int) -> Unit)? = null,
     private val onEditModeClicked: (() -> Unit)? = null
 ) : FrameLayout(context), SidebarPageControllable {
@@ -159,11 +160,20 @@ class AppsPageView(
                 val padding = (12 * density).toInt()
                 popupView.setPadding(padding, padding, padding, padding)
                 
-                val popupOpacity = if (pageConfig?.useCustomSettings == true) pageConfig.transparency else prefs.getFloat("sidebar_transparency", 0.9f)
-                val popupBg = android.graphics.drawable.GradientDrawable()
-                popupBg.setColor(android.graphics.Color.parseColor("#1A1A1A"))
-                popupBg.alpha = (popupOpacity * 255).toInt()
-                popupBg.cornerRadius = 16 * density
+                val popupOpacity = if (pageConfig?.useCustomSettings == true) pageConfig.transparency else prefs.getFloat("handle_${handleId}_sidebar_transparency", prefs.getFloat("sidebar_transparency", 0.9f))
+                val colorHex = prefs.getString("handle_${handleId}_sidebar_color", prefs.getString("sidebar_color", "#1E1E2E")) ?: "#1E1E2E"
+                val baseColor = try { android.graphics.Color.parseColor(colorHex) } catch(e: Exception) { android.graphics.Color.parseColor("#1E1E2E") }
+                val alphaInt = (popupOpacity * 255).toInt().coerceIn(0, 255)
+                val r = android.graphics.Color.red(baseColor)
+                val g = android.graphics.Color.green(baseColor)
+                val b = android.graphics.Color.blue(baseColor)
+
+                val popupBg = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    setColor(android.graphics.Color.argb(alphaInt, r, g, b))
+                    setStroke((1 * density).toInt(), android.graphics.Color.argb(80, 255, 255, 255))
+                    cornerRadius = 16 * density
+                }
                 popupView.background = popupBg
                 
                 // Allow widget to determine its own size, but set a min size based on provider info
@@ -189,6 +199,9 @@ class AppsPageView(
                     }
                     setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
                     isOutsideTouchable = true
+                    setOnDismissListener {
+                        onDimSidebar?.invoke(false)
+                    }
                 }
                 
                 currentFolderPopup = popupWindow
@@ -217,6 +230,7 @@ class AppsPageView(
                 }
                 if (y < 0) y = 0
                 
+                onDimSidebar?.invoke(true)
                 popupWindow.showAtLocation(anchor, android.view.Gravity.NO_GRAVITY, x, y)
             }
         } catch (e: Exception) {
@@ -252,11 +266,20 @@ class AppsPageView(
         val popupAdapter = AppsAdapter(folderItems)
         recyclerView.adapter = popupAdapter
         
-        val popupOpacity = if (pageConfig?.useCustomSettings == true) pageConfig.transparency else prefs.getFloat("sidebar_transparency", 0.9f)
-        val popupBg = android.graphics.drawable.GradientDrawable()
-        popupBg.setColor(android.graphics.Color.parseColor("#1A1A1A"))
-        popupBg.alpha = (popupOpacity * 255).toInt()
-        popupBg.cornerRadius = 16 * density
+        val popupOpacity = if (pageConfig?.useCustomSettings == true) pageConfig.transparency else prefs.getFloat("handle_${handleId}_sidebar_transparency", prefs.getFloat("sidebar_transparency", 0.9f))
+        val colorHex = prefs.getString("handle_${handleId}_sidebar_color", prefs.getString("sidebar_color", "#1E1E2E")) ?: "#1E1E2E"
+        val baseColor = try { android.graphics.Color.parseColor(colorHex) } catch(e: Exception) { android.graphics.Color.parseColor("#1E1E2E") }
+        val alphaInt = (popupOpacity * 255).toInt().coerceIn(0, 255)
+        val r = android.graphics.Color.red(baseColor)
+        val g = android.graphics.Color.green(baseColor)
+        val b = android.graphics.Color.blue(baseColor)
+
+        val popupBg = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            setColor(android.graphics.Color.argb(alphaInt, r, g, b))
+            setStroke((1 * density).toInt(), android.graphics.Color.argb(80, 255, 255, 255))
+            cornerRadius = 16 * density
+        }
         popupView.background = popupBg
         
         // Calculate exact size for compact wrap_content appearance
@@ -285,6 +308,9 @@ class AppsPageView(
             }
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
             isOutsideTouchable = true
+            setOnDismissListener {
+                onDimSidebar?.invoke(false)
+            }
         }
 
         val location = IntArray(2)
@@ -305,6 +331,7 @@ class AppsPageView(
         if (y < 0) y = 0
         if (y + totalHeight > screenHeight) y = screenHeight - totalHeight
 
+        onDimSidebar?.invoke(true)
         popupWindow.showAtLocation(anchor, Gravity.NO_GRAVITY, x, y)
         currentFolderPopup = popupWindow
     }

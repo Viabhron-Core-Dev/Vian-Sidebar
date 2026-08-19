@@ -37,6 +37,8 @@ class HybridGridPageView(
     context: Context,
     private val pageId: String,
     private val scope: CoroutineScope,
+    private val containerId: String = "sidebar",
+    private val onDimSidebar: ((Boolean) -> Unit)? = null,
     private val onHeightChanged: (Int) -> Unit
 ) : FrameLayout(context), SidebarPageControllable {
 
@@ -608,11 +610,20 @@ class HybridGridPageView(
         
         recyclerView.layoutManager = GridLayoutManager(context, validCols)
 
-        val popupOpacity = prefs.getFloat("sidebar_transparency", 0.9f)
-        val popupBg = android.graphics.drawable.GradientDrawable()
-        popupBg.setColor(Color.parseColor("#1A1A1A"))
-        popupBg.alpha = (popupOpacity * 255).toInt()
-        popupBg.cornerRadius = 16 * density
+        val popupOpacity = prefs.getFloat("handle_${containerId}_sidebar_transparency", prefs.getFloat("sidebar_transparency", 0.9f))
+        val colorHex = prefs.getString("handle_${containerId}_sidebar_color", prefs.getString("sidebar_color", "#1E1E2E")) ?: "#1E1E2E"
+        val baseColor = try { Color.parseColor(colorHex) } catch(e: Exception) { Color.parseColor("#1E1E2E") }
+        val alphaInt = (popupOpacity * 255).toInt().coerceIn(0, 255)
+        val r = Color.red(baseColor)
+        val g = Color.green(baseColor)
+        val b = Color.blue(baseColor)
+
+        val popupBg = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            setColor(Color.argb(alphaInt, r, g, b))
+            setStroke((1 * density).toInt(), Color.argb(80, 255, 255, 255))
+            cornerRadius = 16 * density
+        }
         popupView.background = popupBg
 
         val itemWidthDp = 72
@@ -879,6 +890,9 @@ class HybridGridPageView(
             }
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             isOutsideTouchable = true
+            setOnDismissListener {
+                onDimSidebar?.invoke(false)
+            }
         }
 
         val location = IntArray(2)
@@ -899,6 +913,7 @@ class HybridGridPageView(
         if (y < 0) y = 0
         if (y + totalHeight > screenHeight) y = screenHeight - totalHeight
 
+        onDimSidebar?.invoke(true)
         popupWindow.showAtLocation(anchor, Gravity.NO_GRAVITY, x, y)
     }
 
@@ -909,11 +924,20 @@ class HybridGridPageView(
         val padding = (8 * density).toInt()
         popupView.setPadding(padding, padding, padding, padding)
 
-        val popupOpacity = prefs.getFloat("sidebar_transparency", 0.9f)
-        val popupBg = android.graphics.drawable.GradientDrawable()
-        popupBg.setColor(Color.parseColor("#1A1A1A"))
-        popupBg.alpha = (popupOpacity * 255).toInt()
-        popupBg.cornerRadius = 16 * density
+        val popupOpacity = prefs.getFloat("handle_${containerId}_sidebar_transparency", prefs.getFloat("sidebar_transparency", 0.9f))
+        val colorHex = prefs.getString("handle_${containerId}_sidebar_color", prefs.getString("sidebar_color", "#1E1E2E")) ?: "#1E1E2E"
+        val baseColor = try { Color.parseColor(colorHex) } catch(e: Exception) { Color.parseColor("#1E1E2E") }
+        val alphaInt = (popupOpacity * 255).toInt().coerceIn(0, 255)
+        val r = Color.red(baseColor)
+        val g = Color.green(baseColor)
+        val b = Color.blue(baseColor)
+
+        val popupBg = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            setColor(Color.argb(alphaInt, r, g, b))
+            setStroke((1 * density).toInt(), Color.argb(80, 255, 255, 255))
+            cornerRadius = 16 * density
+        }
         popupView.background = popupBg
         
         val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -956,6 +980,9 @@ class HybridGridPageView(
             }
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
             isOutsideTouchable = true
+            setOnDismissListener {
+                onDimSidebar?.invoke(false)
+            }
         }
         val location = IntArray(2)
         anchor.getLocationOnScreen(location)
@@ -972,6 +999,7 @@ class HybridGridPageView(
         var y = anchorY - (totalHeight / 2) + (anchor.height / 2)
         if (y < 0) y = 0
         if (y + totalHeight > screenHeight) y = screenHeight - totalHeight
+        onDimSidebar?.invoke(true)
         popupWindow.showAtLocation(anchor, Gravity.NO_GRAVITY, x, y)
     }
 

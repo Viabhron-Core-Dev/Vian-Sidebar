@@ -11,10 +11,12 @@ object HandleManager {
         val jsonStr = prefs.getString("handles_list", null)
         val list = mutableListOf<HandleConfig>()
         if (jsonStr == null) {
-            list.add(HandleConfig(id = "sidebar", name = "Handle 1 | Right (Bottom)", enabled = true))
-            prefs.edit().putString("handle_sidebar_tap", "none").apply()
+            val defaultHandle = HandleConfig(id = "sidebar", name = "Handle 1 | Right (Bottom)", enabled = true)
+            list.add(defaultHandle)
             prefs.edit().putString("handle_sidebar_swipe_left", "open_page:default_hybrid").apply()
+            prefs.edit().remove("handle_sidebar_tap").apply()
             prefs.edit().putString("handle_sidebar_color", "#242962ff").apply() // 14% opacity deep blue/purple
+            saveHandles(prefs, list)
             return list
         }
         try {
@@ -22,13 +24,6 @@ object HandleManager {
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
                 val id = obj.optString("id")
-                if (!prefs.contains("handle_${id}_tap")) {
-                    prefs.edit().putString("handle_${id}_tap", "toggle_sidebar").apply()
-                }
-                if (!prefs.contains("handle_${id}_swipe_left")) {
-                    val defaultPageId = if (id == "sidebar") "default_hybrid" else "default_hybrid_$id"
-                    prefs.edit().putString("handle_${id}_swipe_left", "open_page:$defaultPageId").apply()
-                }
                 list.add(HandleConfig(
                     id = id,
                     name = obj.optString("name", "Handle"),
