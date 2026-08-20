@@ -80,7 +80,7 @@
             
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="barcode,ocr" />
+            android:value="barcode" />
             
     
         <activity android:name=".feature.miniapps.reader.ReadAloudActivity" android:label="Read Aloud" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">

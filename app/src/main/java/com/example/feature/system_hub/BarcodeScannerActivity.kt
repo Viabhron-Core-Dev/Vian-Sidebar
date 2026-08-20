@@ -375,7 +375,12 @@ class BarcodeScannerActivity : ComponentActivity() {
                     }
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    val msg = if (e.message?.contains("optional module") == true || e.message?.contains("Waiting for") == true || e.message?.contains("unavailable") == true) {
+                        "OCR engine not downloaded. Please download it from Record Settings."
+                    } else {
+                        "OCR failed: ${e.message}"
+                    }
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 }
         } catch (e: Exception) {
             e.printStackTrace()

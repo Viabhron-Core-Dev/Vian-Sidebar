@@ -106,13 +106,16 @@
         </FrameLayout>
     </LinearLayout>
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <ImageButton
         android:id="@+id/fab_clear_all"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
+        android:background="@drawable/bg_fab_circle"
+        android:elevation="6dp"
         android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:backgroundTint="#BB86FC" />
+        android:tint="#000000"
+        android:contentDescription="Clear All" />
 
 </FrameLayout>

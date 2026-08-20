@@ -680,6 +680,133 @@ fun ScreenCapSettingsScreen(onBack: () -> Unit) {
                         Text("Original")
                     }
                 }
+
+                Divider(modifier = Modifier.padding(vertical = 24.dp))
+
+                val ocrManager = remember { com.example.feature.system_hub.OcrModuleManager(context) }
+                val ocrStatus by ocrManager.status.collectAsState()
+
+                LaunchedEffect(Unit) {
+                    ocrManager.checkStatus()
+                }
+
+                Text(
+                    text = "OCR (Text Recognition) Feature",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    text = "Extract text from cropped screenshots and camera scanner offline via Google ML Kit.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = "OCR Model Status",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                when (val status = ocrStatus) {
+                                    is com.example.feature.system_hub.OcrModuleStatus.Installed -> {
+                                        Text(
+                                            text = "Installed & Ready",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    is com.example.feature.system_hub.OcrModuleStatus.Downloading -> {
+                                        val percent = (status.progress * 100).toInt()
+                                        Text(
+                                            text = "Downloading: $percent%",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+                                    is com.example.feature.system_hub.OcrModuleStatus.Checking -> {
+                                        Text(
+                                            text = "Checking status...",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    is com.example.feature.system_hub.OcrModuleStatus.Error -> {
+                                        Text(
+                                            text = "Error: ${status.message}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    else -> {
+                                        Text(
+                                            text = "Not Downloaded (On-demand)",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+
+                            when (val status = ocrStatus) {
+                                is com.example.feature.system_hub.OcrModuleStatus.Installed -> {
+                                    OutlinedButton(
+                                        onClick = { ocrManager.checkStatus() }
+                                    ) {
+                                        Text("Installed")
+                                    }
+                                }
+                                is com.example.feature.system_hub.OcrModuleStatus.Downloading -> {
+                                    CircularProgressIndicator(
+                                        progress = { status.progress },
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                                is com.example.feature.system_hub.OcrModuleStatus.Checking -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                                else -> {
+                                    Button(
+                                        onClick = {
+                                            ocrManager.downloadModule { success, err ->
+                                                if (success) {
+                                                    Toast.makeText(context, "OCR model installed successfully!", Toast.LENGTH_SHORT).show()
+                                                } else if (err != null) {
+                                                    Toast.makeText(context, "OCR download failed: $err", Toast.LENGTH_LONG).show()
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Text("Download")
+                                    }
+                                }
+                            }
+                        }
+
+                        if (ocrStatus is com.example.feature.system_hub.OcrModuleStatus.Downloading) {
+                            val downloading = ocrStatus as com.example.feature.system_hub.OcrModuleStatus.Downloading
+                            Spacer(modifier = Modifier.height(12.dp))
+                            LinearProgressIndicator(
+                                progress = { downloading.progress },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
             }
         }
     }

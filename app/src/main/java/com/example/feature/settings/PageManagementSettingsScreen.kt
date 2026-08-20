@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.utils.PageManager
 import com.example.utils.SidebarPage
@@ -84,8 +85,20 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
             itemsIndexed(pages) { index, page ->
                 ListItem(
-                    headlineContent = { Text(page.title) },
-                    supportingContent = { Text(page.type.capitalize()) },
+                    headlineContent = {
+                        Text(
+                            text = page.title,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = page.type.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     leadingContent = {
                         RadioButton(
                             selected = index == defaultIndex,
@@ -96,46 +109,58 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
                         )
                     },
                     trailingContent = {
-                        Row {
-                            IconButton(onClick = {
-                                if (index > 1) { // 1 instead of 0 to protect index 0
-                                    val newPages = pages.toMutableList()
-                                    val temp = newPages[index]
-                                    newPages[index] = newPages[index - 1]
-                                    newPages[index - 1] = temp
-                                    if (defaultIndex == index) defaultIndex = index - 1
-                                    else if (defaultIndex == index - 1) defaultIndex = index
-                                    pages = newPages
-                                    savePages()
-                                }
-                            }, enabled = index > 1) {
-                                Icon(Icons.Default.ArrowUpward, "Move Up")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = {
+                                    if (index > 1) { // 1 instead of 0 to protect index 0
+                                        val newPages = pages.toMutableList()
+                                        val temp = newPages[index]
+                                        newPages[index] = newPages[index - 1]
+                                        newPages[index - 1] = temp
+                                        if (defaultIndex == index) defaultIndex = index - 1
+                                        else if (defaultIndex == index - 1) defaultIndex = index
+                                        pages = newPages
+                                        savePages()
+                                    }
+                                },
+                                enabled = index > 1,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Default.ArrowUpward, "Move Up", modifier = Modifier.size(18.dp))
                             }
-                            IconButton(onClick = {
-                                if (index > 0 && index < pages.size - 1) {
-                                    val newPages = pages.toMutableList()
-                                    val temp = newPages[index]
-                                    newPages[index] = newPages[index + 1]
-                                    newPages[index + 1] = temp
-                                    if (defaultIndex == index) defaultIndex = index + 1
-                                    else if (defaultIndex == index + 1) defaultIndex = index
-                                    pages = newPages
-                                    savePages()
-                                }
-                            }, enabled = index > 0 && index < pages.size - 1) {
-                                Icon(Icons.Default.ArrowDownward, "Move Down")
+                            IconButton(
+                                onClick = {
+                                    if (index > 0 && index < pages.size - 1) {
+                                        val newPages = pages.toMutableList()
+                                        val temp = newPages[index]
+                                        newPages[index] = newPages[index + 1]
+                                        newPages[index + 1] = temp
+                                        if (defaultIndex == index) defaultIndex = index + 1
+                                        else if (defaultIndex == index + 1) defaultIndex = index
+                                        pages = newPages
+                                        savePages()
+                                    }
+                                },
+                                enabled = index > 0 && index < pages.size - 1,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Default.ArrowDownward, "Move Down", modifier = Modifier.size(18.dp))
                             }
-                            IconButton(onClick = {
-                                if (index > 0 && pages.size > 1) {
-                                    val newPages = pages.toMutableList()
-                                    newPages.removeAt(index)
-                                    if (defaultIndex == index) defaultIndex = 0
-                                    else if (defaultIndex > index) defaultIndex--
-                                    pages = newPages
-                                    savePages()
-                                }
-                            }, enabled = index > 0 && pages.size > 1) {
-                                Icon(Icons.Default.Delete, "Delete")
+                            IconButton(
+                                onClick = {
+                                    if (index > 0 && pages.size > 1) {
+                                        val newPages = pages.toMutableList()
+                                        newPages.removeAt(index)
+                                        if (defaultIndex == index) defaultIndex = 0
+                                        else if (defaultIndex > index) defaultIndex--
+                                        pages = newPages
+                                        savePages()
+                                    }
+                                },
+                                enabled = index > 0 && pages.size > 1,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, "Delete", modifier = Modifier.size(18.dp))
                             }
                         }
                     }

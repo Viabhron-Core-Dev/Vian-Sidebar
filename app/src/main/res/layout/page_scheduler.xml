@@ -51,14 +51,17 @@
             android:paddingBottom="80dp" />
     </LinearLayout>
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <ImageButton
         android:id="@+id/fab_add"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_fab_circle"
+        android:elevation="6dp"
         android:src="@android:drawable/ic_input_add"
-        android:backgroundTint="#BB86FC" />
+        android:tint="#000000"
+        android:contentDescription="Add reminder" />
 
     <!-- EDIT UI -->
     <LinearLayout
