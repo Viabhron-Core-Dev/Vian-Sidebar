@@ -242,7 +242,7 @@ fun HandleItem(
                                         "notifications", "notification" -> "Notifications"
                                         else -> "Page"
                                     }
-                                    val newPage = com.example.utils.SidebarPage(id = UUID.randomUUID().toString(), type = pageType, title = pageTitle)
+                                    val newPage = com.example.utils.SidebarPage.createDefault(id = UUID.randomUUID().toString(), type = pageType, title = pageTitle)
                                     val arr = org.json.JSONArray().apply { put(newPage.toJson()) }
                                     prefs.edit().putString("handle_${containerId}_pages", arr.toString()).apply()
                                 }

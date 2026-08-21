@@ -57,7 +57,7 @@
             android:id="@+id/btnSend"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_send"
             app:tint="#4AF626" />
     </LinearLayout>

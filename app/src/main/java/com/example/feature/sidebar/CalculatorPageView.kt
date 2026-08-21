@@ -24,19 +24,14 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
         tvResult = findViewById(R.id.tv_result)
 
         val tableLayout = findViewById<TableLayout>(R.id.tableLayout)
-        
-        // Setup click listeners for all textviews inside the tablelayout
-        for (i in 0 until (getChildAt(0) as android.view.ViewGroup).childCount) {
-             val view = (getChildAt(0) as android.view.ViewGroup).getChildAt(i)
-             if (view is TableLayout) {
-                 for (j in 0 until view.childCount) {
-                     val row = view.getChildAt(j) as TableRow
-                     for (k in 0 until row.childCount) {
-                         val btn = row.getChildAt(k) as TextView
-                         btn.setOnClickListener { onBtnClick(btn.text.toString()) }
-                     }
-                 }
-             }
+        tableLayout?.let { tbl ->
+            for (j in 0 until tbl.childCount) {
+                val row = tbl.getChildAt(j) as? TableRow ?: continue
+                for (k in 0 until row.childCount) {
+                    val btn = row.getChildAt(k) as? TextView ?: continue
+                    btn.setOnClickListener { onBtnClick(btn.text.toString()) }
+                }
+            }
         }
         updateUI()
     }

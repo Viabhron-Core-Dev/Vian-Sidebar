@@ -29,6 +29,8 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
     private var screenStateReceiver: BroadcastReceiver? = null
     private var downSpeed: Long = 0
     private var upSpeed: Long = 0
+    private var dailyMobileBytes: Long = 0
+    private var dailyWifiBytes: Long = 0
 
     companion object {
         const val ACTION_RELOAD_HANDLES = "com.example.ACTION_RELOAD_HANDLES"
@@ -48,6 +50,10 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         prefs.registerOnSharedPreferenceChangeListener(this)
+        
+        dailyMobileBytes = prefs.getLong("daily_mobile_rx", 0) + prefs.getLong("daily_mobile_tx", 0)
+        dailyWifiBytes = prefs.getLong("daily_wifi_rx", 0) + prefs.getLong("daily_wifi_tx", 0)
+
         startForegroundService()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(reloadReceiver, IntentFilter(ACTION_RELOAD_HANDLES), Context.RECEIVER_NOT_EXPORTED)
@@ -75,7 +81,10 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
                         upSpeed = up
                         updateForegroundNotification()
                     },
-                    onDailyDataUpdate = { _, _ -> }
+                    onDailyDataUpdate = { mobile, wifi ->
+                        dailyMobileBytes = mobile
+                        dailyWifiBytes = wifi
+                    }
                 )
             }
             netSpeedManager?.start()
@@ -123,24 +132,44 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
 
     
     private fun formatSpeed(bytes: Long): String {
-        if (bytes < 1024) return "${bytes} B/s"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format("%.1f KB/s", kb)
-        val mb = kb / 1024.0
-        return String.format("%.1f MB/s", mb)
+        if (bytes < 1000) return "${bytes} B/s"
+        val kb = (bytes + 512) / 1024
+        if (kb < 1000) return "${kb} kB/s"
+        val mb = bytes / (1024.0 * 1024.0)
+        return if (mb < 10.0) String.format(java.util.Locale.US, "%.1f MB/s", mb) else String.format(java.util.Locale.US, "%.0f MB/s", mb)
     }
 
-    private fun updateForegroundNotification() {
+    private fun formatDataBytes(bytes: Long): String {
+        if (bytes < 1024 * 1024) {
+            return String.format(java.util.Locale.US, "%.1f KB", bytes / 1024.0)
+        }
+        val mb = bytes / (1024.0 * 1024.0)
+        if (mb < 1024.0) {
+            return String.format(java.util.Locale.US, "%.2f MB", mb)
+        }
+        val gb = mb / 1024.0
+        return String.format(java.util.Locale.US, "%.2f GB", gb)
+    }
+
+    private fun buildNotification(): android.app.Notification {
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
         
         val isNetSpeedActive = prefs.getBoolean("netspeed_enabled", false) || prefs.getBoolean("speed_indicator_enabled", false)
+        val totalTodayBytes = dailyMobileBytes + dailyWifiBytes
+        val totalSpeed = downSpeed + upSpeed
+
+        val contentTitle = if (isNetSpeedActive) {
+            if (totalTodayBytes > 0) "Data: ${formatDataBytes(totalTodayBytes)}" else "Internet Speed Monitor"
+        } else {
+            "Handles Active"
+        }
+
         val contentText = if (isNetSpeedActive) {
-            "↓ ${formatSpeed(downSpeed)}   ↑ ${formatSpeed(upSpeed)}"
+            "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}"
         } else {
             "Listening for edge gestures"
         }
-        val contentTitle = if (isNetSpeedActive) "Internet Speed Monitor" else "Handles Active"
         
         val builder = NotificationCompat.Builder(this, "handle_channel")
             .setContentTitle(contentTitle)
@@ -148,14 +177,22 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             .setContentIntent(pendingIntent)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             
         if (isNetSpeedActive) {
-            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(downSpeed))
+            val bigText = "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}\nMobile: ${formatDataBytes(dailyMobileBytes)} • Wi-Fi: ${formatDataBytes(dailyWifiBytes)}"
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
+            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(totalSpeed))
         } else {
             builder.setSmallIcon(android.R.drawable.ic_menu_crop)
         }
         
-        val notification = builder.build()
+        return builder.build()
+    }
+
+    private fun updateForegroundNotification() {
+        val notification = buildNotification()
         val manager = getSystemService(NotificationManager::class.java)
         manager?.notify(2, notification)
     }
@@ -170,31 +207,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
-        
-        val isNetSpeedActive = prefs.getBoolean("netspeed_enabled", false) || prefs.getBoolean("speed_indicator_enabled", false)
-        val contentTitle = if (isNetSpeedActive) "Internet Speed Monitor" else "Handles Active"
-        val contentText = if (isNetSpeedActive) {
-            "↓ ${formatSpeed(downSpeed)}   ↑ ${formatSpeed(upSpeed)}"
-        } else {
-            "Listening for edge gestures"
-        }
-        
-        val builder = NotificationCompat.Builder(this, "handle_channel")
-            .setContentTitle(contentTitle)
-            .setContentText(contentText)
-            .setContentIntent(pendingIntent)
-            .setOnlyAlertOnce(true)
-            .setOngoing(true)
-            
-        if (isNetSpeedActive) {
-            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(downSpeed))
-        } else {
-            builder.setSmallIcon(android.R.drawable.ic_menu_crop)
-        }
-        
-        val notification = builder.build()
+        val notification = buildNotification()
         startForeground(2, notification) // ID 2 so it doesn't conflict if there's ID 1
     }
 

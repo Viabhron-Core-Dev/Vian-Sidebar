@@ -56,6 +56,8 @@ class AppsPageView(
         return lastCalculatedHeightPx
     }
 
+    private var emptyView: android.widget.LinearLayout
+
     init {
         val density = context.resources.displayMetrics.density
         val c = prefs.getInt("handle_${handleId}_page_${pageConfig?.id}_columns", -1)
@@ -79,9 +81,30 @@ class AppsPageView(
             setItemViewCacheSize(20)
         }
 
+        emptyView = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            val pad = (16 * density).toInt()
+            setPadding(pad, pad, pad, pad)
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, (120 * density).toInt())
+            
+            val tv = android.widget.TextView(context).apply {
+                text = "Empty Apps Grid\nTap to add apps"
+                setTextColor(android.graphics.Color.LTGRAY)
+                textSize = 13f
+                gravity = android.view.Gravity.CENTER
+            }
+            addView(tv)
+            setOnClickListener {
+                onEditClicked()
+            }
+            visibility = android.view.View.GONE
+        }
+
         recyclerView.adapter = adapter
 
         addView(recyclerView)
+        addView(emptyView)
     }
 
     private var sourceApps = listOf<SidebarItem>()
@@ -107,6 +130,14 @@ class AppsPageView(
         displayedItems = flatList
         adapter.updateItems(flatList)
         
+        if (flatList.isEmpty()) {
+            emptyView.visibility = android.view.View.VISIBLE
+            recyclerView.visibility = android.view.View.GONE
+        } else {
+            emptyView.visibility = android.view.View.GONE
+            recyclerView.visibility = android.view.View.VISIBLE
+        }
+
         calculateAndDispatchHeight()
     }
 
@@ -114,23 +145,27 @@ class AppsPageView(
         var gridHeightDp = 0
         var currentSpan = 0
         
-        for (item in displayedItems) {
-            if (item is SidebarItem.Spacer) {
-                if (currentSpan > 0) {
-                    gridHeightDp += 72 // end current row
-                    currentSpan = 0
-                }
-                gridHeightDp += item.heightDp
-            } else {
-                currentSpan += 1
-                if (currentSpan == columns) {
-                    gridHeightDp += 72 // 56dp per normal row
-                    currentSpan = 0
+        if (displayedItems.isEmpty()) {
+            gridHeightDp = 120
+        } else {
+            for (item in displayedItems) {
+                if (item is SidebarItem.Spacer) {
+                    if (currentSpan > 0) {
+                        gridHeightDp += 72 // end current row
+                        currentSpan = 0
+                    }
+                    gridHeightDp += item.heightDp
+                } else {
+                    currentSpan += 1
+                    if (currentSpan == columns) {
+                        gridHeightDp += 72 // 56dp per normal row
+                        currentSpan = 0
+                    }
                 }
             }
-        }
-        if (currentSpan > 0) {
-            gridHeightDp += 72 // partial row
+            if (currentSpan > 0) {
+                gridHeightDp += 72 // partial row
+            }
         }
         
         val density = context.resources.displayMetrics.density
@@ -873,6 +908,8 @@ class AppsPageView(
     override fun onEditClicked() {
         val intent = android.content.Intent(context, com.example.SidebarEditActivity::class.java).apply {
             putExtra("PAGE_ID", pageConfig?.id ?: "")
+            putExtra("HANDLE_ID", handleId)
+            putExtra("CONTAINER_ID", handleId)
             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)

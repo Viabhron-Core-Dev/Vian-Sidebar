@@ -154,6 +154,7 @@ fun SidebarSettingsScreen(
                 val intent = Intent(context, com.example.SidebarEditActivity::class.java).apply {
                     putExtra("PAGE_ID", page.id)
                     putExtra("CONTAINER_ID", handleId)
+                    putExtra("HANDLE_ID", handleId)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)

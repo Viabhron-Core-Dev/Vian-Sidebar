@@ -735,14 +735,13 @@ class SidebarAppsManager(
         var jsonStr = prefs.getString(prefKey, null)
         if (jsonStr == null) {
             if (prefKey == "sidebar_apps_sidebar_default_apps") {
-                jsonStr = prefs.getString("sidebar_apps", """["system:log_keeper", "system:ebook_reader"]""")
+                jsonStr = prefs.getString("sidebar_apps", null)
             }
             if (jsonStr == null) {
-                jsonStr = """["system:log_keeper", "system:ebook_reader"]"""
+                // Fallback to legacy key before using empty list
+                val pageId = prefKey.substringAfterLast("_")
+                jsonStr = prefs.getString("sidebar_apps_$pageId", "[]") ?: "[]"
             }
-        }
-        if (jsonStr == "[]" || jsonStr == """["system:log_keeper"]""") {
-            jsonStr = """["system:log_keeper", "system:ebook_reader"]"""
         }
         val jsonArray = JSONArray(jsonStr)
         val selectedIds = mutableListOf<String>()
@@ -935,7 +934,7 @@ class SidebarAppsManager(
 
     fun addItem(id: String) {
         coroutineScope.launch(Dispatchers.IO) {
-            val currentStr = prefs.getString(prefKey, """["system:log_keeper", "system:ebook_reader"]""") ?: """["system:log_keeper", "system:ebook_reader"]"""
+            val currentStr = prefs.getString(prefKey, "[]") ?: "[]"
             val current = JSONArray(currentStr)
             for (i in 0 until current.length()) {
                 var item = current.getString(i)
@@ -953,7 +952,7 @@ class SidebarAppsManager(
 
     fun moveItem(id: String, moveUp: Boolean) {
         coroutineScope.launch(Dispatchers.IO) {
-            val currentStr = prefs.getString(prefKey, """["system:log_keeper", "system:ebook_reader"]""") ?: return@launch
+            val currentStr = prefs.getString(prefKey, "[]") ?: return@launch
             val current = JSONArray(currentStr)
             val items = mutableListOf<String>()
             var targetIndex = -1
@@ -988,7 +987,7 @@ class SidebarAppsManager(
 
     fun removeItem(id: String) {
         coroutineScope.launch(Dispatchers.IO) {
-            val currentStr = prefs.getString(prefKey, """["system:log_keeper", "system:ebook_reader"]""") ?: """["system:log_keeper", "system:ebook_reader"]"""
+            val currentStr = prefs.getString(prefKey, "[]") ?: "[]"
             val current = JSONArray(currentStr)
             val newArray = JSONArray()
             for (i in 0 until current.length()) {
@@ -1024,7 +1023,7 @@ class SidebarAppsManager(
     fun addItemToFolder(folderUuid: String, itemId: String) {
         
         coroutineScope.launch(Dispatchers.IO) {
-            val currentStr = prefs.getString(prefKey, """["system:log_keeper", "system:ebook_reader"]""") ?: return@launch
+            val currentStr = prefs.getString(prefKey, "[]") ?: return@launch
             val current = JSONArray(currentStr)
             val newArray = JSONArray()
             for (i in 0 until current.length()) {

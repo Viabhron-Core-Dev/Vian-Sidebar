@@ -84,6 +84,8 @@ fun PageCustomizeScreen(
                                 val intent = Intent(context, targetClass).apply {
                                     if (page.type == "apps" || page.type == "widgets_grid" || page.type == "hybrid_grid") {
                                         putExtra("PAGE_ID", page.id)
+                                        putExtra("HANDLE_ID", handleId)
+                                        putExtra("CONTAINER_ID", handleId)
                                     }
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }

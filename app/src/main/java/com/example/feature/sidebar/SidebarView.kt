@@ -53,6 +53,13 @@ class SidebarView(
     private val viewScope = CoroutineScope(Dispatchers.Main + Job())
     private val appsManagers = mutableMapOf<String, SidebarAppsManager>()
     private val dimOverlay: View
+    private val isLooping = pageConfigs.size > 2
+    private val startingIndex = if (isLooping) {
+        val half = Int.MAX_VALUE / 2
+        half - (half % pageConfigs.size) + max(0, defaultPageIndex)
+    } else {
+        max(0, defaultPageIndex)
+    }
 
     fun setDimmed(dimmed: Boolean) {
         if (dimmed) {
@@ -74,14 +81,67 @@ class SidebarView(
             WindowManager.LayoutParams.TYPE_PHONE
         }
         val density = context.resources.displayMetrics.density
-        val widthDp = prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 216))
-        val widthPx = (widthDp * density).toInt()
 
-        val heightPx = if (wrapContent) WindowManager.LayoutParams.WRAP_CONTENT else (prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 360)) * density).toInt()
+        val initialActualPos = if (pageConfigs.isNotEmpty()) (if (isLooping) startingIndex % pageConfigs.size else startingIndex).coerceIn(0, pageConfigs.size - 1) else 0
+        val initialPage = pageConfigs.getOrNull(initialActualPos)
+
+        val targetWidthDp = if (initialPage?.useCustomSettings == true && initialPage.width > 0) {
+            initialPage.width
+        } else {
+            when (initialPage?.type) {
+                "calculator", "compass", "resources_tracker" -> 320
+                "scheduler", "notifications", "notification", "app_tracker" -> 330
+                "media_player" -> 300
+                "widgets_grid", "widget" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 260))
+                "hybrid_grid", "default_hybrid" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                else -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 216))
+            }
+        }
+        val widthPx = (targetWidthDp * density).toInt()
+
+        val isInitialWrap = if (initialPage?.useCustomSettings == true) {
+            initialPage.wrapContentHeight
+        } else {
+            when (initialPage?.type) {
+                "calculator", "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
+                "media_player" -> true
+                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> {
+                    prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
+                }
+                else -> false
+            }
+        }
+
+        val heightPx = if (isInitialWrap) {
+            WindowManager.LayoutParams.WRAP_CONTENT
+        } else {
+            val targetHeightDp = if (initialPage?.useCustomSettings == true && initialPage.height > 0) {
+                initialPage.height
+            } else {
+                when (initialPage?.type) {
+                    "calculator" -> 460
+                    "compass" -> 480
+                    "scheduler" -> 520
+                    "notifications", "notification" -> 520
+                    "resources_tracker" -> 460
+                    "app_tracker" -> 560
+                    "media_player" -> 360
+                    else -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 360))
+                }
+            }
+            (targetHeightDp * density).toInt()
+        }
 
         val legacyEdge = if (prefs.getBoolean("sidebar_position_left", false)) "left" else "right"
         val isRight = prefs.getString("handle_${physicalHandleId}_edge", if (physicalHandleId == "sidebar") legacyEdge else "right") == "right"
         val gravityEdge = if (isRight) Gravity.END else Gravity.START
+
+        val stickAlignment = if (initialPage?.useCustomSettings == true) initialPage.stickAlignment else "bottom"
+        val gravityVertical = when (stickAlignment) {
+            "top" -> Gravity.TOP
+            "center" -> Gravity.CENTER_VERTICAL
+            else -> Gravity.BOTTOM
+        }
 
         layoutParams = WindowManager.LayoutParams(
             widthPx,
@@ -90,7 +150,7 @@ class SidebarView(
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = gravityEdge or Gravity.BOTTOM
+            gravity = gravityEdge or gravityVertical
             x = 0
             y = 0
         }
@@ -127,14 +187,6 @@ class SidebarView(
             }
         }
         background = drawable
-
-        val isLooping = pageConfigs.size > 2
-        val startingIndex = if (isLooping) {
-            val half = Int.MAX_VALUE / 2
-            half - (half % pageConfigs.size) + max(0, defaultPageIndex)
-        } else {
-            max(0, defaultPageIndex)
-        }
 
         val headerHeight = (36 * density).toInt()
         val edgeMargin = (16 * density).toInt()
@@ -213,6 +265,7 @@ class SidebarView(
                                 val intent = Intent(context, com.example.SidebarEditActivity::class.java).apply {
                                     putExtra("PAGE_ID", pageConfig.id)
                                     putExtra("CONTAINER_ID", containerId)
+                                    putExtra("HANDLE_ID", physicalHandleId)
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
                                 context.startActivity(intent)
@@ -340,6 +393,7 @@ class SidebarView(
                 if (pageConfigs.isNotEmpty()) {
                     val actualPosition = if (isLooping) position % pageConfigs.size else position
                     updateDots(actualPosition)
+                    updateWindowForPage(actualPosition)
                     
                     val pageConfig = pageConfigs.getOrNull(actualPosition)
                     if (::editButton.isInitialized) {
@@ -365,6 +419,132 @@ class SidebarView(
                 }
             }
         })
+    }
+    
+    fun updateWindowForPage(actualPosition: Int) {
+        if (pageConfigs.isEmpty()) return
+        val page = pageConfigs.getOrNull(actualPosition) ?: return
+        val density = context.resources.displayMetrics.density
+
+        val targetWidthDp = if (page.useCustomSettings && page.width > 0) {
+            page.width
+        } else {
+            when (page.type) {
+                "calculator", "compass", "resources_tracker" -> 320
+                "scheduler", "notifications", "notification", "app_tracker" -> 330
+                "media_player" -> 300
+                "widgets_grid", "widget" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 260))
+                "hybrid_grid", "default_hybrid" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                else -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 216))
+            }
+        }
+        val targetWidthPx = (targetWidthDp * density).toInt()
+
+        val isPageWrap = if (page.useCustomSettings) {
+            page.wrapContentHeight
+        } else {
+            when (page.type) {
+                "calculator", "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
+                "media_player" -> true
+                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> {
+                    prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
+                }
+                else -> false
+            }
+        }
+
+        val targetHeightPx = if (isPageWrap) {
+            WindowManager.LayoutParams.WRAP_CONTENT
+        } else {
+            val targetHeightDp = if (page.useCustomSettings && page.height > 0) {
+                page.height
+            } else {
+                when (page.type) {
+                    "calculator" -> 460
+                    "compass" -> 480
+                    "scheduler" -> 520
+                    "notifications", "notification" -> 520
+                    "resources_tracker" -> 460
+                    "app_tracker" -> 560
+                    "media_player" -> 360
+                    else -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 360))
+                }
+            }
+            (targetHeightDp * density).toInt()
+        }
+
+        val legacyEdge = if (prefs.getBoolean("sidebar_position_left", false)) "left" else "right"
+        val isRight = prefs.getString("handle_${physicalHandleId}_edge", if (physicalHandleId == "sidebar") legacyEdge else "right") == "right"
+        val gravityEdge = if (isRight) Gravity.END else Gravity.START
+
+        val stickAlignment = if (page.useCustomSettings) page.stickAlignment else "bottom"
+        val gravityVertical = when (stickAlignment) {
+            "top" -> Gravity.TOP
+            "center" -> Gravity.CENTER_VERTICAL
+            else -> Gravity.BOTTOM
+        }
+        val targetGravity = gravityEdge or gravityVertical
+
+        var changed = false
+        if (layoutParams.width != targetWidthPx) {
+            layoutParams.width = targetWidthPx
+            changed = true
+        }
+        if (layoutParams.height != targetHeightPx) {
+            layoutParams.height = targetHeightPx
+            changed = true
+        }
+        if (layoutParams.gravity != targetGravity) {
+            layoutParams.gravity = targetGravity
+            changed = true
+        }
+
+        val vpParams = viewPager.layoutParams
+        if (isPageWrap) {
+            if (vpParams.height != FrameLayout.LayoutParams.WRAP_CONTENT) {
+                vpParams.height = FrameLayout.LayoutParams.WRAP_CONTENT
+                viewPager.layoutParams = vpParams
+            }
+        } else {
+            if (vpParams.height != FrameLayout.LayoutParams.MATCH_PARENT) {
+                vpParams.height = FrameLayout.LayoutParams.MATCH_PARENT
+                viewPager.layoutParams = vpParams
+            }
+        }
+
+        if (changed && isAttached) {
+            try {
+                windowManager.updateViewLayout(this, layoutParams)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun handleChildHeightChange(bindingAdapterPosition: Int, newHeight: Int) {
+        val actualPosition = if (isLooping) viewPager.currentItem % pageConfigs.size else viewPager.currentItem
+        val page = pageConfigs.getOrNull(actualPosition)
+        val isPageWrap = if (page?.useCustomSettings == true) {
+            page.wrapContentHeight
+        } else {
+            when (page?.type) {
+                "calculator", "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
+                "media_player" -> true
+                else -> prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
+            }
+        }
+        if (isPageWrap && viewPager.currentItem == bindingAdapterPosition) {
+            val params = viewPager.layoutParams
+            if (params.height != newHeight) {
+                params.height = newHeight
+                viewPager.layoutParams = params
+                if (isAttached) {
+                    try {
+                        windowManager.updateViewLayout(this@SidebarView, layoutParams)
+                    } catch (e: Exception) {}
+                }
+            }
+        }
     }
     
     private fun setupDots(count: Int) {
@@ -484,14 +664,7 @@ class SidebarView(
                         onCloseSidebar = { onClose() },
                         onDimSidebar = { dimmed -> setDimmed(dimmed) },
                         onHeightChanged = { newHeight ->
-                            if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
-                                val params = viewPager.layoutParams
-                                if (params.height != newHeight) {
-                                    params.height = newHeight
-                                    viewPager.layoutParams = params
-                                    windowManager.updateViewLayout(this@SidebarView, layoutParams)
-                                }
-                            }
+                            handleChildHeightChange(bindingAdapterPosition, newHeight)
                         }
                     )
                     p.updateData(manager.activeItems)
@@ -502,26 +675,12 @@ class SidebarView(
                     HybridGridPageView(context, pageId, viewScope, containerId,
                         onDimSidebar = { dimmed -> setDimmed(dimmed) }
                     ) { newHeight ->
-                        if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
-                            val params = viewPager.layoutParams
-                            if (params.height != newHeight) {
-                                params.height = newHeight
-                                viewPager.layoutParams = params
-                                windowManager.updateViewLayout(this@SidebarView, layoutParams)
-                            }
-                        }
+                        handleChildHeightChange(bindingAdapterPosition, newHeight)
                     }
                 }
                 "widgets_grid" -> {
                     WidgetsGridPageView(context, config.id, viewScope) { newHeight ->
-                        if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
-                            val params = viewPager.layoutParams
-                            if (params.height != newHeight) {
-                                params.height = newHeight
-                                viewPager.layoutParams = params
-                                windowManager.updateViewLayout(this@SidebarView, layoutParams)
-                            }
-                        }
+                        handleChildHeightChange(bindingAdapterPosition, newHeight)
                     }
                 }
                 "app_tracker" -> {
@@ -529,26 +688,12 @@ class SidebarView(
                 }
                 "media_player" -> {
                     MediaPlayerPageView(context, onClose) { newHeight ->
-                        if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
-                            val params = viewPager.layoutParams
-                            if (params.height != newHeight) {
-                                params.height = newHeight
-                                viewPager.layoutParams = params
-                                windowManager.updateViewLayout(this@SidebarView, layoutParams)
-                            }
-                        }
+                        handleChildHeightChange(bindingAdapterPosition, newHeight)
                     }
                 }
                 "widget" -> {
                     WidgetPageView(context, config.id) { newHeight ->
-                        if (wrapContent && viewPager.currentItem == bindingAdapterPosition) {
-                            val params = viewPager.layoutParams
-                            if (params.height != newHeight) {
-                                params.height = newHeight
-                                viewPager.layoutParams = params
-                                windowManager.updateViewLayout(this@SidebarView, layoutParams)
-                            }
-                        }
+                        handleChildHeightChange(bindingAdapterPosition, newHeight)
                     }
                 }
                 "scheduler" -> SchedulerPageView(context, viewScope)

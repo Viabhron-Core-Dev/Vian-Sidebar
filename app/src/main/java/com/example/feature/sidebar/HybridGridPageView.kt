@@ -202,6 +202,30 @@ class HybridGridPageView(
         val cellHeight = cellWidth 
         
         val items = getWidgetItems()
+        if (items.isEmpty()) {
+            val density = context.resources.displayMetrics.density
+            val emptyHeight = (120 * density).toInt()
+            val emptyView = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                val pad = (16 * density).toInt()
+                setPadding(pad, pad, pad, pad)
+                val tv = TextView(context).apply {
+                    text = "Empty Home Grid\nTap to add widgets & apps"
+                    setTextColor(Color.LTGRAY)
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                }
+                addView(tv)
+                setOnClickListener {
+                    onEditClicked()
+                }
+            }
+            gridLayout.addView(emptyView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, emptyHeight))
+            gridLayout.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, emptyHeight)
+            onHeightChanged(emptyHeight)
+            return
+        }
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val host = AppWidgetHelper.getHost(context)
             

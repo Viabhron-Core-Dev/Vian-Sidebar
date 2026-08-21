@@ -37,11 +37,33 @@ data class SidebarPage(
 
     companion object {
         fun createDefault(id: String, type: String, title: String): SidebarPage {
-            val wrap = when(type) { "calculator", "compass", "notification", "scheduler", "app_tracker", "resources_tracker", "media_player" -> false else -> true }
-            val h = when(type) { "calculator" -> 450; "compass" -> 500; "notification", "scheduler", "resources_tracker", "media_player", "widget", "widgets_grid", "hybrid_grid" -> 500; "app_tracker" -> 600; else -> 450 }
+            val isStandaloneTool = type in listOf("calculator", "compass", "notification", "notifications", "scheduler", "app_tracker", "resources_tracker")
+            val wrap = when (type) {
+                "calculator", "compass", "notification", "notifications", "scheduler", "app_tracker", "resources_tracker" -> false
+                "media_player" -> true
+                else -> true
+            }
+            val h = when (type) {
+                "calculator" -> 460
+                "compass" -> 480
+                "notification", "notifications", "scheduler" -> 520
+                "resources_tracker" -> 460
+                "app_tracker" -> 560
+                "media_player" -> 360
+                "widget", "widgets_grid", "hybrid_grid" -> 500
+                else -> 450
+            }
+            val w = when (type) {
+                "calculator", "compass", "resources_tracker" -> 320
+                "notification", "notifications", "scheduler", "app_tracker" -> 330
+                "media_player" -> 300
+                "widgets_grid", "hybrid_grid" -> 260
+                else -> 216
+            }
             return SidebarPage(
                 id = id, type = type, title = title,
-                wrapContentHeight = wrap, height = h, width = 320
+                useCustomSettings = isStandaloneTool,
+                wrapContentHeight = wrap, height = h, width = w
             )
         }
         

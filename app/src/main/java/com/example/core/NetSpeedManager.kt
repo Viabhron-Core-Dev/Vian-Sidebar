@@ -11,7 +11,7 @@ class NetSpeedManager(
     private val context: Context,
     private val prefs: SharedPreferences,
     private val onSpeedUpdate: (down: Long, up: Long) -> Unit,
-    private val onDailyDataUpdate: (mobileMb: Long, wifiMb: Long) -> Unit
+    private val onDailyDataUpdate: (mobileBytes: Long, wifiBytes: Long) -> Unit
 ) {
     private var job: Job? = null
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -37,9 +37,14 @@ class NetSpeedManager(
         
         job = coroutineScope.launch {
             syncSystemDataUsage()
+            var tickCount = 0
             while (isActive && isRunning) {
-                delay(500)
+                delay(1000)
                 updateSpeed()
+                tickCount++
+                if (tickCount % 60 == 0) {
+                    syncSystemDataUsage()
+                }
             }
         }
     }
@@ -94,7 +99,7 @@ class NetSpeedManager(
                 .apply()
                 
             withContext(Dispatchers.Main) {
-                onDailyDataUpdate(mobileBytes / (1024 * 1024), wifiBytes / (1024 * 1024))
+                onDailyDataUpdate(mobileBytes, wifiBytes)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -131,8 +136,8 @@ class NetSpeedManager(
         val wifiRxDiff = max(0L, totalRxDiff - mobileRxDiff)
         val wifiTxDiff = max(0L, totalTxDiff - mobileTxDiff)
 
-        val rxSec = (totalRxDiff * 1000) / timeDiff
-        val txSec = (totalTxDiff * 1000) / timeDiff
+        val rxSec = (totalRxDiff * 1000L) / timeDiff
+        val txSec = (totalTxDiff * 1000L) / timeDiff
         
         withContext(Dispatchers.Main) {
             onSpeedUpdate(rxSec, txSec)
@@ -157,11 +162,11 @@ class NetSpeedManager(
             .putLong("daily_wifi_tx", dailyWifiTx)
             .apply()
             
-        val mobileMb = (dailyMobileRx + dailyMobileTx) / (1024 * 1024)
-        val wifiMb = (dailyWifiRx + dailyWifiTx) / (1024 * 1024)
+        val totalMobileBytes = dailyMobileRx + dailyMobileTx
+        val totalWifiBytes = dailyWifiRx + dailyWifiTx
 
         withContext(Dispatchers.Main) {
-            onDailyDataUpdate(mobileMb, wifiMb)
+            onDailyDataUpdate(totalMobileBytes, totalWifiBytes)
         }
 
         lastTotalRx = currentTotalRx

@@ -51,7 +51,7 @@ class SidebarEditActivity : ComponentActivity() {
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         folderUuid = intent.getStringExtra("FOLDER_UUID")
         pageId = intent.getStringExtra("PAGE_ID") ?: "default_apps"
-        val handleId = intent.getStringExtra("HANDLE_ID") ?: "sidebar"
+        val handleId = intent.getStringExtra("HANDLE_ID") ?: intent.getStringExtra("CONTAINER_ID") ?: "sidebar"
         myPrefKey = "sidebar_apps_" + handleId + "_" + pageId
         
         manager = SidebarAppsManager(this, prefs, serviceScope, myPrefKey) {
@@ -235,10 +235,17 @@ class SidebarEditActivity : ComponentActivity() {
                 }
             } catch (e: Exception) {}
         } else {
-            val jsonStr = prefs.getString("sidebar_apps_${pageId}", """["system:log_keeper", "system:ebook_reader"]""") ?: """["system:log_keeper", "system:ebook_reader"]"""
-            val arr = JSONArray(jsonStr)
-            for (i in 0 until arr.length()) {
-                localIds.add(arr.getString(i))
+            var jsonStr = prefs.getString(myPrefKey, null)
+            if (jsonStr == null) {
+                // Fallback to legacy/general keys if not found for specific handle
+                jsonStr = prefs.getString("sidebar_apps_${pageId}", null)
+                    ?: prefs.getString("sidebar_apps", null)
+            }
+            if (jsonStr != null && jsonStr.isNotEmpty()) {
+                val arr = JSONArray(jsonStr)
+                for (i in 0 until arr.length()) {
+                    localIds.add(arr.getString(i))
+                }
             }
         }
     }
@@ -264,7 +271,7 @@ class SidebarEditActivity : ComponentActivity() {
             setResult(RESULT_OK, resultIntent)
             // Removed direct save to prefs; parent grid will save
         } else {
-            val handleId = intent.getStringExtra("HANDLE_ID") ?: "sidebar"
+            val handleId = intent.getStringExtra("HANDLE_ID") ?: intent.getStringExtra("CONTAINER_ID") ?: "sidebar"
             prefs.edit().putString(myPrefKey, arr.toString()).apply()
             prefs.edit().putInt("handle_${handleId}_page_${pageId}_columns", totalCols).apply()
             prefs.edit().putInt("handle_${handleId}_page_${pageId}_rows", totalRows).apply()
@@ -272,6 +279,10 @@ class SidebarEditActivity : ComponentActivity() {
         }
         
         try {
+            val handleIntent = Intent(this, com.example.core.HandleService::class.java).apply {
+                action = com.example.core.HandleService.ACTION_RELOAD_HANDLES
+            }
+            sendBroadcast(Intent(com.example.core.HandleService.ACTION_RELOAD_HANDLES))
             if (com.example.feature.miniapps.reader.FloatingReaderService.isRunning) {
                 val updateIntent = Intent(this, com.example.feature.miniapps.reader.FloatingReaderService::class.java).apply {
                     action = "UPDATE_CONFIG"

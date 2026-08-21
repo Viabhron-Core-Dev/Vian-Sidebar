@@ -15,7 +15,7 @@
         android:textSize="22sp"
         android:textStyle="bold" />
 
-    <com.example.service.CompassDrawView
+    <com.example.feature.sidebar.CompassDrawView
         android:id="@+id/compass_view"
         android:layout_width="250dp"
         android:layout_height="250dp"
