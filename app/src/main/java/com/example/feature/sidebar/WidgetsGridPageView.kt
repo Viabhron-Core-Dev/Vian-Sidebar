@@ -152,16 +152,22 @@ class WidgetsGridPageView(
 
     private fun addWidgetIdToPrefs(widgetId: Int) {
         val items = getWidgetItems().toMutableList()
-        // Default size 2x2
-        items.add(GridWidgetItem("widget:$widgetId", 2, 2, 0, 0))
-        saveWidgetItems(items)
+        if (items.none { it.id == "widget:$widgetId" }) {
+            // Default size 2x2
+            items.add(GridWidgetItem("widget:$widgetId", 2, 2, 0, 0))
+            saveWidgetItems(items)
+            com.example.core.LogKeeper.writeLog("WidgetsGrid", "Added widget:$widgetId to page $pageId")
+        }
     }
     
     private fun addElementIdToPrefs(elementId: String) {
         val items = getWidgetItems().toMutableList()
-        // Default size 1x1 for elements
-        items.add(GridWidgetItem(elementId, 1, 1, 0, 0))
-        saveWidgetItems(items)
+        if (items.none { it.id == elementId }) {
+            // Default size 1x1 for elements
+            items.add(GridWidgetItem(elementId, 1, 1, 0, 0))
+            saveWidgetItems(items)
+            com.example.core.LogKeeper.writeLog("WidgetsGrid", "Added element:$elementId to page $pageId")
+        }
     }
 
     fun getCurrentHeightPx(): Int {

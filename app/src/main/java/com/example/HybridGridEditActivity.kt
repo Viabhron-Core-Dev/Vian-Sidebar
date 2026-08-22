@@ -15,14 +15,12 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +32,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.example.core.LogKeeper
 import com.example.feature.sidebar.GridWidgetItem
 import org.json.JSONArray
 import org.json.JSONObject
@@ -51,6 +50,7 @@ class HybridGridEditActivity : ComponentActivity() {
             finish()
             return
         }
+        LogKeeper.writeLog("HybridGridEdit", "Opened editor for page: $pageId")
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         appWidgetManager = AppWidgetManager.getInstance(this)
         appsManager = com.example.feature.sidebar.SidebarAppsManager(this, prefs, kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO), "hg_${pageId}") {}
@@ -66,7 +66,11 @@ class HybridGridEditActivity : ComponentActivity() {
                         appsManager = appsManager,
                         onClose = { finish() },
                         onAddWidget = {
-                            val intent = Intent(this@HybridGridEditActivity, AddElementActivity::class.java)
+                            val intent = Intent(this@HybridGridEditActivity, AddElementActivity::class.java).apply {
+                                putExtra("PAGE_ID", pageId)
+                                putExtra("PAGE_TYPE", "hybrid_grid")
+                                putExtra("IS_HYBRID_GRID", true)
+                            }
                             startActivityForResult(intent, 201)
                         }
                     )
@@ -83,15 +87,14 @@ class HybridGridEditActivity : ComponentActivity() {
             val updatedFolder = data.getStringExtra("UPDATED_FOLDER")
             val uuid = data.getStringExtra("FOLDER_UUID")
             if (updatedFolder != null && uuid != null) {
-                // Update items in prefs directly
                 val prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
                 val parsedItems = loadHybridLocalItems(prefs, pageId).toMutableList()
                 
                 val index = parsedItems.indexOfFirst { it.id.startsWith("folder:$uuid:") }
                 if (index != -1) {
                     parsedItems[index] = parsedItems[index].copy(id = updatedFolder)
-                    
                     saveHybridItems(prefs, pageId, parsedItems)
+                    LogKeeper.writeLog("HybridGridEdit", "Updated folder: $uuid")
                     
                     val bIntent = Intent("ELEMENT_ADDED_TO_HYBRID")
                     bIntent.putExtra("PAGE_ID", pageId)
@@ -116,14 +119,6 @@ class HybridGridEditActivity : ComponentActivity() {
                             if (json.has("rows")) defaultRows = json.getInt("rows")
                         }
                     } catch (e: Exception) {}
-        val isFloating = intent.getBooleanExtra("IS_FLOATING", false)
-        if (isFloating) {
-            val sIntent = Intent(this, com.example.service.SidebarService::class.java)
-            sIntent.action = "EXECUTE_ACTION"
-            sIntent.putExtra("ACTION_ID", "system:hybrid_grid_floating_exit_edit")
-            startService(sIntent)
-        }
-
                 }
                 
                 val totalCols = prefs.getInt("hybrid_grid_cols_$pageId", 4)
@@ -157,7 +152,7 @@ class HybridGridEditActivity : ComponentActivity() {
                     if (!found) searchY++
                 }
 
-                parsedItems.add(com.example.feature.sidebar.GridWidgetItem(
+                parsedItems.add(GridWidgetItem(
                     id = elementId,
                     cols = defaultCols,
                     rows = defaultRows,
@@ -165,9 +160,9 @@ class HybridGridEditActivity : ComponentActivity() {
                     y = targetY
                 ))
                 saveHybridItems(prefs, pageId, parsedItems)
+                LogKeeper.writeLog("HybridGridEdit", "Added item: $elementId at ($targetX, $targetY)")
                 val intent = Intent("ELEMENT_ADDED_TO_HYBRID")
                 intent.putExtra("PAGE_ID", pageId)
-                // Do not pass ELEMENT_ID to avoid duplicate addition in the receiver
                 intent.setPackage(packageName)
                 sendBroadcast(intent)
                 recreate()
@@ -191,16 +186,13 @@ class HybridGridEditActivity : ComponentActivity() {
             sIntent.putExtra("ACTION_ID", "system:hybrid_grid_floating_exit_edit")
             startService(sIntent)
         }
-
     }
 
     private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            // we will let compose react to changes by observing something? 
-            // Better yet, just re-read when needed. We'll handle state in Compose.
-        }
+        override fun onReceive(context: Context?, intent: Intent?) {}
     }
 }
+
 @Composable
 fun HybridGridEditor(
     pageId: String,
@@ -210,22 +202,18 @@ fun HybridGridEditor(
     onClose: () -> Unit,
     onAddWidget: () -> Unit
 ) {
-    var cols by remember { mutableStateOf(prefs.getInt("hybrid_grid_cols_$pageId", 4)) }
+    var cols by remember { mutableIntStateOf(prefs.getInt("hybrid_grid_cols_$pageId", 4)) }
     var items by remember { mutableStateOf(loadHybridLocalItems(prefs, pageId)) }
-    
-    // Auto-save when items or cols change
+    var isUserInteracting by remember { mutableStateOf(false) }
+
+    val scrollState = rememberScrollState()
+
+    // Auto-save when cols change
     LaunchedEffect(cols) {
         prefs.edit().putInt("hybrid_grid_cols_$pageId", cols).apply()
         saveHybridItems(prefs, pageId, items)
     }
-    
-    LaunchedEffect(items) {
-        saveHybridItems(prefs, pageId, items)
-    }
 
-    // Force reload when broadcast is received (we can do a simple poll or just rely on state)
-    // For simplicity, a small side-effect listener for the broadcast could be added, but we update `items` directly when possible.
-    
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -233,7 +221,10 @@ fun HybridGridEditor(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Edit Hybrid Grid", fontSize = 20.sp, color = Color.White)
-            Button(onClick = onClose) {
+            Button(onClick = {
+                saveHybridItems(prefs, pageId, items)
+                onClose()
+            }) {
                 Text("Done")
             }
         }
@@ -265,14 +256,19 @@ fun HybridGridEditor(
                 .weight(1f)
                 .fillMaxWidth()
                 .border(1.dp, Color.DarkGray)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState, enabled = !isUserInteracting)
         ) {
             HybridGridEditorCanvas(
                 items = items,
                 cols = cols,
+                pageId = pageId,
                 appWidgetManager = appWidgetManager,
-                        appsManager = appsManager,
-                onUpdateItems = { newItems -> items = newItems }
+                appsManager = appsManager,
+                onInteractionStateChange = { isInteracting -> isUserInteracting = isInteracting },
+                onUpdateItems = { newItems ->
+                    items = newItems
+                    saveHybridItems(prefs, pageId, newItems)
+                }
             )
         }
     }
@@ -282,8 +278,10 @@ fun HybridGridEditor(
 fun HybridGridEditorCanvas(
     items: List<GridWidgetItem>,
     cols: Int,
+    pageId: String,
     appsManager: com.example.feature.sidebar.SidebarAppsManager,
     appWidgetManager: AppWidgetManager,
+    onInteractionStateChange: (Boolean) -> Unit,
     onUpdateItems: (List<GridWidgetItem>) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -300,7 +298,7 @@ fun HybridGridEditorCanvas(
                     .offset(x = cellWidth * i)
                     .width(1.dp)
                     .fillMaxHeight()
-                    .background(Color(0xFF333333))
+                    .background(Color(0xFF2E2E2E))
             )
         }
         for (i in 0..40) {
@@ -309,126 +307,176 @@ fun HybridGridEditorCanvas(
                     .offset(y = cellHeight * i)
                     .height(1.dp)
                     .fillMaxWidth()
-                    .background(Color(0xFF333333))
+                    .background(Color(0xFF2E2E2E))
             )
         }
 
         items.forEachIndexed { index, item ->
-            var offsetX by remember(item.id, item.x, cellWidthPx) { mutableStateOf(item.x * cellWidthPx) }
-            var offsetY by remember(item.id, item.y, cellHeightPx) { mutableStateOf(item.y * cellHeightPx) }
-            var isDragging by remember { mutableStateOf(false) }
-            
-            var resizeDx by remember { mutableStateOf(0f) }
-            var resizeDy by remember { mutableStateOf(0f) }
-            var isResizing by remember { mutableStateOf(false) }
-
-            val currentWidthPx = item.cols * cellWidthPx + resizeDx
-            val currentHeightPx = item.rows * cellHeightPx + resizeDy
-
-            val zIndex = if (isDragging || isResizing) 1f else 0f
-
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                    .size(
-                        width = with(androidx.compose.ui.platform.LocalDensity.current) { currentWidthPx.toDp() },
-                        height = with(androidx.compose.ui.platform.LocalDensity.current) { currentHeightPx.toDp() }
-                    )
-                    .zIndex(zIndex)
-                    .padding(2.dp)
-                    .background(if (isDragging) Color(0xAA4CAF50) else Color(0xFF4CAF50))
-                    .border(2.dp, Color.White)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { isDragging = true },
-                            onDragEnd = {
-                                isDragging = false
-                                // Snap to grid
-                                val gridX = (offsetX / cellWidthPx).roundToInt().coerceIn(0, maxOf(0, cols - item.cols))
-                                val gridY = (offsetY / cellHeightPx).roundToInt().coerceAtLeast(0)
-                                offsetX = gridX * cellWidthPx
-                                offsetY = gridY * cellHeightPx
-                                
-                                val newItems = items.toMutableList()
-                                newItems[index] = item.copy(x = gridX, y = gridY)
-                                onUpdateItems(newItems)
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                offsetX += dragAmount.x
-                                offsetY += dragAmount.y
-                            }
-                        )
-                    }
-            ) {
-                // Delete button
-                IconButton(
-                    onClick = {
-                        val newItems = items.toMutableList()
-                        newItems.removeAt(index)
-                        onUpdateItems(newItems)
-                    },
-                    modifier = Modifier.align(Alignment.TopEnd).size(24.dp).padding(4.dp).background(Color.Red, shape = androidx.compose.foundation.shape.CircleShape)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(16.dp))
-                }
-
-                // Label
-                Text(
-                    text = getHybridWidgetName(androidx.compose.ui.platform.LocalContext.current, item.id, appWidgetManager, appsManager),
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Center).padding(8.dp)
-                )
-
-                // Resize handle (bottom right)
-                if (item.id.startsWith("folder:")) {
-                    IconButton(
-                        onClick = {
-                            val uuid = item.id.split(":")[1]
-                            val intent = android.content.Intent(context, com.example.SidebarEditActivity::class.java).apply {
-                                putExtra("FOLDER_UUID", uuid)
-                                putExtra("FOLDER_FULL_ID", item.id)
-                            }
-                            val activity = context as? androidx.activity.ComponentActivity
-                            activity?.startActivityForResult(intent, 200)
-                        },
-                        modifier = Modifier.align(Alignment.BottomStart).size(24.dp).padding(4.dp).background(Color.Blue, shape = androidx.compose.foundation.shape.CircleShape)
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White, modifier = Modifier.size(16.dp))
-                    }
-                }
+            key("${item.id}_${item.x}_${item.y}_$index") {
+                var offsetX by remember { mutableFloatStateOf(item.x * cellWidthPx) }
+                var offsetY by remember { mutableFloatStateOf(item.y * cellHeightPx) }
+                var isDragging by remember { mutableStateOf(false) }
                 
-                if (item.id.startsWith("widget:")) {
-                    Box(
+                var resizeDx by remember { mutableFloatStateOf(0f) }
+                var resizeDy by remember { mutableFloatStateOf(0f) }
+                var isResizing by remember { mutableStateOf(false) }
+
+                val currentWidthPx = (item.cols * cellWidthPx + resizeDx).coerceAtLeast(cellWidthPx)
+                val currentHeightPx = (item.rows * cellHeightPx + resizeDy).coerceAtLeast(cellHeightPx)
+
+                val zIndex = if (isDragging || isResizing) 10f else 1f
+
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(24.dp)
-                        .background(Color.Blue)
-                        .pointerInput(Unit) {
+                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                        .size(
+                            width = with(androidx.compose.ui.platform.LocalDensity.current) { currentWidthPx.toDp() },
+                            height = with(androidx.compose.ui.platform.LocalDensity.current) { currentHeightPx.toDp() }
+                        )
+                        .zIndex(zIndex)
+                        .padding(2.dp)
+                        .background(if (isDragging) Color(0xCC00E676) else Color(0xDD2E7D32), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                        .border(2.dp, if (isDragging) Color.White else Color(0xFF00E676), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                        .pointerInput(item.id, index) {
                             detectDragGestures(
-                                onDragStart = { isResizing = true },
+                                onDragStart = {
+                                    isDragging = true
+                                    onInteractionStateChange(true)
+                                    LogKeeper.writeLog("HybridGridEdit", "Drag started for ${item.id} at (${item.x}, ${item.y})")
+                                },
                                 onDragEnd = {
-                                    isResizing = false
-                                    // Snap resize to grid
-                                    val finalCols = ((currentWidthPx) / cellWidthPx).roundToInt().coerceIn(1, maxOf(1, cols - item.x))
-                                    val finalRows = ((currentHeightPx) / cellHeightPx).roundToInt().coerceAtLeast(1)
+                                    isDragging = false
+                                    onInteractionStateChange(false)
+                                    // Snap to grid
+                                    val gridX = (offsetX / cellWidthPx).roundToInt().coerceIn(0, maxOf(0, cols - item.cols))
+                                    val gridY = (offsetY / cellHeightPx).roundToInt().coerceAtLeast(0)
+                                    offsetX = gridX * cellWidthPx
+                                    offsetY = gridY * cellHeightPx
                                     
-                                    resizeDx = 0f
-                                    resizeDy = 0f
-                                    
+                                    LogKeeper.writeLog("HybridGridEdit", "Dropped ${item.id} -> snapped to ($gridX, $gridY)")
                                     val newItems = items.toMutableList()
-                                    newItems[index] = item.copy(cols = finalCols, rows = finalRows)
-                                    onUpdateItems(newItems)
+                                    if (index in newItems.indices) {
+                                        newItems[index] = item.copy(x = gridX, y = gridY)
+                                        onUpdateItems(newItems)
+                                    }
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                    onInteractionStateChange(false)
+                                    offsetX = item.x * cellWidthPx
+                                    offsetY = item.y * cellHeightPx
                                 },
                                 onDrag = { change, dragAmount ->
                                     change.consume()
-                                    resizeDx += dragAmount.x
-                                    resizeDy += dragAmount.y
+                                    offsetX = (offsetX + dragAmount.x).coerceIn(0f, (cols - item.cols) * cellWidthPx)
+                                    offsetY = (offsetY + dragAmount.y).coerceAtLeast(0f)
                                 }
                             )
                         }
+                ) {
+                    // Delete button
+                    IconButton(
+                        onClick = {
+                            val newItems = items.toMutableList()
+                            if (index in newItems.indices) {
+                                val removed = newItems.removeAt(index)
+                                LogKeeper.writeLog("HybridGridEdit", "Deleted ${removed.id}")
+                                onUpdateItems(newItems)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(24.dp)
+                            .padding(2.dp)
+                            .background(Color(0xFFE53935), shape = androidx.compose.foundation.shape.CircleShape)
                     ) {
-                        Icon(painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_crop), contentDescription = "Resize", tint = Color.White)
+                        Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(14.dp))
+                    }
+
+                    // Label
+                    Text(
+                        text = getHybridWidgetName(context, item.id, appWidgetManager, appsManager),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        maxLines = 2,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(6.dp)
+                    )
+
+                    // Resize handle (bottom right)
+                    if (item.id.startsWith("folder:")) {
+                        IconButton(
+                            onClick = {
+                                val uuid = item.id.split(":")[1]
+                                val intent = android.content.Intent(context, com.example.SidebarEditActivity::class.java).apply {
+                                    putExtra("FOLDER_UUID", uuid)
+                                    putExtra("FOLDER_FULL_ID", item.id)
+                                }
+                                val activity = context as? androidx.activity.ComponentActivity
+                                activity?.startActivityForResult(intent, 200)
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .size(24.dp)
+                                .padding(2.dp)
+                                .background(Color(0xFF1E88E5), shape = androidx.compose.foundation.shape.CircleShape)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                    
+                    if (item.id.startsWith("widget:")) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(26.dp)
+                                .background(Color(0xFF1E88E5), shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 6.dp))
+                                .pointerInput(item.id, index) {
+                                    detectDragGestures(
+                                        onDragStart = {
+                                            isResizing = true
+                                            onInteractionStateChange(true)
+                                        },
+                                        onDragEnd = {
+                                            isResizing = false
+                                            onInteractionStateChange(false)
+                                            // Snap resize to grid
+                                            val finalCols = ((currentWidthPx) / cellWidthPx).roundToInt().coerceIn(1, maxOf(1, cols - item.x))
+                                            val finalRows = ((currentHeightPx) / cellHeightPx).roundToInt().coerceAtLeast(1)
+                                            
+                                            resizeDx = 0f
+                                            resizeDy = 0f
+                                            
+                                            val newItems = items.toMutableList()
+                                            if (index in newItems.indices) {
+                                                newItems[index] = item.copy(cols = finalCols, rows = finalRows)
+                                                LogKeeper.writeLog("HybridGridEdit", "Resized ${item.id} -> ${finalCols}x${finalRows}")
+                                                onUpdateItems(newItems)
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            isResizing = false
+                                            onInteractionStateChange(false)
+                                            resizeDx = 0f
+                                            resizeDy = 0f
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            resizeDx += dragAmount.x
+                                            resizeDy += dragAmount.y
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_crop),
+                                contentDescription = "Resize",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -461,18 +509,46 @@ fun loadHybridLocalItems(prefs: android.content.SharedPreferences, pageId: Strin
     for (i in 0 until arr.length()) {
         val obj = arr.optJSONObject(i)
         if (obj != null) {
-            val idStr = if (obj.has("elementId")) obj.getString("elementId") 
-                         else if (obj.has("id")) {
-                            val rawId = obj.get("id")
-                            if (rawId is Int) "widget:$rawId" else rawId.toString()
-                        } else ""
+            val idStr = if (obj.has("id")) {
+                val rawId = obj.get("id")
+                if (rawId is Int) "widget:$rawId" else rawId.toString()
+            } else ""
             if (idStr.isNotEmpty()) {
                 list.add(GridWidgetItem(
-                    idStr,
-                    obj.optInt("cols", 2),
-                    obj.optInt("rows", 2),
-                    obj.optInt("x", 0),
-                    obj.optInt("y", 0)
+                    id = idStr,
+                    cols = obj.optInt("cols", 1),
+                    rows = obj.optInt("rows", 1),
+                    x = obj.optInt("x", 0),
+                    y = obj.optInt("y", 0)
+                ))
+            }
+        } else {
+            val id = arr.optInt(i, -1)
+            if (id != -1) {
+                list.add(GridWidgetItem("widget:$id", 2, 2, 0, 0))
+            }
+        }
+    }
+    return list
+}
+
+fun parseHybridItems(jsonStr: String): List<GridWidgetItem> {
+    val arr = JSONArray(jsonStr)
+    val list = mutableListOf<GridWidgetItem>()
+    for (i in 0 until arr.length()) {
+        val obj = arr.optJSONObject(i)
+        if (obj != null) {
+            val idStr = if (obj.has("id")) {
+                val rawId = obj.get("id")
+                if (rawId is Int) "widget:$rawId" else rawId.toString()
+            } else ""
+            if (idStr.isNotEmpty()) {
+                list.add(GridWidgetItem(
+                    id = idStr,
+                    cols = obj.optInt("cols", 1),
+                    rows = obj.optInt("rows", 1),
+                    x = obj.optInt("x", 0),
+                    y = obj.optInt("y", 0)
                 ))
             }
         } else {
@@ -499,4 +575,5 @@ fun saveHybridItems(prefs: android.content.SharedPreferences, pageId: String, it
     prefs.edit().putString("hybrid_grid_$pageId", arr.toString())
         .putBoolean("hybrid_grid_modified_$pageId", true)
         .apply()
+    LogKeeper.writeLog("HybridGridEdit", "Saved ${items.size} items to prefs for page: $pageId")
 }

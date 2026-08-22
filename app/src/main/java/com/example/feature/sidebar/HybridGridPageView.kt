@@ -130,8 +130,8 @@ class HybridGridPageView(
                 if (idStr.isNotEmpty()) {
                     list.add(GridWidgetItem(
                         idStr,
-                        obj.optInt("cols", 2),
-                        obj.optInt("rows", 2),
+                        obj.optInt("cols", 1),
+                        obj.optInt("rows", 1),
                         obj.optInt("x", 0),
                         obj.optInt("y", 0)
                     ))
@@ -160,20 +160,26 @@ class HybridGridPageView(
         prefs.edit().putString("hybrid_grid_$pageId", arr.toString())
             .putBoolean("hybrid_grid_modified_$pageId", true)
             .apply()
+        com.example.core.LogKeeper.writeLog("HybridGrid", "Saved ${items.size} items to prefs for page $pageId")
     }
 
     private fun addWidgetIdToPrefs(widgetId: Int) {
         val items = getWidgetItems().toMutableList()
-        // Default size 2x2
-        items.add(GridWidgetItem("widget:$widgetId", 2, 2, 0, 0))
-        saveWidgetItems(items)
+        // Prevent duplicate addition if already exists
+        if (items.none { it.id == "widget:$widgetId" }) {
+            items.add(GridWidgetItem("widget:$widgetId", 2, 2, 0, 0))
+            saveWidgetItems(items)
+            com.example.core.LogKeeper.writeLog("HybridGrid", "Added widget:$widgetId to page $pageId")
+        }
     }
     
     private fun addElementIdToPrefs(elementId: String) {
         val items = getWidgetItems().toMutableList()
-        // Default size 1x1 for elements
-        items.add(GridWidgetItem(elementId, 1, 1, 0, 0))
-        saveWidgetItems(items)
+        if (items.none { it.id == elementId }) {
+            items.add(GridWidgetItem(elementId, 1, 1, 0, 0))
+            saveWidgetItems(items)
+            com.example.core.LogKeeper.writeLog("HybridGrid", "Added element:$elementId to page $pageId")
+        }
     }
 
     fun getCurrentHeightPx(): Int {
@@ -422,7 +428,7 @@ class HybridGridPageView(
                                         if (parsed.action == "force_stop_running_apps") {
                                             com.example.utils.AppTrackerHelper.startForceStopSequence(context)
                                         } else if (parsed.action == "log_keeper") {
-                                            val intent = Intent(context, com.example.LogKeeperActivity::class.java)
+                                            val intent = Intent(context, com.example.feature.settings.LogKeeperActivity::class.java)
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                             context.startActivity(intent)
                                         } else if (parsed.action == "dictionary_floating" || parsed.action == "translation_floating" || parsed.action == "hybrid_grid_floating" || parsed.action == "dictionary_full" || parsed.action == "work_notes") {

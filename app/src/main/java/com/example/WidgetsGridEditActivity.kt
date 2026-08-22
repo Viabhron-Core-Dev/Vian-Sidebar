@@ -14,14 +14,12 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +30,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.example.core.LogKeeper
 import com.example.feature.sidebar.GridWidgetItem
 import org.json.JSONArray
 import org.json.JSONObject
@@ -48,6 +47,7 @@ class WidgetsGridEditActivity : ComponentActivity() {
             finish()
             return
         }
+        LogKeeper.writeLog("WidgetsGridEdit", "Opened editor for page: $pageId")
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         appWidgetManager = AppWidgetManager.getInstance(this)
 
@@ -80,27 +80,8 @@ class WidgetsGridEditActivity : ComponentActivity() {
             if (elementId != null) {
                 // Add widget to prefs directly and reload
                 val prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
-                val itemsJson = prefs.getString("widgets_grid_$pageId", "[]") ?: "[]"
-                val arr = org.json.JSONArray(itemsJson)
-                val parsedItems = mutableListOf<com.example.feature.sidebar.GridWidgetItem>()
-                for (i in 0 until arr.length()) {
-                    val obj = arr.optJSONObject(i)
-                    if (obj != null) {
-                        val idStr = if (obj.has("id")) {
-                            val rawId = obj.get("id")
-                            if (rawId is Int) "widget:$rawId" else rawId.toString()
-                        } else ""
-                        if (idStr.isNotEmpty()) {
-                            parsedItems.add(com.example.feature.sidebar.GridWidgetItem(
-                                id = idStr,
-                                cols = obj.optInt("cols", 1),
-                                rows = obj.optInt("rows", 1),
-                                x = obj.optInt("x", 0),
-                                y = obj.optInt("y", 0)
-                            ))
-                        }
-                    }
-                }
+                val parsedItems = loadLocalItems(prefs, pageId).toMutableList()
+                
                 var defaultCols = if (elementId.startsWith("widget:")) 2 else 1
                 var defaultRows = if (elementId.startsWith("widget:")) 2 else 1
                 if (elementId.startsWith("widget:")) {
@@ -144,24 +125,15 @@ class WidgetsGridEditActivity : ComponentActivity() {
                     if (!found) searchY++
                 }
 
-                parsedItems.add(com.example.feature.sidebar.GridWidgetItem(
+                parsedItems.add(GridWidgetItem(
                     id = elementId,
                     cols = defaultCols,
                     rows = defaultRows,
                     x = targetX,
                     y = targetY
                 ))
-                val newArr = org.json.JSONArray()
-                parsedItems.forEach {
-                    val obj = org.json.JSONObject()
-                    obj.put("id", it.id)
-                    obj.put("cols", it.cols)
-                    obj.put("rows", it.rows)
-                    obj.put("x", it.x)
-                    obj.put("y", it.y)
-                    newArr.put(obj)
-                }
-                prefs.edit().putString("widgets_grid_$pageId", newArr.toString()).apply()
+                saveItems(prefs, pageId, parsedItems)
+                LogKeeper.writeLog("WidgetsGridEdit", "Added item: $elementId at ($targetX, $targetY)")
                 
                 val intent = Intent("WIDGET_ADDED_TO_GRID")
                 intent.putExtra("PAGE_ID", pageId)
@@ -186,12 +158,10 @@ class WidgetsGridEditActivity : ComponentActivity() {
     }
 
     private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            // we will let compose react to changes by observing something? 
-            // Better yet, just re-read when needed. We'll handle state in Compose.
-        }
+        override fun onReceive(context: Context?, intent: Intent?) {}
     }
 }
+
 @Composable
 fun WidgetGridEditor(
     pageId: String,
@@ -200,22 +170,17 @@ fun WidgetGridEditor(
     onClose: () -> Unit,
     onAddWidget: () -> Unit
 ) {
-    var cols by remember { mutableStateOf(prefs.getInt("widgets_grid_cols_$pageId", 4)) }
+    var cols by remember { mutableIntStateOf(prefs.getInt("widgets_grid_cols_$pageId", 4)) }
     var items by remember { mutableStateOf(loadLocalItems(prefs, pageId)) }
+    var isUserInteracting by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
     
-    // Auto-save when items or cols change
+    // Auto-save when cols change
     LaunchedEffect(cols) {
         prefs.edit().putInt("widgets_grid_cols_$pageId", cols).apply()
         saveItems(prefs, pageId, items)
     }
-    
-    LaunchedEffect(items) {
-        saveItems(prefs, pageId, items)
-    }
 
-    // Force reload when broadcast is received (we can do a simple poll or just rely on state)
-    // For simplicity, a small side-effect listener for the broadcast could be added, but we update `items` directly when possible.
-    
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -223,7 +188,10 @@ fun WidgetGridEditor(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Edit Widgets Grid", fontSize = 20.sp, color = Color.White)
-            Button(onClick = onClose) {
+            Button(onClick = {
+                saveItems(prefs, pageId, items)
+                onClose()
+            }) {
                 Text("Done")
             }
         }
@@ -255,13 +223,17 @@ fun WidgetGridEditor(
                 .weight(1f)
                 .fillMaxWidth()
                 .border(1.dp, Color.DarkGray)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState, enabled = !isUserInteracting)
         ) {
             GridEditorCanvas(
                 items = items,
                 cols = cols,
                 appWidgetManager = appWidgetManager,
-                onUpdateItems = { newItems -> items = newItems }
+                onInteractionStateChange = { isInteracting -> isUserInteracting = isInteracting },
+                onUpdateItems = { newItems -> 
+                    items = newItems
+                    saveItems(prefs, pageId, newItems)
+                }
             )
         }
     }
@@ -272,8 +244,10 @@ fun GridEditorCanvas(
     items: List<GridWidgetItem>,
     cols: Int,
     appWidgetManager: AppWidgetManager,
+    onInteractionStateChange: (Boolean) -> Unit,
     onUpdateItems: (List<GridWidgetItem>) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(2000.dp)) {
         val cellWidth = maxWidth / cols
         val cellHeight = cellWidth // Square cells
@@ -287,7 +261,7 @@ fun GridEditorCanvas(
                     .offset(x = cellWidth * i)
                     .width(1.dp)
                     .fillMaxHeight()
-                    .background(Color(0xFF333333))
+                    .background(Color(0xFF2E2E2E))
             )
         }
         for (i in 0..40) {
@@ -296,108 +270,154 @@ fun GridEditorCanvas(
                     .offset(y = cellHeight * i)
                     .height(1.dp)
                     .fillMaxWidth()
-                    .background(Color(0xFF333333))
+                    .background(Color(0xFF2E2E2E))
             )
         }
 
         items.forEachIndexed { index, item ->
-            var offsetX by remember(item.id, item.x, cellWidthPx) { mutableStateOf(item.x * cellWidthPx) }
-            var offsetY by remember(item.id, item.y, cellHeightPx) { mutableStateOf(item.y * cellHeightPx) }
-            var isDragging by remember { mutableStateOf(false) }
-            
-            var resizeDx by remember { mutableStateOf(0f) }
-            var resizeDy by remember { mutableStateOf(0f) }
-            var isResizing by remember { mutableStateOf(false) }
+            key("${item.id}_${item.x}_${item.y}_$index") {
+                var offsetX by remember { mutableFloatStateOf(item.x * cellWidthPx) }
+                var offsetY by remember { mutableFloatStateOf(item.y * cellHeightPx) }
+                var isDragging by remember { mutableStateOf(false) }
+                
+                var resizeDx by remember { mutableFloatStateOf(0f) }
+                var resizeDy by remember { mutableFloatStateOf(0f) }
+                var isResizing by remember { mutableStateOf(false) }
 
-            val currentWidthPx = item.cols * cellWidthPx + resizeDx
-            val currentHeightPx = item.rows * cellHeightPx + resizeDy
+                val currentWidthPx = (item.cols * cellWidthPx + resizeDx).coerceAtLeast(cellWidthPx)
+                val currentHeightPx = (item.rows * cellHeightPx + resizeDy).coerceAtLeast(cellHeightPx)
 
-            val zIndex = if (isDragging || isResizing) 1f else 0f
+                val zIndex = if (isDragging || isResizing) 10f else 1f
 
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                    .size(
-                        width = with(androidx.compose.ui.platform.LocalDensity.current) { currentWidthPx.toDp() },
-                        height = with(androidx.compose.ui.platform.LocalDensity.current) { currentHeightPx.toDp() }
-                    )
-                    .zIndex(zIndex)
-                    .padding(2.dp)
-                    .background(if (isDragging) Color(0xAA4CAF50) else Color(0xFF4CAF50))
-                    .border(2.dp, Color.White)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { isDragging = true },
-                            onDragEnd = {
-                                isDragging = false
-                                // Snap to grid
-                                val gridX = (offsetX / cellWidthPx).roundToInt().coerceIn(0, maxOf(0, cols - item.cols))
-                                val gridY = (offsetY / cellHeightPx).roundToInt().coerceAtLeast(0)
-                                offsetX = gridX * cellWidthPx
-                                offsetY = gridY * cellHeightPx
-                                
-                                val newItems = items.toMutableList()
-                                newItems[index] = item.copy(x = gridX, y = gridY)
-                                onUpdateItems(newItems)
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                offsetX += dragAmount.x
-                                offsetY += dragAmount.y
-                            }
-                        )
-                    }
-            ) {
-                // Delete button
-                IconButton(
-                    onClick = {
-                        val newItems = items.toMutableList()
-                        newItems.removeAt(index)
-                        onUpdateItems(newItems)
-                    },
-                    modifier = Modifier.align(Alignment.TopEnd).size(24.dp).padding(4.dp).background(Color.Red, shape = androidx.compose.foundation.shape.CircleShape)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(16.dp))
-                }
-
-                // Label
-                Text(
-                    text = getWidgetName(androidx.compose.ui.platform.LocalContext.current, item.id, appWidgetManager),
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Center).padding(8.dp)
-                )
-
-                // Resize handle (bottom right)
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(24.dp)
-                        .background(Color.Blue)
-                        .pointerInput(Unit) {
+                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                        .size(
+                            width = with(androidx.compose.ui.platform.LocalDensity.current) { currentWidthPx.toDp() },
+                            height = with(androidx.compose.ui.platform.LocalDensity.current) { currentHeightPx.toDp() }
+                        )
+                        .zIndex(zIndex)
+                        .padding(2.dp)
+                        .background(if (isDragging) Color(0xCC4CAF50) else Color(0xDD2E7D32), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                        .border(2.dp, if (isDragging) Color.White else Color(0xFF4CAF50), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                        .pointerInput(item.id, index) {
                             detectDragGestures(
-                                onDragStart = { isResizing = true },
+                                onDragStart = { 
+                                    isDragging = true
+                                    onInteractionStateChange(true)
+                                    LogKeeper.writeLog("WidgetsGridEdit", "Drag started for ${item.id} at (${item.x}, ${item.y})")
+                                },
                                 onDragEnd = {
-                                    isResizing = false
-                                    // Snap resize to grid
-                                    val finalCols = ((currentWidthPx) / cellWidthPx).roundToInt().coerceIn(1, maxOf(1, cols - item.x))
-                                    val finalRows = ((currentHeightPx) / cellHeightPx).roundToInt().coerceAtLeast(1)
+                                    isDragging = false
+                                    onInteractionStateChange(false)
+                                    // Snap to grid
+                                    val gridX = (offsetX / cellWidthPx).roundToInt().coerceIn(0, maxOf(0, cols - item.cols))
+                                    val gridY = (offsetY / cellHeightPx).roundToInt().coerceAtLeast(0)
+                                    offsetX = gridX * cellWidthPx
+                                    offsetY = gridY * cellHeightPx
                                     
-                                    resizeDx = 0f
-                                    resizeDy = 0f
-                                    
+                                    LogKeeper.writeLog("WidgetsGridEdit", "Dropped ${item.id} -> snapped to ($gridX, $gridY)")
                                     val newItems = items.toMutableList()
-                                    newItems[index] = item.copy(cols = finalCols, rows = finalRows)
-                                    onUpdateItems(newItems)
+                                    if (index in newItems.indices) {
+                                        newItems[index] = item.copy(x = gridX, y = gridY)
+                                        onUpdateItems(newItems)
+                                    }
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                    onInteractionStateChange(false)
+                                    offsetX = item.x * cellWidthPx
+                                    offsetY = item.y * cellHeightPx
                                 },
                                 onDrag = { change, dragAmount ->
                                     change.consume()
-                                    resizeDx += dragAmount.x
-                                    resizeDy += dragAmount.y
+                                    offsetX = (offsetX + dragAmount.x).coerceIn(0f, (cols - item.cols) * cellWidthPx)
+                                    offsetY = (offsetY + dragAmount.y).coerceAtLeast(0f)
                                 }
                             )
                         }
                 ) {
-                    Icon(painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_crop), contentDescription = "Resize", tint = Color.White)
+                    // Delete button
+                    IconButton(
+                        onClick = {
+                            val newItems = items.toMutableList()
+                            if (index in newItems.indices) {
+                                val removed = newItems.removeAt(index)
+                                LogKeeper.writeLog("WidgetsGridEdit", "Deleted ${removed.id}")
+                                onUpdateItems(newItems)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(24.dp)
+                            .padding(2.dp)
+                            .background(Color(0xFFE53935), shape = androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(14.dp))
+                    }
+
+                    // Label
+                    Text(
+                        text = getWidgetName(context, item.id, appWidgetManager),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        maxLines = 2,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(6.dp)
+                    )
+
+                    // Resize handle (bottom right)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(26.dp)
+                            .background(Color(0xFF1E88E5), shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 6.dp))
+                            .pointerInput(item.id, index) {
+                                detectDragGestures(
+                                    onDragStart = { 
+                                        isResizing = true
+                                        onInteractionStateChange(true)
+                                    },
+                                    onDragEnd = {
+                                        isResizing = false
+                                        onInteractionStateChange(false)
+                                        // Snap resize to grid
+                                        val finalCols = ((currentWidthPx) / cellWidthPx).roundToInt().coerceIn(1, maxOf(1, cols - item.x))
+                                        val finalRows = ((currentHeightPx) / cellHeightPx).roundToInt().coerceAtLeast(1)
+                                        
+                                        resizeDx = 0f
+                                        resizeDy = 0f
+                                        
+                                        val newItems = items.toMutableList()
+                                        if (index in newItems.indices) {
+                                            newItems[index] = item.copy(cols = finalCols, rows = finalRows)
+                                            LogKeeper.writeLog("WidgetsGridEdit", "Resized ${item.id} -> ${finalCols}x${finalRows}")
+                                            onUpdateItems(newItems)
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        isResizing = false
+                                        onInteractionStateChange(false)
+                                        resizeDx = 0f
+                                        resizeDy = 0f
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        resizeDx += dragAmount.x
+                                        resizeDy += dragAmount.y
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_crop),
+                            contentDescription = "Resize",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -428,11 +448,11 @@ fun loadLocalItems(prefs: android.content.SharedPreferences, pageId: String): Li
                         } else ""
             if (idStr.isNotEmpty()) {
                 list.add(GridWidgetItem(
-                    idStr,
-                    obj.optInt("cols", 2),
-                    obj.optInt("rows", 2),
-                    obj.optInt("x", 0),
-                    obj.optInt("y", 0)
+                    id = idStr,
+                    cols = obj.optInt("cols", 2),
+                    rows = obj.optInt("rows", 2),
+                    x = obj.optInt("x", 0),
+                    y = obj.optInt("y", 0)
                 ))
             }
         } else {
@@ -457,4 +477,5 @@ fun saveItems(prefs: android.content.SharedPreferences, pageId: String, items: L
         arr.put(obj)
     }
     prefs.edit().putString("widgets_grid_$pageId", arr.toString()).apply()
+    LogKeeper.writeLog("WidgetsGridEdit", "Saved ${items.size} items to prefs for page: $pageId")
 }

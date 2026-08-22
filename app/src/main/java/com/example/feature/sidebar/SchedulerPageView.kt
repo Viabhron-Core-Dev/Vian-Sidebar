@@ -30,7 +30,11 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-class SchedulerPageView(context: Context, private val scope: CoroutineScope) : FrameLayout(context), SidebarPageControllable {
+class SchedulerPageView(
+    context: Context,
+    private val scope: CoroutineScope,
+    private val onHeightChanged: ((Int) -> Unit)? = null
+) : FrameLayout(context), SidebarPageControllable {
     private val db = AppDatabase.getDatabase(context)
     private val recyclerView: RecyclerView
     private val tvEmpty: TextView
@@ -162,6 +166,17 @@ class SchedulerPageView(context: Context, private val scope: CoroutineScope) : F
                 } else {
                     tvEmpty.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
+                }
+                post {
+                    measure(
+                        MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (330 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+                    )
+                    val density = resources.displayMetrics.density
+                    val minH = (200 * density).toInt()
+                    val maxH = (520 * density).toInt()
+                    val targetH = measuredHeight.coerceIn(minH, maxH)
+                    onHeightChanged?.invoke(targetH)
                 }
             }
         }

@@ -35,7 +35,8 @@ import java.util.concurrent.TimeUnit
 class AppTrackerPageView(
     context: Context,
     private val onCloseSidebar: () -> Unit,
-    private val onAppSelected: (String) -> Unit
+    private val onAppSelected: (String) -> Unit,
+    private val onHeightChanged: ((Int) -> Unit)? = null
 ) : FrameLayout(context), SidebarPageControllable {
 
     private val recyclerView: RecyclerView
@@ -136,6 +137,18 @@ class AppTrackerPageView(
     private fun updateList(list: List<TrackedAppInfo>, isRunning: Boolean) {
         adapter.submitList(list, isRunning)
         tvEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+        post {
+            measure(
+                MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (330 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            )
+            val measuredH = measuredHeight
+            val density = resources.displayMetrics.density
+            val minH = (220 * density).toInt()
+            val maxH = (560 * density).toInt()
+            val targetH = measuredH.coerceIn(minH, maxH)
+            onHeightChanged?.invoke(targetH)
+        }
     }
 
     private fun loadData() {

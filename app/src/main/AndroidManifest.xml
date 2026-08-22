@@ -178,6 +178,7 @@
             </intent-filter>
         </service>
         <activity android:name=".feature.settings.TagManagementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".feature.settings.LogKeeperActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".WidgetPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         
         <activity android:name=".HybridGridEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />

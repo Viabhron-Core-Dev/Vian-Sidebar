@@ -103,8 +103,7 @@ class SidebarView(
             initialPage.wrapContentHeight
         } else {
             when (initialPage?.type) {
-                "scheduler", "notifications", "notification", "app_tracker" -> false
-                "calculator", "compass", "resources_tracker", "media_player" -> true
+                "calculator", "compass", "resources_tracker", "media_player", "app_tracker", "scheduler", "notifications", "notification" -> true
                 "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
                 else -> true
             }
@@ -481,8 +480,7 @@ class SidebarView(
             page.wrapContentHeight
         } else {
             when (page.type) {
-                "scheduler", "notifications", "notification", "app_tracker" -> false
-                "calculator", "compass", "resources_tracker", "media_player" -> true
+                "calculator", "compass", "resources_tracker", "media_player", "app_tracker", "scheduler", "notifications", "notification" -> true
                 "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
                 else -> true
             }
@@ -564,8 +562,7 @@ class SidebarView(
             page.wrapContentHeight
         } else {
             when (page?.type) {
-                "scheduler", "notifications", "notification", "app_tracker" -> false
-                "calculator", "compass", "resources_tracker", "media_player" -> true
+                "calculator", "compass", "resources_tracker", "media_player", "app_tracker", "scheduler", "notifications", "notification" -> true
                 "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
                 else -> true
             }
@@ -737,6 +734,8 @@ class SidebarView(
                             }
                         } catch (e: Exception) {}
                         onClose()
+                    }, onHeightChanged = { newHeight ->
+                        handleChildHeightChange(bindingAdapterPosition, newHeight)
                     })
                 }
                 "media_player" -> {
@@ -749,8 +748,12 @@ class SidebarView(
                         handleChildHeightChange(bindingAdapterPosition, newHeight)
                     }
                 }
-                "scheduler" -> SchedulerPageView(context, viewScope)
-                "notifications", "notification" -> NotificationPageView(context, { onClose() }, { /* TODO: onHideApp */ })
+                "scheduler" -> SchedulerPageView(context, viewScope) { newHeight ->
+                    handleChildHeightChange(bindingAdapterPosition, newHeight)
+                }
+                "notifications", "notification" -> NotificationPageView(context, { onClose() }, { /* TODO: onHideApp */ }) { newHeight ->
+                    handleChildHeightChange(bindingAdapterPosition, newHeight)
+                }
                 "resources_tracker" -> ResourcesTrackerPageView(context, viewScope)
                 else -> {
                     TextView(context).apply {

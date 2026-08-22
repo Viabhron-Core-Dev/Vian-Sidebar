@@ -10,6 +10,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.DisplayMetrics
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -19,6 +20,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import com.example.R
+import com.example.core.LogKeeper
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -28,12 +30,13 @@ class CursorManager(private val service: AccessibilityService) {
     private val mainHandler = Handler(Looper.getMainLooper())
     
     private var pointerView: ImageView? = null
+    private var clickRippleView: View? = null
     private var controlView: View? = null
     private var trackpadView: View? = null
     
     var isRunning = false
     private var isPaused = false
-    private var isGlassShield = true // True = Full screen, False = Trackpad
+    private var isGlassShield = false // Default to comfortable Trackpad box mode so touch never leaks
     
     private var pointerX = 0f
     private var pointerY = 0f
@@ -54,7 +57,10 @@ class CursorManager(private val service: AccessibilityService) {
         pointerX = screenWidth / 2f
         pointerY = screenHeight / 2f
         
+        LogKeeper.writeLog("Cursor", "Started virtual cursor (screen: ${screenWidth}x${screenHeight})")
+        
         createPointerView()
+        createClickRippleView()
         createTrackpadView()
         createControlView()
         updateTrackpadLayout()
@@ -64,11 +70,15 @@ class CursorManager(private val service: AccessibilityService) {
         if (!isRunning) return
         isRunning = false
         
+        LogKeeper.writeLog("Cursor", "Stopped virtual cursor")
+        
         pointerView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
+        clickRippleView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
         controlView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
         trackpadView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
         
         pointerView = null
+        clickRippleView = null
         controlView = null
         trackpadView = null
     }
@@ -94,6 +104,36 @@ class CursorManager(private val service: AccessibilityService) {
         
         windowManager.addView(pointerView, params)
     }
+
+    private fun createClickRippleView() {
+        val density = service.resources.displayMetrics.density
+        val sizePx = (36 * density).toInt()
+        
+        clickRippleView = View(service).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#444CAF50"))
+                setStroke((2 * density).toInt(), Color.parseColor("#FF4CAF50"))
+            }
+            visibility = View.GONE
+        }
+        
+        val params = WindowManager.LayoutParams(
+            sizePx,
+            sizePx,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = (pointerX - sizePx / 2f).toInt()
+            y = (pointerY - sizePx / 2f).toInt()
+        }
+        
+        windowManager.addView(clickRippleView, params)
+    }
     
     private fun createControlView() {
         val density = service.resources.displayMetrics.density
@@ -117,6 +157,7 @@ class CursorManager(private val service: AccessibilityService) {
                 isPaused = !isPaused
                 setImageResource(if (isPaused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause)
                 trackpadView?.visibility = if (isPaused) View.GONE else View.VISIBLE
+                LogKeeper.writeLog("Cursor", "Cursor paused: $isPaused")
             }
         }
 
@@ -126,9 +167,7 @@ class CursorManager(private val service: AccessibilityService) {
             setColorFilter(Color.parseColor("#4CAF50"))
             setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
             setOnClickListener {
-                val tipX = pointerX + (1f * density)
-                val tipY = pointerY + (1f * density)
-                performClick(tipX, tipY)
+                performClick(pointerX, pointerY)
             }
         }
         
@@ -141,6 +180,7 @@ class CursorManager(private val service: AccessibilityService) {
                 isGlassShield = !isGlassShield
                 setImageResource(if (isGlassShield) android.R.drawable.ic_menu_crop else android.R.drawable.ic_menu_gallery)
                 updateTrackpadLayout()
+                LogKeeper.writeLog("Cursor", "Switched mode: isGlassShield=$isGlassShield")
             }
         }
         
@@ -174,78 +214,64 @@ class CursorManager(private val service: AccessibilityService) {
     
     private fun createTrackpadView() {
         val density = service.resources.displayMetrics.density
+        
         trackpadView = FrameLayout(service).apply {
-            var downX = 0f
-            var downY = 0f
             var lastX = 0f
             var lastY = 0f
-            var lastTapUpTime = 0L
-            var lastTapUpX = 0f
-            var lastTapUpY = 0f
-            var isDoubleTapCandidate = false
-            
-            setOnTouchListener { _, event ->
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        downX = event.rawX
-                        downY = event.rawY
-                        lastX = event.rawX
-                        lastY = event.rawY
-                        
-                        val now = System.currentTimeMillis()
-                        val timeDiff = now - lastTapUpTime
-                        val distFromLastTap = hypot((event.rawX - lastTapUpX).toDouble(), (event.rawY - lastTapUpY).toDouble())
-                        
-                        isDoubleTapCandidate = (timeDiff in 40..400) && (distFromLastTap < 40 * density)
-                        true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val dx = event.rawX - lastX
-                        val dy = event.rawY - lastY
-                        val distFromDown = hypot((event.rawX - downX).toDouble(), (event.rawY - downY).toDouble())
-                        
-                        if (distFromDown > 18 * density) {
-                            isDoubleTapCandidate = false
-                        }
-                        
-                        lastX = event.rawX
-                        lastY = event.rawY
-                        
-                        pointerX += dx * 1.35f
-                        pointerY += dy * 1.35f
-                        
-                        pointerX = max(0f, min(screenWidth.toFloat(), pointerX))
-                        pointerY = max(0f, min(screenHeight.toFloat(), pointerY))
-                        
-                        updatePointerPosition()
-                        true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        val distFromDown = hypot((event.rawX - downX).toDouble(), (event.rawY - downY).toDouble())
-                        if (distFromDown < 20 * density) {
-                            // Valid tap released without dragging
-                            if (isDoubleTapCandidate) {
-                                val tipX = pointerX + (1f * density)
-                                val tipY = pointerY + (1f * density)
-                                performClick(tipX, tipY)
-                                lastTapUpTime = 0L // Reset so 3rd tap isn't immediately double tap
-                            } else {
-                                lastTapUpTime = System.currentTimeMillis()
-                                lastTapUpX = event.rawX
-                                lastTapUpY = event.rawY
-                            }
-                        } else {
-                            lastTapUpTime = 0L
-                        }
-                        true
-                    }
-                    MotionEvent.ACTION_CANCEL -> {
-                        isDoubleTapCandidate = false
-                        lastTapUpTime = 0L
-                        true
-                    }
-                    else -> false
+            var isDraggingCursor = false
+
+            val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDown(e: MotionEvent): Boolean {
+                    return true
                 }
+
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    // Single tap on trackpad triggers a real hardware-level click at cursor location
+                    LogKeeper.writeLog("Cursor", "Single tap on trackpad -> click at ($pointerX, $pointerY)")
+                    performClick(pointerX, pointerY)
+                    return true
+                }
+
+                override fun onDoubleTap(e: MotionEvent): Boolean {
+                    // Double tap on trackpad triggers click at cursor location
+                    LogKeeper.writeLog("Cursor", "Double tap detected on trackpad -> click at ($pointerX, $pointerY)")
+                    performClick(pointerX, pointerY)
+                    return true
+                }
+
+                override fun onDoubleTapEvent(e: MotionEvent): Boolean {
+                    if (e.action == MotionEvent.ACTION_UP) {
+                        performClick(pointerX, pointerY)
+                    }
+                    return true
+                }
+
+                override fun onLongPress(e: MotionEvent) {
+                    LogKeeper.writeLog("Cursor", "Long press on trackpad -> long click at ($pointerX, $pointerY)")
+                    performLongClick(pointerX, pointerY)
+                }
+
+                override fun onScroll(
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
+                    distanceX: Float,
+                    distanceY: Float
+                ): Boolean {
+                    pointerX -= distanceX * 1.35f
+                    pointerY -= distanceY * 1.35f
+                    
+                    pointerX = max(0f, min(screenWidth.toFloat(), pointerX))
+                    pointerY = max(0f, min(screenHeight.toFloat(), pointerY))
+                    
+                    updatePointerPosition()
+                    return true
+                }
+            })
+
+            setOnTouchListener { _, event ->
+                // Always consume all touches so touches NEVER leak through to background apps
+                gestureDetector.onTouchEvent(event)
+                true
             }
         }
         
@@ -280,13 +306,15 @@ class CursorManager(private val service: AccessibilityService) {
             params.y = (170 * density).toInt()
             params.x = (16 * density).toInt()
             trackpadView?.background = GradientDrawable().apply {
-                setColor(Color.parseColor("#55333333"))
+                setColor(Color.parseColor("#66222222"))
                 cornerRadius = 16f * density
-                setStroke((1.5f * density).toInt(), Color.parseColor("#88FFFFFF"))
+                setStroke((1.5f * density).toInt(), Color.parseColor("#AA00E676"))
             }
         }
         
-        windowManager.updateViewLayout(trackpadView, params)
+        try {
+            windowManager.updateViewLayout(trackpadView, params)
+        } catch (e: Exception) {}
     }
     
     private fun updatePointerPosition() {
@@ -296,50 +324,55 @@ class CursorManager(private val service: AccessibilityService) {
         try {
             windowManager.updateViewLayout(pointerView, params)
         } catch (e: Exception) {}
+        
+        clickRippleView?.let { ripple ->
+            val rParams = ripple.layoutParams as? WindowManager.LayoutParams ?: return@let
+            val density = service.resources.displayMetrics.density
+            val sizePx = (36 * density).toInt()
+            rParams.x = (pointerX - sizePx / 2f).toInt()
+            rParams.y = (pointerY - sizePx / 2f).toInt()
+            try {
+                windowManager.updateViewLayout(ripple, rParams)
+            } catch (e: Exception) {}
+        }
     }
     
-    private fun performClick(x: Float, y: Float) {
-        // Visual tap animation feedback on the cursor
+    private fun showClickAnimation() {
+        // Visual tap animation feedback on the cursor pointer
         pointerView?.animate()
-            ?.scaleX(0.75f)
-            ?.scaleY(0.75f)
-            ?.setDuration(80)
+            ?.scaleX(0.70f)
+            ?.scaleY(0.70f)
+            ?.setDuration(70)
             ?.withEndAction {
-                pointerView?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(80)?.start()
+                pointerView?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(70)?.start()
             }
             ?.start()
 
-        val trackpad = trackpadView ?: return
-        val originalParams = trackpad.layoutParams as? WindowManager.LayoutParams ?: return
-        
-        // Temporarily make trackpad not touchable so injected gesture penetrates through to target window
-        val touchDisabledParams = WindowManager.LayoutParams().apply {
-            copyFrom(originalParams)
-            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        // Visual click ripple ring at the pointer tip
+        clickRippleView?.let { ripple ->
+            ripple.visibility = View.VISIBLE
+            ripple.alpha = 1f
+            ripple.scaleX = 0.5f
+            ripple.scaleY = 0.5f
+            ripple.animate()
+                ?.scaleX(1.4f)
+                ?.scaleY(1.4f)
+                ?.alpha(0f)
+                ?.setDuration(220)
+                ?.withEndAction {
+                    ripple.visibility = View.GONE
+                }
+                ?.start()
         }
-        try {
-            windowManager.updateViewLayout(trackpad, touchDisabledParams)
-        } catch (e: Exception) {}
+    }
 
-        var restored = false
-        fun restoreTouchable() {
-            if (restored) return
-            restored = true
-            try {
-                val currentP = trackpadView?.layoutParams as? WindowManager.LayoutParams ?: return
-                currentP.flags = currentP.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
-                windowManager.updateViewLayout(trackpadView, currentP)
-            } catch (e: Exception) {}
-        }
-
-        // Safety fallback timer to restore touchability if gesture callback does not fire
-        mainHandler.postDelayed({
-            restoreTouchable()
-        }, 300)
+    private fun performClick(x: Float, y: Float) {
+        showClickAnimation()
 
         val path = Path()
         path.moveTo(x, y)
         val gestureBuilder = GestureDescription.Builder()
+        // 50ms realistic finger tap
         gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 0, 50))
         
         try {
@@ -347,19 +380,47 @@ class CursorManager(private val service: AccessibilityService) {
                 gestureBuilder.build(),
                 object : AccessibilityService.GestureResultCallback() {
                     override fun onCompleted(gestureDescription: GestureDescription?) {
-                        restoreTouchable()
+                        LogKeeper.writeLog("Cursor", "Tap gesture completed at ($x, $y)")
                     }
 
                     override fun onCancelled(gestureDescription: GestureDescription?) {
-                        restoreTouchable()
+                        LogKeeper.writeLog("Cursor", "Tap gesture cancelled at ($x, $y)")
                     }
                 },
                 mainHandler
             )
         } catch (e: Exception) {
+            LogKeeper.writeLog("Cursor", "Tap dispatch error: ${e.message}")
             e.printStackTrace()
-            restoreTouchable()
+        }
+    }
+
+    private fun performLongClick(x: Float, y: Float) {
+        showClickAnimation()
+
+        val path = Path()
+        path.moveTo(x, y)
+        val gestureBuilder = GestureDescription.Builder()
+        // 600ms realistic long press
+        gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 0, 600))
+        
+        try {
+            service.dispatchGesture(
+                gestureBuilder.build(),
+                object : AccessibilityService.GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        LogKeeper.writeLog("Cursor", "Long press completed at ($x, $y)")
+                    }
+
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        LogKeeper.writeLog("Cursor", "Long press cancelled at ($x, $y)")
+                    }
+                },
+                mainHandler
+            )
+        } catch (e: Exception) {
+            LogKeeper.writeLog("Cursor", "Long press dispatch error: ${e.message}")
+            e.printStackTrace()
         }
     }
 }
-

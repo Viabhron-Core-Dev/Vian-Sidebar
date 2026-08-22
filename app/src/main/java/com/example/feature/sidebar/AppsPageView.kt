@@ -528,7 +528,7 @@ class AppsPageView(
                     if (item.action == "force_stop_running_apps") {
                         com.example.utils.AppTrackerHelper.startForceStopSequence(context)
                     } else if (item.action == "log_keeper") {
-                        val intent = android.content.Intent(context, com.example.LogKeeperActivity::class.java)
+                        val intent = android.content.Intent(context, com.example.feature.settings.LogKeeperActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(intent)
                     } else if (item.action == "dictionary_floating") {

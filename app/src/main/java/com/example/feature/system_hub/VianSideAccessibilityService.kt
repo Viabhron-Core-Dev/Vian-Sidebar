@@ -143,6 +143,13 @@ class VianSideAccessibilityService : AccessibilityService() {
             startActivity(intent)
             return true
         }
+        if (action == "log_keeper") {
+            val intent = Intent(this, com.example.feature.settings.LogKeeperActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            return true
+        }
         if (action == "qr_scan") {
             handleQRScan()
             return true

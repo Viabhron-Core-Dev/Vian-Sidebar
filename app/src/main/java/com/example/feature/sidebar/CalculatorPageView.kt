@@ -1,10 +1,12 @@
 package com.example.feature.sidebar
 
 import android.content.Context
+import android.graphics.Typeface
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -179,27 +181,35 @@ class CalculatorPageView(context: Context) : FrameLayout(context), SidebarPageCo
         }
         tvResult.textSize = dynamicResultSize
 
-        // Top expression: format and highlight cursor position
+        // Top expression: format with a sharp vertical cursor line (caret) at the insertion point
         if (expression.isEmpty()) {
-            tvExpression.text = ""
+            val ssb = SpannableStringBuilder()
+            if (!expressionCompleted) {
+                val start = ssb.length
+                ssb.append("▏")
+                val end = ssb.length
+                ssb.setSpan(ForegroundColorSpan(0xFF80D8FF.toInt()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                ssb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            tvExpression.text = ssb
         } else {
             val ssb = SpannableStringBuilder()
             for (i in expression.indices) {
                 if (i == cursorIndex && !expressionCompleted) {
                     val start = ssb.length
-                    ssb.append(expression[i])
+                    ssb.append("▏")
                     val end = ssb.length
-                    ssb.setSpan(BackgroundColorSpan(0x5580D8FF), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    ssb.setSpan(ForegroundColorSpan(0xFFFFFFFF.toInt()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                } else {
-                    ssb.append(expression[i])
+                    ssb.setSpan(ForegroundColorSpan(0xFF80D8FF.toInt()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
+                ssb.append(expression[i])
             }
             if (cursorIndex == expression.length && !expressionCompleted) {
                 val start = ssb.length
                 ssb.append("▏")
                 val end = ssb.length
                 ssb.setSpan(ForegroundColorSpan(0xFF80D8FF.toInt()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                ssb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
             tvExpression.text = ssb
         }

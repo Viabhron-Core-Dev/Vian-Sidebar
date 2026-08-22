@@ -39,17 +39,32 @@ object AppTrackerHelper {
         if (!checkUsageStatsPermission(context)) return emptyList()
 
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return emptyList()
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+
+        // Get currently active processes in memory
+        val runningProcesses = activityManager?.runningAppProcesses ?: emptyList()
+        val activePackages = mutableSetOf<String>()
+        for (proc in runningProcesses) {
+            proc.pkgList?.let { activePackages.addAll(it) }
+        }
+
         val endTime = System.currentTimeMillis()
         val startTime = endTime - TimeUnit.HOURS.toMillis(24)
 
         val events = usageStatsManager.queryEvents(startTime, endTime)
         val event = UsageEvents.Event()
         val appLastUsed = mutableMapOf<String, Long>()
+        val appStopEvents = mutableMapOf<String, Long>()
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                appLastUsed[event.packageName] = event.timeStamp
+            when (event.eventType) {
+                UsageEvents.Event.ACTIVITY_RESUMED -> {
+                    appLastUsed[event.packageName] = event.timeStamp
+                }
+                UsageEvents.Event.ACTIVITY_STOPPED -> {
+                    appStopEvents[event.packageName] = event.timeStamp
+                }
             }
         }
 
@@ -64,6 +79,14 @@ object AppTrackerHelper {
             if (packageName == context.packageName) continue
             if (packageName.contains("launcher", ignoreCase = true)) continue
             if (whitelist.contains(packageName)) continue
+
+            // If we have active processes reported by ActivityManager and package is not in running processes
+            // and last activity was stopped long ago or stopped after resumed, check if truly running
+            val isProcessAlive = activePackages.contains(packageName)
+            val isRecentUsage = (endTime - lastUsed) <= TimeUnit.MINUTES.toMillis(60)
+            
+            // Only keep if process is active in memory OR used very recently and not killed
+            if (!isProcessAlive && !isRecentUsage) continue
 
             try {
                 val appInfo = pm.getApplicationInfo(packageName, 0)

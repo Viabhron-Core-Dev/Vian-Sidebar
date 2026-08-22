@@ -54,7 +54,7 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     val prefs = remember { context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE) }
     
     var speedIndicatorEnabled by remember { 
-        mutableStateOf(prefs.getBoolean("netspeed_enabled", prefs.getBoolean("speed_indicator_enabled", false))) 
+        mutableStateOf(prefs.getBoolean("netspeed_enabled", prefs.getBoolean("speed_indicator_enabled", true))) 
     }
     var speedUnits by remember { mutableStateOf(prefs.getString("speed_units", "Auto") ?: "Auto") }
     var dataUnits by remember { mutableStateOf(prefs.getString("data_units", "Auto") ?: "Auto") }

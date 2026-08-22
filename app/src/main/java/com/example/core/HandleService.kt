@@ -73,7 +73,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
 
 
     private fun setupNetSpeed() {
-        if (prefs.getBoolean("netspeed_enabled", false) || prefs.getBoolean("speed_indicator_enabled", false)) {
+        if (prefs.getBoolean("netspeed_enabled", true) || prefs.getBoolean("speed_indicator_enabled", true)) {
             if (netSpeedManager == null) {
                 netSpeedManager = NetSpeedManager(this, prefs, 
                     onSpeedUpdate = { down, up ->
@@ -112,7 +112,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
-                        if (prefs.getBoolean("netspeed_enabled", false)) {
+                        if (prefs.getBoolean("netspeed_enabled", true) || prefs.getBoolean("speed_indicator_enabled", true)) {
                             netSpeedManager?.start()
                         }
                     }
@@ -155,7 +155,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
         
-        val isNetSpeedActive = prefs.getBoolean("netspeed_enabled", false) || prefs.getBoolean("speed_indicator_enabled", false)
+        val isNetSpeedActive = prefs.getBoolean("netspeed_enabled", true) || prefs.getBoolean("speed_indicator_enabled", true)
         val totalTodayBytes = dailyMobileBytes + dailyWifiBytes
         val totalSpeed = downSpeed + upSpeed
 
@@ -184,7 +184,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             val speedUnits = prefs.getString("speed_units", "Auto")
             val bigText = "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}\nMobile: ${formatDataBytes(dailyMobileBytes)} • Wi-Fi: ${formatDataBytes(dailyWifiBytes)}"
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
-            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(totalSpeed, speedUnits))
+            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(this, totalSpeed, speedUnits))
         } else {
             builder.setSmallIcon(android.R.drawable.ic_menu_crop)
         }
