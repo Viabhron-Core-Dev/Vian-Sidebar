@@ -17,20 +17,11 @@
             android:gravity="center_vertical"
             android:paddingBottom="8dp">
             <TextView
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:text="Notifications"
                 android:textColor="#FFFFFF"
                 android:textSize="22sp" />
-            <ImageView
-                android:id="@+id/btn_history"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_recent_history"
-                android:contentDescription="History" />
         </LinearLayout>
 
         <LinearLayout
@@ -101,21 +92,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingBottom="80dp" />
+                android:paddingBottom="16dp" />
 
         </FrameLayout>
     </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/fab_clear_all"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:background="@drawable/bg_fab_circle"
-        android:elevation="6dp"
-        android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:tint="#000000"
-        android:contentDescription="Clear All" />
 
 </FrameLayout>

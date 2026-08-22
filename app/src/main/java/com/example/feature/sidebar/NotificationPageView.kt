@@ -36,7 +36,6 @@ class NotificationPageView(
     private val recyclerView: RecyclerView
     private val tvEmpty: TextView
     private val llPermissionBanner: View
-    private val fabClearAll: View
 
     private val adapter = NotificationAdapter()
     private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -59,19 +58,9 @@ class NotificationPageView(
         recyclerView = findViewById(R.id.recycler_view)
         tvEmpty = findViewById(R.id.tv_empty)
         llPermissionBanner = findViewById(R.id.ll_permission_banner)
-        fabClearAll = findViewById(R.id.fab_clear_all)
 
         recyclerView.layoutManager = LinearLayoutManager(context)
         recyclerView.adapter = adapter
-
-
-        findViewById<View>(R.id.btn_history).setOnClickListener {
-            val historyIntent = Intent(context, com.example.NotificationHistoryActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(historyIntent)
-            onCloseSidebar()
-        }
         
         findViewById<View>(R.id.btn_grant).setOnClickListener {
             val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").apply {
@@ -79,13 +68,6 @@ class NotificationPageView(
             }
             context.startActivity(intent)
             onCloseSidebar()
-        }
-
-        fabClearAll.setOnClickListener {
-            val intent = Intent(context, AppNotificationListener::class.java).apply {
-                action = AppNotificationListener.Companion.ACTION_CLEAR_ALL
-            }
-            context.startService(intent)
         }
 
         val hasPermission = checkNotificationPermission()
@@ -115,8 +97,11 @@ class NotificationPageView(
         if (checkNotificationPermission()) {
             AppNotificationListener.instance?.let { listener ->
                 try {
+                    val prefs = context.getSharedPreferences("NotificationPrefs", Context.MODE_PRIVATE)
+                    val sidebarHidden = prefs.getStringSet("sidebar_hidden_packages", emptySet()) ?: emptySet()
+
                     val sbns = listener.activeNotifications
-                        .filter { it.isClearable }
+                        .filter { it.isClearable && !sidebarHidden.contains(it.packageName) }
                         .sortedByDescending { it.postTime }
                     
                     activeNotifications = sbns

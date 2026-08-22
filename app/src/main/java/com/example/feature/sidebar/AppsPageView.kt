@@ -107,6 +107,19 @@ class AppsPageView(
         addView(emptyView)
     }
 
+    private val onManagerUpdatedListener: () -> Unit = {
+        post {
+            val c = prefs.getInt("handle_${handleId}_page_${pageConfig?.id}_columns", -1)
+            val defaultCols = prefs.getInt("handle_${handleId}_columns", prefs.getInt("sidebar_columns", 3))
+            val updatedCols = if (pageConfig?.useCustomSettings == true) pageConfig.gridColumns else (if (c != -1) c else defaultCols)
+            if (updatedCols != columns && updatedCols > 0) {
+                columns = updatedCols
+                (recyclerView.layoutManager as? GridLayoutManager)?.spanCount = columns
+            }
+            updateData(manager.activeItems)
+        }
+    }
+
     private var sourceApps = listOf<SidebarItem>()
 
     fun updateData(apps: List<SidebarItem>) {
@@ -385,6 +398,9 @@ class AppsPageView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        manager.addUpdateListener(onManagerUpdatedListener)
+        manager.ensureLoaded()
+        updateData(manager.activeItems)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(iconUpdateReceiver, android.content.IntentFilter("com.example.UPDATE_SIDEBAR_ICONS"), Context.RECEIVER_NOT_EXPORTED)
         } else {
@@ -394,6 +410,7 @@ class AppsPageView(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        manager.removeUpdateListener(onManagerUpdatedListener)
         try {
             context.unregisterReceiver(iconUpdateReceiver)
         } catch(e: Exception) {}
@@ -508,7 +525,9 @@ class AppsPageView(
                     currentFolderPopup?.dismiss()
                     onCloseSidebar()
                 } else if (item is SidebarItem.SystemAction) {
-                    if (item.action == "log_keeper") {
+                    if (item.action == "force_stop_running_apps") {
+                        com.example.utils.AppTrackerHelper.startForceStopSequence(context)
+                    } else if (item.action == "log_keeper") {
                         val intent = android.content.Intent(context, com.example.LogKeeperActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(intent)
@@ -837,9 +856,25 @@ class AppsPageView(
                 if (item.action == "screen_record" && com.example.service.ScreenRecordService.isRecording) {
                     icon.setImageResource(android.R.drawable.ic_media_pause)
                     icon.setColorFilter(android.graphics.Color.RED)
+                    icon.alpha = 1.0f
+                    label.alpha = 1.0f
+                } else if (item.action == "force_stop_running_apps") {
+                    icon.setImageResource(item.iconResId)
+                    val isPresent = com.example.utils.AppTrackerHelper.isAppTrackerConfigured(context)
+                    if (isPresent) {
+                        icon.setColorFilter(android.graphics.Color.parseColor("#00E676"))
+                        icon.alpha = 1.0f
+                        label.alpha = 1.0f
+                    } else {
+                        icon.setColorFilter(android.graphics.Color.parseColor("#888888"))
+                        icon.alpha = 0.38f
+                        label.alpha = 0.38f
+                    }
                 } else {
                     icon.setImageResource(item.iconResId)
                     icon.setColorFilter(android.graphics.Color.WHITE)
+                    icon.alpha = 1.0f
+                    label.alpha = 1.0f
                 }
             } else if (item is SidebarItem.VolumeAction) {
                 icon.setBackgroundColor(android.graphics.Color.TRANSPARENT)

@@ -185,6 +185,14 @@ fun MainSettingsScreen(onNavigateToReader: () -> Unit, onNavigateToGeneral: () -
                 )
                 Divider()
                 ListItem(
+                    headlineContent = { Text("Launcher Settings") },
+                    supportingContent = { Text("Home screen, app drawer & desktop options") },
+                    modifier = Modifier.clickable { 
+                        Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                Divider()
+                ListItem(
                     headlineContent = { Text("Internet Speed Monitor") },
                     supportingContent = { Text("Toggle, units, and data usage statistics") },
                     modifier = Modifier.clickable { onNavigateToNetSpeed() }

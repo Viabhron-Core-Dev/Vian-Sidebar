@@ -184,6 +184,7 @@
         <activity android:name=".WidgetsGridEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".SidebarEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".AppTrackerSettingsActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".AppTrackerOpenerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".NotificationHistoryActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity
             android:name=".feature.sidebar.ScreenRecordActivity"

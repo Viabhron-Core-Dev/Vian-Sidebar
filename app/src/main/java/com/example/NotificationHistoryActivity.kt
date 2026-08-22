@@ -87,8 +87,12 @@ fun NotificationHistoryScreen(onBack: () -> Unit, onExport: (List<NotificationHi
     var hiddenPackages by remember { 
         mutableStateOf(prefs.getStringSet("history_hidden_packages", emptySet()) ?: emptySet())
     }
+    var sidebarHiddenPackages by remember {
+        mutableStateOf(prefs.getStringSet("sidebar_hidden_packages", emptySet()) ?: emptySet())
+    }
     
     var showFilterDialog by remember { mutableStateOf(false) }
+    var showSidebarFilterDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery, hiddenPackages) {
         if (searchQuery.isBlank()) {
@@ -140,8 +144,11 @@ fun NotificationHistoryScreen(onBack: () -> Unit, onExport: (List<NotificationHi
                         IconButton(onClick = { isSearching = true }) {
                             Icon(Icons.Default.Search, "Search")
                         }
+                        IconButton(onClick = { showSidebarFilterDialog = true }) {
+                            Icon(Icons.Default.ViewSidebar, "Sidebar Page Filter")
+                        }
                         IconButton(onClick = { showFilterDialog = true }) {
-                            Icon(Icons.Default.FilterList, "Filter")
+                            Icon(Icons.Default.FilterList, "History Filter")
                         }
                         IconButton(onClick = { onExport(history) }) {
                             Icon(Icons.Default.Share, "Export")
@@ -168,6 +175,77 @@ fun NotificationHistoryScreen(onBack: () -> Unit, onExport: (List<NotificationHi
             }
         }
         
+        if (showSidebarFilterDialog) {
+            androidx.compose.ui.window.Dialog(onDismissRequest = { showSidebarFilterDialog = false }) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.8f)
+                        .padding(16.dp),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(modifier = Modifier.padding(24.dp).fillMaxSize()) {
+                        Text(
+                            text = "Sidebar Notification Filter",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        Text(
+                            text = "Unchecked apps will be hidden from live Sidebar Notifications.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as android.content.pm.LauncherApps
+                        val appsInHistory = remember {
+                            val apps = try { launcherApps.getActivityList(null, android.os.Process.myUserHandle()) } catch(e: Exception) { emptyList() }
+                            apps.map { 
+                                it.applicationInfo.packageName to it.label.toString()
+                            }.distinctBy { it.first }.sortedBy { it.second }
+                        }
+                        
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(appsInHistory) { (pkg, name) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = !sidebarHiddenPackages.contains(pkg),
+                                        onCheckedChange = { checked ->
+                                            val newHidden = sidebarHiddenPackages.toMutableSet()
+                                            if (checked) {
+                                                newHidden.remove(pkg)
+                                            } else {
+                                                newHidden.add(pkg)
+                                            }
+                                            sidebarHiddenPackages = newHidden
+                                            prefs.edit().putStringSet("sidebar_hidden_packages", newHidden).apply()
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(name)
+                                }
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { showSidebarFilterDialog = false }) {
+                                Text("Done")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if (showFilterDialog) {
             androidx.compose.ui.window.Dialog(onDismissRequest = { showFilterDialog = false }) {
                 Card(

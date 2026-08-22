@@ -38,6 +38,7 @@ class SidebarManager(
                 AppLogger.d("SidebarManager", "Execute action/element: $actionId")
                 com.example.core.LogKeeper.writeLog("SidebarManager", "Execute action: $actionId")
                 when (actionId) {
+                    "system:force_stop_running_apps", "force_stop_running_apps" -> com.example.utils.AppTrackerHelper.startForceStopSequence(context)
                     "system:dictionary_floating", "system:dictionary_full" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
                     "system:translation_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "translation")
                     "system:hybrid_grid_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "hybrid_grid")

@@ -76,12 +76,6 @@ class SchedulerPageView(context: Context, private val scope: CoroutineScope) : F
         
         fabAdd.setOnClickListener { showEditUi(null) }
         
-        findViewById<ImageView>(R.id.btn_manage).setOnClickListener {
-            val intent = Intent(context, TagManagementActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }
-        
         // Init Edit UI
         tvEditTitle = findViewById(R.id.tv_edit_title)
         spinnerTags = findViewById(R.id.spinner_tags)

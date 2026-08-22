@@ -181,9 +181,11 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             .setPriority(NotificationCompat.PRIORITY_LOW)
             
         if (isNetSpeedActive) {
+            val speedUnits = prefs.getString("speed_units", "Auto")
             val bigText = "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}\nMobile: ${formatDataBytes(dailyMobileBytes)} • Wi-Fi: ${formatDataBytes(dailyWifiBytes)}"
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
-            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(totalSpeed))
+            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(totalSpeed, speedUnits))
+            builder.setLargeIcon(DynamicSpeedIconGenerator.generateLargeCircleBitmap(totalSpeed, speedUnits))
         } else {
             builder.setSmallIcon(android.R.drawable.ic_menu_crop)
         }

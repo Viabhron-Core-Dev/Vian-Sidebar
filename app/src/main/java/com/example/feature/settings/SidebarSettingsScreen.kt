@@ -80,7 +80,7 @@ fun SidebarSettingsScreen(
                     "compass" -> "Compass"
                     "notification", "notifications" -> "Notifications"
                     "widgets_grid" -> "Widgets Grid"
-                    "hybrid_grid" -> "Home Grid"
+                    "hybrid_grid" -> if (target.startsWith("default_hybrid")) "Home Grid" else "Hybrid"
                     "app_tracker" -> "App Tracker"
                     "resources_tracker" -> "Resources Tracker"
                     "media_player" -> "Media Player"
@@ -499,7 +499,7 @@ fun SidebarSettingsScreen(
                 text = {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         val types = listOf(
-                            "hybrid_grid" to "Home Grid",
+                            "hybrid_grid" to "Hybrid",
                             "apps" to "Apps Grid",
                             "widgets_grid" to "Widgets Grid",
                             "scheduler" to "Short Reminders",

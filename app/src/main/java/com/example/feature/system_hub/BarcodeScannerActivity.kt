@@ -12,6 +12,7 @@ import android.graphics.Matrix
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -304,6 +305,18 @@ class BarcodeScannerActivity : ComponentActivity() {
                             imageAnalyzer
                         )
                         onCameraReady(camera.cameraControl, capture)
+
+                        previewView.setOnTouchListener { _, event ->
+                            if (event.action == MotionEvent.ACTION_UP) {
+                                val factory = previewView.meteringPointFactory
+                                val point = factory.createPoint(event.x, event.y)
+                                val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
+                                    .setAutoCancelDuration(3, java.util.concurrent.TimeUnit.SECONDS)
+                                    .build()
+                                camera.cameraControl.startFocusAndMetering(action)
+                            }
+                            true
+                        }
                     } catch (e: Exception) {
                         Log.e("SecureCameraScanner", "Camera binding failed", e)
                     }

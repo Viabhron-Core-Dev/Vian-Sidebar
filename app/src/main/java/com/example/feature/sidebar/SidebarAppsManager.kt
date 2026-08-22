@@ -224,6 +224,7 @@ val ALL_DISPLAY_ACTIONS = listOf(
 )
 
 val ALL_UTILITIES_ACTIONS = listOf(
+    SidebarItem.SystemAction("force_stop_running_apps", "Force Stop Apps", android.R.drawable.ic_menu_close_clear_cancel),
     SidebarItem.SystemAction("auto_scroll", "Auto Scroll", android.R.drawable.ic_menu_sort_by_size),
     SidebarItem.DisplayAction("blue_light_filter", "Blue Light Filter", android.R.drawable.ic_menu_view),
     SidebarItem.SystemAction("log_keeper", "Log Keeper", android.R.drawable.ic_menu_agenda),
@@ -261,6 +262,29 @@ class SidebarAppsManager(
 
     val iconCache = LruCache<String, Bitmap>(100) // 100 items
 
+    private val updateListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+
+    fun addUpdateListener(listener: () -> Unit) {
+        if (!updateListeners.contains(listener)) {
+            updateListeners.add(listener)
+        }
+    }
+
+    fun removeUpdateListener(listener: () -> Unit) {
+        updateListeners.remove(listener)
+    }
+
+    private fun notifyUpdated() {
+        onAppsUpdated()
+        updateListeners.forEach { 
+            try {
+                it.invoke() 
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             coroutineScope.launch {
@@ -268,7 +292,18 @@ class SidebarAppsManager(
                 loadAllAppsFromPackageManager()
                 loadActiveApps()
                 withContext(Dispatchers.Main) {
-                    onAppsUpdated()
+                    notifyUpdated()
+                }
+            }
+        }
+    }
+
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == prefKey || key == "sidebar_apps" || (key != null && key.startsWith("sidebar_apps_"))) {
+            coroutineScope.launch {
+                loadActiveApps()
+                withContext(Dispatchers.Main) {
+                    notifyUpdated()
                 }
             }
         }
@@ -282,11 +317,20 @@ class SidebarAppsManager(
             addDataScheme("package")
         }
         context.registerReceiver(packageReceiver, filter)
+        try {
+            prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+        } catch (e: Exception) {}
     }
 
     fun destroy() {
-        context.unregisterReceiver(packageReceiver)
+        try {
+            context.unregisterReceiver(packageReceiver)
+        } catch (e: Exception) {}
+        try {
+            prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
+        } catch (e: Exception) {}
         iconCache.evictAll()
+        updateListeners.clear()
     }
 
     fun ensureLoaded() {
@@ -296,11 +340,11 @@ class SidebarAppsManager(
                 loadActiveApps()
                 hasLoadedOnce = true
                 withContext(Dispatchers.Main) {
-                    onAppsUpdated()
+                    notifyUpdated()
                 }
             }
         } else {
-            onAppsUpdated()
+            notifyUpdated()
         }
     }
 
@@ -428,9 +472,21 @@ class SidebarAppsManager(
             if (parsed.action == "screen_record" && com.example.service.ScreenRecordService.isRecording) {
                 icon.setImageResource(android.R.drawable.ic_media_pause)
                 icon.setColorFilter(android.graphics.Color.RED)
+                icon.alpha = 1.0f
+            } else if (parsed.action == "force_stop_running_apps") {
+                icon.setImageResource(parsed.iconResId)
+                val isPresent = com.example.utils.AppTrackerHelper.isAppTrackerConfigured(context)
+                if (isPresent) {
+                    icon.setColorFilter(android.graphics.Color.parseColor("#00E676"))
+                    icon.alpha = 1.0f
+                } else {
+                    icon.setColorFilter(android.graphics.Color.parseColor("#888888"))
+                    icon.alpha = 0.38f
+                }
             } else {
                 icon.setImageResource(parsed.iconResId)
                 icon.setColorFilter(android.graphics.Color.WHITE)
+                icon.alpha = 1.0f
             }
         } else if (parsed is SidebarItem.PageWindow) {
             icon.setBackgroundColor(android.graphics.Color.TRANSPARENT)
@@ -945,7 +1001,7 @@ class SidebarAppsManager(
             prefs.edit().putString(prefKey, current.toString()).apply()
             loadActiveApps()
             withContext(Dispatchers.Main) {
-                onAppsUpdated()
+                notifyUpdated()
             }
         }
     }
@@ -979,7 +1035,7 @@ class SidebarAppsManager(
                 prefs.edit().putString(prefKey, newArray.toString()).apply()
                 loadActiveApps()
                 withContext(Dispatchers.Main) {
-                    onAppsUpdated()
+                    notifyUpdated()
                 }
             }
         }
@@ -1015,7 +1071,7 @@ class SidebarAppsManager(
             prefs.edit().putString(prefKey, newArray.toString()).apply()
             loadActiveApps()
             withContext(Dispatchers.Main) {
-                onAppsUpdated()
+                notifyUpdated()
             }
         }
     }
@@ -1044,7 +1100,7 @@ class SidebarAppsManager(
             prefs.edit().putString(prefKey, newArray.toString()).apply()
             loadActiveApps()
             withContext(Dispatchers.Main) {
-                onAppsUpdated()
+                notifyUpdated()
             }
         }
     }

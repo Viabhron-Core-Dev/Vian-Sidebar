@@ -26,6 +26,9 @@ class VianSideAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         appKillerManager = AppKillerManager(this)
+        autoScrollManager = AutoScrollManager(this)
+        cursorManager = CursorManager(this)
+        longScreenshotManager = LongScreenshotManager(this)
         com.example.core.LogKeeper.writeLog("VianSideAccessibility", "Service connected")
         android.util.Log.d("VianSideAccessibility", "Service connected")
     }
@@ -39,7 +42,6 @@ class VianSideAccessibilityService : AccessibilityService() {
             }
             "ACTION_STOP_CURSOR" -> {
                 cursorManager?.stop()
-                cursorManager = null
             }
             "ACTION_START_AUTOSCROLL" -> {
                 if (autoScrollManager == null) autoScrollManager = AutoScrollManager(this)
@@ -47,7 +49,6 @@ class VianSideAccessibilityService : AccessibilityService() {
             }
             "ACTION_STOP_AUTOSCROLL" -> {
                 autoScrollManager?.stop()
-                autoScrollManager = null
             }
             "ACTION_START_LONG_SCREENSHOT" -> {
                 if (longScreenshotManager == null) longScreenshotManager = LongScreenshotManager(this)
@@ -55,7 +56,6 @@ class VianSideAccessibilityService : AccessibilityService() {
             }
             "ACTION_STOP_LONG_SCREENSHOT" -> {
                 longScreenshotManager?.stop()
-                longScreenshotManager = null
             }
         }
         return super.onStartCommand(intent, flags, startId)
@@ -80,6 +80,15 @@ class VianSideAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        try {
+            cursorManager?.stop()
+            autoScrollManager?.stop()
+            longScreenshotManager?.stop()
+        } catch (e: Exception) {}
+        cursorManager = null
+        autoScrollManager = null
+        longScreenshotManager = null
+        appKillerManager = null
         com.example.core.LogKeeper.writeLog("VianSideAccessibility", "Service destroyed")
     }
 
@@ -87,14 +96,17 @@ class VianSideAccessibilityService : AccessibilityService() {
         com.example.core.LogKeeper.writeLog("VianSideAccessibility", "Performing action: $action")
         
         if (action == "cursor") {
+            if (cursorManager == null) cursorManager = CursorManager(this)
             if (cursorManager?.isRunning == true) cursorManager?.stop() else cursorManager?.start()
             return true
         }
         if (action == "auto_scroll") {
+            if (autoScrollManager == null) autoScrollManager = AutoScrollManager(this)
             if (autoScrollManager?.isRunning == true) autoScrollManager?.stop() else autoScrollManager?.start()
             return true
         }
         if (action == "long_screenshot") {
+            if (longScreenshotManager == null) longScreenshotManager = LongScreenshotManager(this)
             longScreenshotManager?.start()
             return true
         }

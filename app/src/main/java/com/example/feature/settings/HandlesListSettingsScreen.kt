@@ -232,7 +232,7 @@ fun HandleItem(
                                     val pageTitle = when(pageType) {
                                         "apps" -> "Apps Grid"
                                         "widgets_grid" -> "Widgets Grid"
-                                        "hybrid_grid" -> "Home Grid"
+                                        "hybrid_grid" -> if (pageType == "default_hybrid") "Home Grid" else "Hybrid"
                                         "app_tracker" -> "App Tracker"
                                         "resources_tracker" -> "Resources Tracker"
                                         "media_player" -> "Media Player"

@@ -211,7 +211,11 @@ class HybridGridPageView(
                 val pad = (16 * density).toInt()
                 setPadding(pad, pad, pad, pad)
                 val tv = TextView(context).apply {
-                    text = "Empty Home Grid\nTap to add widgets & apps"
+                    text = if (pageId.startsWith("default_hybrid")) {
+                        "Empty Home Grid\nTap to add widgets & apps"
+                    } else {
+                        "Empty Hybrid Grid\nTap to add widgets & apps"
+                    }
                     setTextColor(Color.LTGRAY)
                     textSize = 13f
                     gravity = Gravity.CENTER
@@ -349,6 +353,10 @@ class HybridGridPageView(
                             
                             label.text = parsed.label
                             
+                            val isForceStop = (parsed is SidebarItem.SystemAction && parsed.action == "force_stop_running_apps")
+                            val isConfigured = !isForceStop || com.example.utils.AppTrackerHelper.isAppTrackerConfigured(context)
+                            label.alpha = if (isConfigured) 1.0f else 0.38f
+
                             appsManager.bindIcon(item.id, icon, prefs, scope) {
                                 appsManager.bindIcon(item.id, icon, prefs, scope) {}
                             }
@@ -411,7 +419,9 @@ class HybridGridPageView(
                                         }
                                     }
                                     is SidebarItem.SystemAction -> {
-                                        if (parsed.action == "log_keeper") {
+                                        if (parsed.action == "force_stop_running_apps") {
+                                            com.example.utils.AppTrackerHelper.startForceStopSequence(context)
+                                        } else if (parsed.action == "log_keeper") {
                                             val intent = Intent(context, com.example.LogKeeperActivity::class.java)
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                             context.startActivity(intent)

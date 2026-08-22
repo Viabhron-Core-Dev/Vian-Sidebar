@@ -298,6 +298,22 @@ class SidebarView(
                                 onClose()
                                 handledLocally = true
                             }
+                            "notifications", "notification" -> {
+                                val intent = Intent(context, com.example.NotificationHistoryActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onClose()
+                                handledLocally = true
+                            }
+                            "scheduler", "short_reminders", "reminder", "reminders" -> {
+                                val intent = Intent(context, com.example.feature.settings.TagManagementActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onClose()
+                                handledLocally = true
+                            }
                         }
                     }
                     
@@ -350,6 +366,20 @@ class SidebarView(
             override fun getItemCount(): Int = if (isLooping) Int.MAX_VALUE else pageConfigs.size
         }
         
+        // Indicator container constrained between start (edit button) and end (settings + close buttons)
+        val startReserved = edgeMargin + headerHeight + (4 * density).toInt()
+        val endReserved = edgeMargin + (headerHeight * 2) + (4 * density).toInt()
+
+        val dotsScrollView = android.widget.HorizontalScrollView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
+                marginStart = startReserved
+                marginEnd = endReserved
+            }
+            isFillViewport = true
+            overScrollMode = View.OVER_SCROLL_NEVER
+            isHorizontalScrollBarEnabled = false
+        }
+
         dotsLayout = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -357,11 +387,12 @@ class SidebarView(
                 gravity = Gravity.CENTER
             }
         }
+        dotsScrollView.addView(dotsLayout)
         
         setupDots(pageConfigs.size)
 
         container.addView(viewPager)
-        header.addView(dotsLayout)
+        header.addView(dotsScrollView)
 
         addView(header)
         addView(container)
@@ -444,8 +475,8 @@ class SidebarView(
             page.wrapContentHeight
         } else {
             when (page.type) {
-                "calculator", "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
-                "media_player" -> true
+                "calculator", "media_player" -> true
+                "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
                 "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> {
                     prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
                 }
@@ -456,21 +487,22 @@ class SidebarView(
         val targetHeightPx = if (isPageWrap) {
             WindowManager.LayoutParams.WRAP_CONTENT
         } else {
-            val targetHeightDp = if (page.useCustomSettings && page.height > 0) {
-                page.height
+            if (page.useCustomSettings && page.height > 0) {
+                (page.height * density).toInt()
+            } else if (page.type == "app_tracker") {
+                WindowManager.LayoutParams.MATCH_PARENT
             } else {
-                when (page.type) {
+                val targetHeightDp = when (page.type) {
                     "calculator" -> 460
                     "compass" -> 480
                     "scheduler" -> 520
                     "notifications", "notification" -> 520
                     "resources_tracker" -> 460
-                    "app_tracker" -> 560
                     "media_player" -> 360
                     else -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 360))
                 }
+                (targetHeightDp * density).toInt()
             }
-            (targetHeightDp * density).toInt()
         }
 
         val legacyEdge = if (prefs.getBoolean("sidebar_position_left", false)) "left" else "right"
@@ -684,7 +716,23 @@ class SidebarView(
                     }
                 }
                 "app_tracker" -> {
-                    AppTrackerPageView(context, onClose, { _ -> onClose() })
+                    AppTrackerPageView(context, onClose, { pkgName ->
+                        try {
+                            val pm = context.packageManager
+                            val launchIntent = pm.getLaunchIntentForPackage(pkgName)
+                            if (launchIntent != null) {
+                                launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(launchIntent)
+                            } else {
+                                val detailsIntent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = android.net.Uri.parse("package:$pkgName")
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(detailsIntent)
+                            }
+                        } catch (e: Exception) {}
+                        onClose()
+                    })
                 }
                 "media_player" -> {
                     MediaPlayerPageView(context, onClose) { newHeight ->

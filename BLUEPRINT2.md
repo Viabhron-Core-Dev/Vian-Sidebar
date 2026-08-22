@@ -130,7 +130,13 @@ The legacy architecture relied on massive, monolithic services handling everythi
     *   `CursorManager` (Trackpad), `WorkNotesWindowManager`.
 
 **PHASE 13: Heavy Floating Mini-Apps & Appywork (Pre-PWA Bridge)**
-*   **Phase 13.1 (Heavy Native Windows):** Migrate `FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`, `CursorManager` UI, `WorkNotesWindowManager`.
+*   **Phase 13.1 (Heavy Native Windows & File Explorer Ecosystem):**
+    *   Migrate `FileExplorerPageView` with integrated MIME-based floating dispatcher.
+    *   Floating Image Viewer Mini-App (zoom/pan, swipe nav, GIF loop).
+    *   Simple Floating Text Editor Mini-App (monospace reader/editor with one-tap clipboard copy, save/auto-save).
+    *   Floating Web/HTML Viewer Mini-App.
+    *   External Media Player Bridge (fires Intent to companion Media App to open video/audio in floating PiP mode).
+    *   `LocalTerminalPageView`, `TermuxPageView`, `CursorManager` UI, `WorkNotesWindowManager`.
 *   **Phase 13.2 (eReader Subsystem):** Migrate eReader reading canvas, EPUB engine, and reading settings.
 *   **Phase 13.3 (Appywork - Deprecatable Vibe-Coding Module):**
     *   Migrate `AppyworkWindowManager`, `AppyworkFloatingService`, `AppyworkParser`, and `AppyworkDao` strictly isolated inside `feature/appywork/`.

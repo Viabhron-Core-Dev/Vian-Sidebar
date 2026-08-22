@@ -68,8 +68,14 @@
 - [ ] Migrate the Lightweight Floating Browser (Share Intents).
 
 ## PHASE 13: Heavy Floating Mini-Apps & Appywork (Pre-PWA Bridge)
-- [ ] **Phase 13.1: Heavy Native Floating Windows**
-    - [ ] `FileExplorerPageView`, `LocalTerminalPageView`, `TermuxPageView`.
+- [ ] **Phase 13.1: Heavy Native Floating Windows & File Explorer Ecosystem**
+    - [ ] **Floating File Explorer (`FileExplorerPageView.kt`)**: Directory browser, breadcrumbs, bookmarks, batch operations, file management.
+    - [ ] **MIME-based Floating Dispatcher**:
+        - [ ] **Floating Image Viewer Mini-App**: Zoom/pan, swipe navigation, GIF playback, fold/pin controls.
+        - [ ] **Simple Floating Text Editor Mini-App**: Clean text reader/editor with one-tap Copy to Clipboard, save/auto-save toggle.
+        - [ ] **Floating Web/HTML Viewer Mini-App**: Standalone floating WebView for local `.html` viewing.
+        - [ ] **External Media Player Bridge (PiP Substitute)**: Launches companion Media App via explicit/action intent in floating/PiP mode with URI permissions.
+    - [ ] `LocalTerminalPageView`, `TermuxPageView`.
     - [ ] `CursorManager` (Trackpad) UI, `WorkNotesWindowManager`.
 - [ ] **Phase 13.2: eReader Subsystem**
     - [ ] Migrate eReader floating reading canvas, EPUB engine, and reading settings.

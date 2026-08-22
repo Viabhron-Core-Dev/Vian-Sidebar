@@ -1,28 +1,71 @@
 package com.example.feature.sidebar
 
 import android.content.Context
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
 import com.example.R
 import java.text.DecimalFormat
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class CalculatorPageView(context: Context) : FrameLayout(context) {
 
     private var expression = ""
+    private var cursorIndex = 0
     private var resultText = ""
     private var expressionCompleted = false
 
     private val tvExpression: TextView
     private val tvResult: TextView
+    private val scrollExpression: HorizontalScrollView
+    private val scrollResult: HorizontalScrollView
+    private val layoutExtendedDrawer: View
+    private val ivDrawerArrow: ImageView
 
     init {
+        layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
         LayoutInflater.from(context).inflate(R.layout.page_calculator, this, true)
         tvExpression = findViewById(R.id.tv_expression)
         tvResult = findViewById(R.id.tv_result)
+        scrollExpression = findViewById(R.id.scroll_expression)
+        scrollResult = findViewById(R.id.scroll_result)
+        layoutExtendedDrawer = findViewById(R.id.layout_extended_drawer)
+        ivDrawerArrow = findViewById(R.id.iv_drawer_arrow)
 
+        // Drawer Toggle
+        findViewById<View>(R.id.btn_toggle_drawer).setOnClickListener {
+            if (layoutExtendedDrawer.visibility == View.VISIBLE) {
+                layoutExtendedDrawer.visibility = View.GONE
+                ivDrawerArrow.rotation = 180f
+            } else {
+                layoutExtendedDrawer.visibility = View.VISIBLE
+                ivDrawerArrow.rotation = 0f
+            }
+        }
+
+        // Extended drawer buttons
+        findViewById<View>(R.id.btn_cursor_left)?.setOnClickListener { moveCursor(-1) }
+        findViewById<View>(R.id.btn_cursor_right)?.setOnClickListener { moveCursor(1) }
+        findViewById<View>(R.id.btn_paren_open)?.setOnClickListener { insertAtCursor("(") }
+        findViewById<View>(R.id.btn_paren_close)?.setOnClickListener { insertAtCursor(")") }
+        findViewById<View>(R.id.btn_power)?.setOnClickListener { insertAtCursor("^") }
+        findViewById<View>(R.id.btn_sqrt)?.setOnClickListener { insertAtCursor("√") }
+
+        // Standard keypad grid
         val tableLayout = findViewById<TableLayout>(R.id.tableLayout)
         tableLayout?.let { tbl ->
             for (j in 0 until tbl.childCount) {
@@ -36,17 +79,46 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
         updateUI()
     }
 
+    private fun moveCursor(offset: Int) {
+        if (expressionCompleted) {
+            expressionCompleted = false
+        }
+        val newPos = (cursorIndex + offset).coerceIn(0, expression.length)
+        cursorIndex = newPos
+        updateUI()
+    }
+
+    private fun insertAtCursor(input: String) {
+        if (expressionCompleted) {
+            expression = if (input in listOf("+", "-", "x", "÷", "%", "^")) {
+                resultText.removePrefix("=") + input
+            } else {
+                input
+            }
+            cursorIndex = expression.length
+            expressionCompleted = false
+        } else {
+            val left = expression.substring(0, cursorIndex)
+            val right = expression.substring(cursorIndex)
+            expression = left + input + right
+            cursorIndex += input.length
+        }
+        evaluateAndSetResult()
+        updateUI()
+    }
+
     private fun onBtnClick(btn: String) {
         when (btn) {
             "C" -> onClear()
             "DEL" -> onDelete()
             "=" -> onEqual()
-            else -> onInput(btn)
+            else -> insertAtCursor(btn)
         }
     }
 
     private fun onClear() {
         expression = ""
+        cursorIndex = 0
         resultText = ""
         expressionCompleted = false
         updateUI()
@@ -55,36 +127,15 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
     private fun onDelete() {
         if (expressionCompleted) {
             expression = ""
+            cursorIndex = 0
             resultText = ""
             expressionCompleted = false
-        } else if (expression.isNotEmpty()) {
-            expression = expression.dropLast(1)
-            val res = evaluateExpression(expression)
-            if (res != "Error" && res.isNotEmpty() && expression.any { it in listOf('+', '-', 'x', '÷', '%') }) {
-                resultText = "=$res"
-            } else {
-                resultText = ""
-            }
-        }
-        updateUI()
-    }
-
-    private fun onInput(input: String) {
-        if (expressionCompleted) {
-            expression = if (input in listOf("+", "-", "x", "÷", "%")) {
-                resultText.removePrefix("=") + input
-            } else {
-                input
-            }
-            expressionCompleted = false
-        } else {
-            expression += input
-        }
-        val res = evaluateExpression(expression)
-        if (res != "Error" && res.isNotEmpty() && expression.any { it in listOf('+', '-', 'x', '÷', '%') }) {
-            resultText = "=$res"
-        } else {
-            resultText = ""
+        } else if (expression.isNotEmpty() && cursorIndex > 0) {
+            val left = expression.substring(0, cursorIndex - 1)
+            val right = expression.substring(cursorIndex)
+            expression = left + right
+            cursorIndex--
+            evaluateAndSetResult()
         }
         updateUI()
     }
@@ -92,7 +143,7 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
     private fun onEqual() {
         if (expression.isNotEmpty()) {
             val res = evaluateExpression(expression)
-            if (res != "Error") {
+            if (res != "Error" && res.isNotEmpty()) {
                 resultText = "=$res"
                 expressionCompleted = true
             }
@@ -100,23 +151,79 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
         updateUI()
     }
 
+    private fun evaluateAndSetResult() {
+        val res = evaluateExpression(expression)
+        if (res != "Error" && res.isNotEmpty() && expression.any { it in listOf('+', '-', 'x', '÷', '%', '^', '√', '(', ')') }) {
+            resultText = "=$res"
+        } else {
+            resultText = ""
+        }
+    }
+
     private fun updateUI() {
-        val displayTextTop = if (resultText.isNotEmpty() || expressionCompleted) formatExpression(expression) else ""
-        val displayTextBottom = when {
-            expression.isEmpty() -> "0"
-            resultText.isNotEmpty() -> resultText
-            else -> formatExpression(expression)
+        // Auto-scale font sizes based on string length to prevent clipping/overflow
+        val exprLength = expression.length
+        val dynamicExprSize = when {
+            exprLength > 30 -> 13f
+            exprLength > 20 -> 15f
+            else -> 18f
+        }
+        tvExpression.textSize = dynamicExprSize
+
+        val resLength = if (resultText.isNotEmpty()) resultText.length else expression.length
+        val dynamicResultSize = when {
+            resLength > 20 -> 22f
+            resLength > 15 -> 26f
+            resLength > 10 -> 30f
+            else -> 36f
+        }
+        tvResult.textSize = dynamicResultSize
+
+        // Top expression: format and highlight cursor position
+        if (expression.isEmpty()) {
+            tvExpression.text = ""
+        } else {
+            val ssb = SpannableStringBuilder()
+            for (i in expression.indices) {
+                if (i == cursorIndex && !expressionCompleted) {
+                    val start = ssb.length
+                    ssb.append(expression[i])
+                    val end = ssb.length
+                    ssb.setSpan(BackgroundColorSpan(0x5580D8FF), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(ForegroundColorSpan(0xFFFFFFFF.toInt()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                } else {
+                    ssb.append(expression[i])
+                }
+            }
+            if (cursorIndex == expression.length && !expressionCompleted) {
+                val start = ssb.length
+                ssb.append("▏")
+                val end = ssb.length
+                ssb.setSpan(ForegroundColorSpan(0xFF80D8FF.toInt()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            tvExpression.text = ssb
         }
 
-        tvExpression.text = displayTextTop
-        tvResult.text = displayTextBottom
+        // Bottom display: standard default Android calculator display
+        val bottomDisplay = when {
+            expression.isEmpty() -> "0"
+            resultText.isNotEmpty() -> resultText
+            else -> expression
+        }
+        tvResult.text = bottomDisplay
+
+        // Auto-scroll to end to follow cursor/input
+        post {
+            scrollExpression.fullScroll(HorizontalScrollView.FOCUS_RIGHT)
+            scrollResult.fullScroll(HorizontalScrollView.FOCUS_RIGHT)
+        }
     }
 
     private fun evaluateExpression(expr: String): String {
         if (expr.isEmpty()) return ""
         val cleanExpr = expr.replace("x", "*").replace("÷", "/")
         return try {
-            val result = evalBasic(cleanExpr)
+            val result = evalAdvanced(cleanExpr)
             val format = DecimalFormat("0.######")
             format.format(result)
         } catch (e: Exception) {
@@ -124,35 +231,16 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun formatExpression(expr: String): String {
-        val regex = Regex("(\\d+\\.?\\d*)")
-        return regex.replace(expr) { matchResult ->
-            try {
-                val numStr = matchResult.value
-                if (numStr.contains(".")) {
-                    val parts = numStr.split(".")
-                    val formatter = DecimalFormat("#,###")
-                    formatter.format(parts[0].toLong()) + "." + parts[1]
-                } else {
-                    val formatter = DecimalFormat("#,###")
-                    formatter.format(numStr.toLong())
-                }
-            } catch (e: Exception) {
-                matchResult.value
-            }
-        }
-    }
-
-    private fun evalBasic(str: String): Double {
+    private fun evalAdvanced(str: String): Double {
         return object : Any() {
             var pos = -1
             var ch = 0
             fun nextChar() {
-                ch = if (++pos < str.length) str[pos].toInt() else -1
+                ch = if (++pos < str.length) str[pos].code else -1
             }
 
             fun eat(charToEat: Int): Boolean {
-                while (ch == ' '.toInt()) nextChar()
+                while (ch == ' '.code) nextChar()
                 if (ch == charToEat) {
                     nextChar()
                     return true
@@ -170,8 +258,8 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
             fun parseExpression(): Double {
                 var x = parseTerm()
                 while (true) {
-                    if (eat('+'.toInt())) x += parseTerm() // addition
-                    else if (eat('-'.toInt())) x -= parseTerm() // subtraction
+                    if (eat('+'.code)) x += parseTerm()
+                    else if (eat('-'.code)) x -= parseTerm()
                     else return x
                 }
             }
@@ -179,27 +267,30 @@ class CalculatorPageView(context: Context) : FrameLayout(context) {
             fun parseTerm(): Double {
                 var x = parseFactor()
                 while (true) {
-                    if (eat('*'.toInt())) x *= parseFactor() // multiplication
-                    else if (eat('/'.toInt())) x /= parseFactor() // division
+                    if (eat('*'.code)) x *= parseFactor()
+                    else if (eat('/'.code)) x /= parseFactor()
                     else return x
                 }
             }
 
             fun parseFactor(): Double {
-                if (eat('+'.toInt())) return parseFactor() // unary plus
-                if (eat('-'.toInt())) return -parseFactor() // unary minus
+                if (eat('+'.code)) return parseFactor()
+                if (eat('-'.code)) return -parseFactor()
                 var x: Double
                 val startPos = pos
-                if (eat('('.toInt())) { // parentheses
+                if (eat('('.code)) {
                     x = parseExpression()
-                    eat(')'.toInt())
-                } else if (ch >= '0'.toInt() && ch <= '9'.toInt() || ch == '.'.toInt()) { // numbers
-                    while (ch >= '0'.toInt() && ch <= '9'.toInt() || ch == '.'.toInt()) nextChar()
+                    eat(')'.code)
+                } else if (eat('√'.code)) {
+                    x = sqrt(parseFactor())
+                } else if (ch >= '0'.code && ch <= '9'.code || ch == '.'.code) {
+                    while (ch >= '0'.code && ch <= '9'.code || ch == '.'.code) nextChar()
                     x = str.substring(startPos, pos).toDouble()
                 } else {
                     throw RuntimeException("Unexpected: " + ch.toChar())
                 }
-                while (eat('%'.toInt())) {
+                if (eat('^'.code)) x = x.pow(parseFactor())
+                while (eat('%'.code)) {
                     x /= 100.0
                 }
                 return x

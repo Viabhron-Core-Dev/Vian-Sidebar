@@ -183,7 +183,7 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
                             "compass" to "Compass",
                             "notifications" to "Notifications",
                             "widgets_grid" to "Widgets Grid",
-                            "hybrid_grid" to "Hybrid Grid",
+                            "hybrid_grid" to "Hybrid",
                             "app_tracker" to "App Tracker",
                             "resources_tracker" to "Resources Tracker",
                             "pwa_loader" to "PWA Loader"

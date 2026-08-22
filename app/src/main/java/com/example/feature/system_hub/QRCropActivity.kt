@@ -90,8 +90,6 @@ class QRCropActivity : ComponentActivity() {
                 e.printStackTrace()
             }
         }.start()
-
-        super.onCreate(savedInstanceState)
         
         val imagePath = intent.getStringExtra("IMAGE_PATH")
         tempImagePath = imagePath

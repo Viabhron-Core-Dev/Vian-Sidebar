@@ -121,15 +121,21 @@ object PageManager {
             for (i in 0 until arr.length()) {
                 val page = SidebarPage.fromJson(arr.getJSONObject(i))
                 val sanitizedType = if (page.type == "default_hybrid") "hybrid_grid" else page.type
-                val sanitizedTitle = if (page.title.equals("default_hybrid", ignoreCase = true)) "Home Grid" else page.title
+                val sanitizedTitle = if (page.id.startsWith("default_hybrid") || page.title.equals("default_hybrid", ignoreCase = true)) {
+                    "Home Grid"
+                } else if (page.title == "Home Grid" && !page.id.startsWith("default_hybrid")) {
+                    "Hybrid"
+                } else {
+                    page.title
+                }
                 val sanitizedPage = if (sanitizedType != page.type || sanitizedTitle != page.title) {
                     page.copy(type = sanitizedType, title = sanitizedTitle)
                 } else page
                 
-                // Prevent duplicate home grids if one is already present
-                val isDuplicateHomeGrid = (sanitizedPage.type == "hybrid_grid" && list.any { it.type == "hybrid_grid" && it.id == defaultPageId })
+                // Only prevent duplicate default home grid if one with defaultPageId is already present
+                val isDuplicateDefaultHomeGrid = (sanitizedPage.id == defaultPageId && list.any { it.id == defaultPageId })
                 
-                if (sanitizedPage.type != "dictionary" && sanitizedPage.type != "pwa_loader" && !isDuplicateHomeGrid && seenIds.add(sanitizedPage.id)) {
+                if (sanitizedPage.type != "dictionary" && sanitizedPage.type != "pwa_loader" && !isDuplicateDefaultHomeGrid && seenIds.add(sanitizedPage.id)) {
                     list.add(sanitizedPage)
                 }
             }
@@ -155,5 +161,22 @@ object PageManager {
 
     fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int) {
         prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index).apply()
+    }
+
+    fun isPageTypePresent(prefs: SharedPreferences, pageType: String): Boolean {
+        for ((key, value) in prefs.all) {
+            if ((key.endsWith("_pages") || key == "sidebar_pages") && value is String) {
+                try {
+                    val arr = JSONArray(value)
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        if (obj.optString("type") == pageType) {
+                            return true
+                        }
+                    }
+                } catch (e: Exception) {}
+            }
+        }
+        return false
     }
 }
