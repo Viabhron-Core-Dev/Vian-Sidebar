@@ -224,6 +224,8 @@ val ALL_DISPLAY_ACTIONS = listOf(
 )
 
 val ALL_UTILITIES_ACTIONS = listOf(
+    SidebarItem.SystemAction("arrangement_checker", "Arrangement Checker", android.R.drawable.ic_menu_slideshow),
+    SidebarItem.SystemAction("camera_measure", "Camera Measure", android.R.drawable.ic_menu_crop),
     SidebarItem.SystemAction("force_stop_running_apps", "Force Stop Apps", android.R.drawable.ic_menu_close_clear_cancel),
     SidebarItem.SystemAction("auto_scroll", "Auto Scroll", android.R.drawable.ic_menu_sort_by_size),
     SidebarItem.DisplayAction("blue_light_filter", "Blue Light Filter", android.R.drawable.ic_menu_view),

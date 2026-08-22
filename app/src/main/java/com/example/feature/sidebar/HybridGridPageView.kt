@@ -438,6 +438,14 @@ class HybridGridPageView(
                                             val intent = Intent(context, ScreenRecordActivity::class.java)
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                             context.startActivity(intent)
+                                        } else if (parsed.action == "camera_measure") {
+                                            val intent = Intent(context, com.example.feature.system_hub.CameraMeasureActivity::class.java)
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(intent)
+                                        } else if (parsed.action == "arrangement_checker" || parsed.action == "ghost_camera") {
+                                            val intent = Intent(context, com.example.feature.system_hub.GhostCameraActivity::class.java)
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            context.startActivity(intent)
                                         } else if (parsed.action == "settings") {
                                             val intent = Intent(context, com.example.SettingsActivity::class.java)
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -501,6 +509,9 @@ class HybridGridPageView(
                                         }
                                     }
                                     else -> {}
+                                }
+                                if (parsed !is SidebarItem.Folder && parsed !is SidebarItem.PopupWidget && parsed !is SidebarItem.VolumeAction && parsed !is SidebarItem.DisplayAction && parsed !is SidebarItem.QuickTile) {
+                                    com.example.service.SidebarService.instance?.closeSidebar()
                                 }
                             }
                             

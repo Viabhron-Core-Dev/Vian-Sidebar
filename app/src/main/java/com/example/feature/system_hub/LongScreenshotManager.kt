@@ -52,11 +52,10 @@ class LongScreenshotManager(private val service: AccessibilityService) {
     }
     
     private fun setFloatingUIVisibility(visible: Boolean) {
-        // FloatingTriggerService.instance?.setVisibility(visible)
+        com.example.service.FloatingTriggerService.instance?.setVisibility(visible)
         if (!visible) {
-            // SidebarService.instance?.closeSidebar()
+            com.example.service.SidebarService.instance?.closeSidebar()
         }
-        // SidebarService.instance?.setTriggerVisibility(visible)
     }
 
     fun start() {

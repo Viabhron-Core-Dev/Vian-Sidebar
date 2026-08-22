@@ -21,14 +21,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,6 +42,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -48,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -374,6 +382,33 @@ class BarcodeScannerActivity : ComponentActivity() {
         }
         try {
             var croppedBitmap = Bitmap.createBitmap(bitmap, cropX, cropY, cropW, cropH)
+
+            if (shape == "circle") {
+                val output = Bitmap.createBitmap(cropW, cropH, Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(output)
+                canvas.drawColor(android.graphics.Color.WHITE)
+                val path = android.graphics.Path()
+                path.addOval(android.graphics.RectF(0f, 0f, cropW.toFloat(), cropH.toFloat()), android.graphics.Path.Direction.CW)
+                canvas.clipPath(path)
+                canvas.drawBitmap(croppedBitmap, 0f, 0f, null)
+                croppedBitmap = output
+            } else if (shape == "polygon") {
+                val output = Bitmap.createBitmap(cropW, cropH, Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(output)
+                canvas.drawColor(android.graphics.Color.WHITE)
+                if (points.isNotEmpty()) {
+                    val path = android.graphics.Path()
+                    path.moveTo(points.first().x - cropX, points.first().y - cropY)
+                    for (i in 1 until points.size) {
+                        path.lineTo(points[i].x - cropX, points[i].y - cropY)
+                    }
+                    path.close()
+                    canvas.clipPath(path)
+                }
+                canvas.drawBitmap(croppedBitmap, 0f, 0f, null)
+                croppedBitmap = output
+            }
+
             val image = InputImage.fromBitmap(croppedBitmap, 0)
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             recognizer.process(image)
@@ -451,13 +486,16 @@ class BarcodeScannerActivity : ComponentActivity() {
             FileOutputStream(file).use { out ->
                 croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
-            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val uri = FileProvider.getUriForFile(this, "$packageName.provider", file)
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/jpeg"
                 putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = android.content.ClipData.newRawUri("", uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(intent, "Share Cropped Area"))
+            val chooser = Intent.createChooser(intent, "Share Cropped Area")
+            chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            startActivity(chooser)
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Error sharing cropped area", Toast.LENGTH_SHORT).show()
@@ -470,6 +508,23 @@ class BarcodeScannerActivity : ComponentActivity() {
     }
 }
 
+private fun isPointInPoly(point: Offset, vertices: List<Offset>): Boolean {
+    if (vertices.size < 3) return false
+    var inside = false
+    var j = vertices.size - 1
+    for (i in vertices.indices) {
+        val vi = vertices[i]
+        val vj = vertices[j]
+        if ((vi.y > point.y) != (vj.y > point.y) &&
+            point.x < (vj.x - vi.x) * (point.y - vi.y) / (vj.y - vi.y) + vi.x
+        ) {
+            inside = !inside
+        }
+        j = i
+    }
+    return inside
+}
+
 @Composable
 fun CameraPhotoCropScreen(
     bitmap: Bitmap,
@@ -478,19 +533,28 @@ fun CameraPhotoCropScreen(
 ) {
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var cropRect by remember { mutableStateOf(Rect.Zero) }
-    var cropShape by remember { mutableStateOf("square") }
+    var cropShape by remember { mutableStateOf("square") } // "square", "circle", "polygon"
     val polygonPoints = remember { mutableStateListOf<Offset>() }
+    var isPolygonClosed by remember { mutableStateOf(false) }
+    var isMoveMode by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().onSizeChanged { size ->
-        viewSize = size
-        if (cropRect == Rect.Zero && size.width > 0 && size.height > 0) {
-            val boxSize = size.width * 0.65f
-            cropRect = Rect(
-                offset = Offset((size.width - boxSize) / 2f, (size.height - boxSize) / 2f),
-                size = Size(boxSize, boxSize)
-            )
-        }
-    }) {
+    var draggedPointIndex by remember { mutableStateOf<Int?>(null) }
+    var isDraggingPolygonBody by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { size ->
+                viewSize = size
+                if (cropRect == Rect.Zero && size.width > 0 && size.height > 0) {
+                    val boxSize = size.width * 0.65f
+                    cropRect = Rect(
+                        offset = Offset((size.width - boxSize) / 2f, (size.height - boxSize) / 2f),
+                        size = Size(boxSize, boxSize)
+                    )
+                }
+            }
+    ) {
         Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = "Captured Photo",
@@ -501,60 +565,109 @@ fun CameraPhotoCropScreen(
         if (viewSize.width > 0) {
             val handleSize = 36.dp
 
-            Canvas(modifier = Modifier
-                .graphicsLayer { alpha = 0.99f }
-                .fillMaxSize()
-                .pointerInput(cropShape) {
-                    if (cropShape == "polygon") {
-                        detectTapGestures(
-                            onTap = { offset ->
-                                polygonPoints.add(offset)
-                            }
-                        )
-                    } else {
-                        var dragHandle: String? = null
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                val touchRadius = 50.dp.toPx()
-                                val left = cropRect.left
-                                val right = cropRect.right
-                                val top = cropRect.top
-                                val bottom = cropRect.bottom
+            Canvas(
+                modifier = Modifier
+                    .graphicsLayer { alpha = 0.99f }
+                    .fillMaxSize()
+                    .pointerInput(cropShape, isPolygonClosed, isMoveMode) {
+                        if (cropShape == "polygon") {
+                            val touchRadius = 44.dp.toPx()
+                            val snapRadius = 48.dp.toPx()
 
-                                dragHandle = when {
-                                    offset.x in (left - touchRadius)..(left + touchRadius) && offset.y in (top - touchRadius)..(top + touchRadius) -> "topLeft"
-                                    offset.x in (right - touchRadius)..(right + touchRadius) && offset.y in (top - touchRadius)..(top + touchRadius) -> "topRight"
-                                    offset.x in (left - touchRadius)..(left + touchRadius) && offset.y in (bottom - touchRadius)..(bottom + touchRadius) -> "bottomLeft"
-                                    offset.x in (right - touchRadius)..(right + touchRadius) && offset.y in (bottom - touchRadius)..(bottom + touchRadius) -> "bottomRight"
-                                    offset.x in left..right && offset.y in top..bottom -> "center"
-                                    else -> null
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    // Check if user grabbed an existing vertex handle
+                                    val idx = polygonPoints.indexOfFirst { pt ->
+                                        (pt - offset).getDistance() <= touchRadius
+                                    }
+                                    if (idx != -1) {
+                                        draggedPointIndex = idx
+                                    } else if (isPolygonClosed && (isPointInPoly(offset, polygonPoints) || isMoveMode)) {
+                                        isDraggingPolygonBody = true
+                                    } else if (!isPolygonClosed) {
+                                        // Check if connecting back to point 0
+                                        if (polygonPoints.size >= 3 && (polygonPoints.first() - offset).getDistance() <= snapRadius) {
+                                            isPolygonClosed = true
+                                            isMoveMode = true
+                                        } else {
+                                            polygonPoints.add(offset)
+                                            // Auto-close on 4 points (standard quad selection)
+                                            if (polygonPoints.size == 4) {
+                                                isPolygonClosed = true
+                                                isMoveMode = true
+                                            }
+                                        }
+                                    }
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val idx = draggedPointIndex
+                                    if (idx != null && idx in polygonPoints.indices) {
+                                        polygonPoints[idx] = polygonPoints[idx] + dragAmount
+                                    } else if (isDraggingPolygonBody) {
+                                        for (i in polygonPoints.indices) {
+                                            polygonPoints[i] = polygonPoints[i] + dragAmount
+                                        }
+                                    }
+                                },
+                                onDragEnd = {
+                                    draggedPointIndex = null
+                                    isDraggingPolygonBody = false
+                                },
+                                onDragCancel = {
+                                    draggedPointIndex = null
+                                    isDraggingPolygonBody = false
                                 }
-                            },
-                            onDragEnd = { dragHandle = null },
-                            onDragCancel = { dragHandle = null },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                when (dragHandle) {
-                                    "topLeft" -> cropRect = Rect(cropRect.left + dragAmount.x, cropRect.top + dragAmount.y, cropRect.right, cropRect.bottom)
-                                    "topRight" -> cropRect = Rect(cropRect.left, cropRect.top + dragAmount.y, cropRect.right + dragAmount.x, cropRect.bottom)
-                                    "bottomLeft" -> cropRect = Rect(cropRect.left + dragAmount.x, cropRect.top, cropRect.right, cropRect.bottom + dragAmount.y)
-                                    "bottomRight" -> cropRect = Rect(cropRect.left, cropRect.top, cropRect.right + dragAmount.x, cropRect.bottom + dragAmount.y)
-                                    "center" -> cropRect = cropRect.translate(dragAmount.x, dragAmount.y)
+                            )
+                        } else {
+                            var dragHandle: String? = null
+                            val touchRadius = 50.dp.toPx()
+
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    val left = cropRect.left
+                                    val right = cropRect.right
+                                    val top = cropRect.top
+                                    val bottom = cropRect.bottom
+
+                                    dragHandle = when {
+                                        offset.x in (left - touchRadius)..(left + touchRadius) && offset.y in (top - touchRadius)..(top + touchRadius) -> "topLeft"
+                                        offset.x in (right - touchRadius)..(right + touchRadius) && offset.y in (top - touchRadius)..(top + touchRadius) -> "topRight"
+                                        offset.x in (left - touchRadius)..(left + touchRadius) && offset.y in (bottom - touchRadius)..(bottom + touchRadius) -> "bottomLeft"
+                                        offset.x in (right - touchRadius)..(right + touchRadius) && offset.y in (bottom - touchRadius)..(bottom + touchRadius) -> "bottomRight"
+                                        offset.x in left..right && offset.y in top..bottom -> "center"
+                                        else -> null
+                                    }
+                                },
+                                onDragEnd = { dragHandle = null },
+                                onDragCancel = { dragHandle = null },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    when (dragHandle) {
+                                        "topLeft" -> cropRect = Rect(cropRect.left + dragAmount.x, cropRect.top + dragAmount.y, cropRect.right, cropRect.bottom)
+                                        "topRight" -> cropRect = Rect(cropRect.left, cropRect.top + dragAmount.y, cropRect.right + dragAmount.x, cropRect.bottom)
+                                        "bottomLeft" -> cropRect = Rect(cropRect.left + dragAmount.x, cropRect.top, cropRect.right, cropRect.bottom + dragAmount.y)
+                                        "bottomRight" -> cropRect = Rect(cropRect.left, cropRect.top, cropRect.right + dragAmount.x, cropRect.bottom + dragAmount.y)
+                                        "center" -> cropRect = cropRect.translate(dragAmount.x, dragAmount.y)
+                                    }
+                                    if (cropRect.width < 50f) cropRect = Rect(cropRect.left, cropRect.top, cropRect.left + 50f, cropRect.bottom)
+                                    if (cropRect.height < 50f) cropRect = Rect(cropRect.left, cropRect.top, cropRect.right, cropRect.top + 50f)
                                 }
-                                if (cropRect.width < 50f) cropRect = Rect(cropRect.left, cropRect.top, cropRect.left + 50f, cropRect.bottom)
-                                if (cropRect.height < 50f) cropRect = Rect(cropRect.left, cropRect.top, cropRect.right, cropRect.top + 50f)
-                            }
-                        )
+                            )
+                        }
                     }
-                }
             ) {
-                val dimColor = Color.Black.copy(alpha = 0.55f)
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    addRect(androidx.compose.ui.geometry.Rect(0f, 0f, size.width, size.height))
+                val dimColor = Color.Black.copy(alpha = 0.6f)
+                val accentColor = Color(0xFF00E676) // Vibrant Emerald/Green
+                val dashedEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 14f), 0f)
+
+                // 1. Draw outer dimming mask
+                val maskPath = Path().apply {
+                    addRect(Rect(0f, 0f, size.width, size.height))
                     if (cropShape == "circle") {
                         addOval(cropRect)
                     } else if (cropShape == "polygon") {
-                        if (polygonPoints.isNotEmpty()) {
+                        if (isPolygonClosed && polygonPoints.size >= 3) {
                             moveTo(polygonPoints.first().x, polygonPoints.first().y)
                             for (i in 1 until polygonPoints.size) {
                                 lineTo(polygonPoints[i].x, polygonPoints[i].y)
@@ -564,108 +677,262 @@ fun CameraPhotoCropScreen(
                     } else {
                         addRect(cropRect)
                     }
-                    fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+                    fillType = PathFillType.EvenOdd
                 }
-                drawPath(path, dimColor)
+                drawPath(maskPath, dimColor)
 
                 val hs = handleSize.toPx() / 2
+
+                // 2. Draw selection boundaries & handles
                 if (cropShape == "circle") {
-                    drawOval(Color.Cyan, cropRect.topLeft, cropRect.size, style = Stroke(width = 3.dp.toPx()))
+                    drawOval(accentColor, cropRect.topLeft, cropRect.size, style = Stroke(width = 3.5.dp.toPx()))
+                    listOf(cropRect.topLeft, cropRect.topRight, cropRect.bottomLeft, cropRect.bottomRight).forEach { pt ->
+                        drawCircle(Color.White, radius = hs * 0.85f, center = pt)
+                        drawCircle(accentColor, radius = hs * 0.85f, center = pt, style = Stroke(width = 3.dp.toPx()))
+                    }
                 } else if (cropShape == "polygon") {
                     if (polygonPoints.isNotEmpty()) {
-                        val polyPath = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(polygonPoints.first().x, polygonPoints.first().y)
-                            for (i in 1 until polygonPoints.size) {
-                                lineTo(polygonPoints[i].x, polygonPoints[i].y)
+                        // Draw lines between points
+                        if (isPolygonClosed && polygonPoints.size >= 3) {
+                            val polyPath = Path().apply {
+                                moveTo(polygonPoints.first().x, polygonPoints.first().y)
+                                for (i in 1 until polygonPoints.size) {
+                                    lineTo(polygonPoints[i].x, polygonPoints[i].y)
+                                }
+                                close()
                             }
-                            close()
+                            // Light tint covering the enclosed area
+                            drawPath(polyPath, accentColor.copy(alpha = 0.15f))
+                            drawPath(polyPath, accentColor, style = Stroke(width = 3.5.dp.toPx()))
+                        } else {
+                            // Open path connecting points sequentially
+                            val openPath = Path().apply {
+                                moveTo(polygonPoints.first().x, polygonPoints.first().y)
+                                for (i in 1 until polygonPoints.size) {
+                                    lineTo(polygonPoints[i].x, polygonPoints[i].y)
+                                }
+                            }
+                            drawPath(openPath, accentColor, style = Stroke(width = 3.5.dp.toPx()))
+
+                            // Subtle dashed preview line to first point
+                            if (polygonPoints.size >= 2) {
+                                val previewPath = Path().apply {
+                                    moveTo(polygonPoints.last().x, polygonPoints.last().y)
+                                    lineTo(polygonPoints.first().x, polygonPoints.first().y)
+                                }
+                                drawPath(previewPath, accentColor.copy(alpha = 0.6f), style = Stroke(width = 2.dp.toPx(), pathEffect = dashedEffect))
+                            }
                         }
-                        drawPath(polyPath, Color.Cyan, style = Stroke(width = 3.dp.toPx()))
-                        polygonPoints.forEach { pt ->
-                            drawCircle(Color.Cyan, radius = hs, center = pt)
+
+                        // Draw vertex pins
+                        polygonPoints.forEachIndexed { index, pt ->
+                            val isFirst = index == 0
+                            val isSnapTarget = !isPolygonClosed && isFirst && polygonPoints.size >= 3
+
+                            // Pulse/snap target circle on Point 1 when ready to connect
+                            if (isSnapTarget) {
+                                drawCircle(accentColor.copy(alpha = 0.35f), radius = hs * 1.5f, center = pt)
+                                drawCircle(Color.White, radius = hs * 1.5f, center = pt, style = Stroke(width = 2.dp.toPx(), pathEffect = dashedEffect))
+                            }
+
+                            // Vertex circle
+                            drawCircle(Color.White, radius = hs * 0.9f, center = pt)
+                            drawCircle(accentColor, radius = hs * 0.9f, center = pt, style = Stroke(width = 3.5.dp.toPx()))
                         }
                     }
                 } else {
-                    drawRect(Color.Cyan, cropRect.topLeft, cropRect.size, style = Stroke(width = 3.dp.toPx()))
-                }
-
-                if (cropShape != "polygon") {
-                    val corners = listOf(cropRect.topLeft, cropRect.topRight, cropRect.bottomLeft, cropRect.bottomRight)
-                    corners.forEach { corner ->
-                        drawCircle(Color.Cyan, radius = hs, center = corner)
+                    // Square
+                    drawRect(accentColor, cropRect.topLeft, cropRect.size, style = Stroke(width = 3.5.dp.toPx()))
+                    listOf(cropRect.topLeft, cropRect.topRight, cropRect.bottomLeft, cropRect.bottomRight).forEach { pt ->
+                        drawCircle(Color.White, radius = hs * 0.85f, center = pt)
+                        drawCircle(accentColor, radius = hs * 0.85f, center = pt, style = Stroke(width = 3.dp.toPx()))
                     }
                 }
             }
+        }
 
-            // Bottom toolbar
+        // Top Compact Pills Floating Toolbar for Tap-to-Tap Polygon
+        if (cropShape == "polygon") {
             Surface(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                color = Color.Black.copy(alpha = 0.85f),
-                shape = MaterialTheme.shapes.large
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = Color(0xDD181818),
+                border = BorderStroke(1.dp, Color(0x44FFFFFF))
             ) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                    // Status Badge
+                    val statusText = when {
+                        isPolygonClosed -> "Connected • Drag to adjust"
+                        polygonPoints.isEmpty() -> "Tap 1st point"
+                        polygonPoints.size == 1 -> "Tap 2nd point"
+                        polygonPoints.size == 2 -> "Tap 3rd point"
+                        else -> "Tap 4th or 1st to connect"
+                    }
+                    Text(
+                        text = statusText,
+                        color = if (isPolygonClosed) Color(0xFF00E676) else Color.White,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+
+                    // Undo Point Pill
+                    IconButton(
+                        onClick = {
+                            if (isPolygonClosed) {
+                                isPolygonClosed = false
+                                isMoveMode = false
+                            } else if (polygonPoints.isNotEmpty()) {
+                                polygonPoints.removeAt(polygonPoints.size - 1)
+                            }
+                        },
+                        enabled = polygonPoints.isNotEmpty(),
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        FilterChip(
-                            selected = cropShape == "square",
-                            onClick = { cropShape = "square" },
-                            label = { Text("Box") }
-                        )
-                        FilterChip(
-                            selected = cropShape == "circle",
-                            onClick = { cropShape = "circle" },
-                            label = { Text("Oval") }
-                        )
-                        FilterChip(
-                            selected = cropShape == "polygon",
-                            onClick = {
-                                cropShape = "polygon"
-                                polygonPoints.clear()
-                            },
-                            label = { Text("Tap-to-Tap") }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = "Undo Point",
+                            tint = if (polygonPoints.isNotEmpty()) Color.White else Color.Gray,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                    // Reset Pill
+                    IconButton(
+                        onClick = {
+                            polygonPoints.clear()
+                            isPolygonClosed = false
+                            isMoveMode = false
+                        },
+                        enabled = polygonPoints.isNotEmpty(),
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Button(
-                            onClick = {
-                                val (x, y, w, h) = calculateBitmapCrop(bitmap, viewSize, cropRect, cropShape, polygonPoints)
-                                onAction("ocr", x, y, w, h, cropShape, polygonPoints)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text("OCR Text")
+                        Icon(
+                            imageVector = Icons.Filled.RestartAlt,
+                            contentDescription = "Reset Points",
+                            tint = if (polygonPoints.isNotEmpty()) Color(0xFFFF5252) else Color.Gray,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Move Points Toggle Pill
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isMoveMode) Color(0xFF00E676) else Color(0x33FFFFFF),
+                        modifier = Modifier.clickable {
+                            isMoveMode = !isMoveMode
                         }
-                        Button(
-                            onClick = {
-                                val (x, y, w, h) = calculateBitmapCrop(bitmap, viewSize, cropRect, cropShape, polygonPoints)
-                                onAction("scan", x, y, w, h, cropShape, polygonPoints)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text("Scan Code")
+                            Icon(
+                                imageVector = if (isMoveMode) Icons.Filled.OpenWith else Icons.Filled.PanTool,
+                                contentDescription = "Toggle Move",
+                                tint = if (isMoveMode) Color.Black else Color.White,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = if (isMoveMode) "Move" else "Tap",
+                                color = if (isMoveMode) Color.Black else Color.White,
+                                fontSize = 12.sp
+                            )
                         }
-                        OutlinedButton(
-                            onClick = {
-                                val (x, y, w, h) = calculateBitmapCrop(bitmap, viewSize, cropRect, cropShape, polygonPoints)
-                                onAction("share", x, y, w, h, cropShape, polygonPoints)
+                    }
+                }
+            }
+        }
+
+        // Bottom Controls Container
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = Color.Black.copy(alpha = 0.85f),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, Color(0x33FFFFFF))
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Shape selector chips
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    FilterChip(
+                        selected = cropShape == "square",
+                        onClick = { cropShape = "square" },
+                        label = { Text("Box") }
+                    )
+                    FilterChip(
+                        selected = cropShape == "circle",
+                        onClick = { cropShape = "circle" },
+                        label = { Text("Oval") }
+                    )
+                    FilterChip(
+                        selected = cropShape == "polygon",
+                        onClick = {
+                            cropShape = "polygon"
+                            if (polygonPoints.size >= 4) {
+                                isPolygonClosed = true
+                                isMoveMode = true
                             }
-                        ) {
-                            Text("Share")
+                        },
+                        label = { Text("Tap-to-Tap") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Action buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    OutlinedButton(
+                        onClick = onRetake,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("Retake")
+                    }
+
+                    Button(
+                        onClick = {
+                            val (x, y, w, h, mappedPoints) = calculateBitmapCropAndPoints(bitmap, viewSize, cropRect, cropShape, polygonPoints)
+                            onAction("ocr", x, y, w, h, cropShape, mappedPoints)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("OCR")
+                    }
+
+                    Button(
+                        onClick = {
+                            val (x, y, w, h, mappedPoints) = calculateBitmapCropAndPoints(bitmap, viewSize, cropRect, cropShape, polygonPoints)
+                            onAction("scan", x, y, w, h, cropShape, mappedPoints)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Text("Scan Code")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val (x, y, w, h, mappedPoints) = calculateBitmapCropAndPoints(bitmap, viewSize, cropRect, cropShape, polygonPoints)
+                            onAction("share", x, y, w, h, cropShape, mappedPoints)
                         }
+                    ) {
+                        Text("Share")
                     }
                 }
             }
@@ -673,22 +940,35 @@ fun CameraPhotoCropScreen(
     }
 }
 
-private fun calculateBitmapCrop(
+data class CropCalculationResult(
+    val x: Float,
+    val y: Float,
+    val w: Float,
+    val h: Float,
+    val mappedPoints: List<Offset>
+)
+
+private fun calculateBitmapCropAndPoints(
     bitmap: Bitmap,
     viewSize: IntSize,
     cropRect: Rect,
     cropShape: String,
     polygonPoints: List<Offset>
-): FloatArray {
-    val scaleX = bitmap.width.toFloat() / viewSize.width.toFloat()
-    val scaleY = bitmap.height.toFloat() / viewSize.height.toFloat()
-    val scale = maxOf(scaleX, scaleY)
-
-    val imageRenderedWidth = bitmap.width / scale
-    val imageRenderedHeight = bitmap.height / scale
-
-    val offsetX = (viewSize.width - imageRenderedWidth) / 2f
-    val offsetY = (viewSize.height - imageRenderedHeight) / 2f
+): CropCalculationResult {
+    val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+    val viewRatio = viewSize.width.toFloat() / viewSize.height.toFloat()
+    var renderedW = viewSize.width.toFloat()
+    var renderedH = viewSize.height.toFloat()
+    var offsetX = 0f
+    var offsetY = 0f
+    if (imgRatio > viewRatio) {
+        renderedH = viewSize.width / imgRatio
+        offsetY = (viewSize.height - renderedH) / 2f
+    } else {
+        renderedW = viewSize.height * imgRatio
+        offsetX = (viewSize.width - renderedW) / 2f
+    }
+    val scale = bitmap.width / renderedW
 
     val targetRect = if (cropShape == "polygon" && polygonPoints.isNotEmpty()) {
         val minX = polygonPoints.minOf { it.x }
@@ -705,5 +985,7 @@ private fun calculateBitmapCrop(
     val cropW = (targetRect.width * scale).coerceAtMost(bitmap.width - cropX)
     val cropH = (targetRect.height * scale).coerceAtMost(bitmap.height - cropY)
 
-    return floatArrayOf(cropX, cropY, cropW, cropH)
+    val mappedPoints = polygonPoints.map { Offset((it.x - offsetX) * scale, (it.y - offsetY) * scale) }
+
+    return CropCalculationResult(cropX, cropY, cropW, cropH, mappedPoints)
 }

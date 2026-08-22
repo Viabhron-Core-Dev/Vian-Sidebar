@@ -185,7 +185,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             val bigText = "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}\nMobile: ${formatDataBytes(dailyMobileBytes)} • Wi-Fi: ${formatDataBytes(dailyWifiBytes)}"
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(totalSpeed, speedUnits))
-            builder.setLargeIcon(DynamicSpeedIconGenerator.generateLargeCircleBitmap(totalSpeed, speedUnits))
         } else {
             builder.setSmallIcon(android.R.drawable.ic_menu_crop)
         }

@@ -19,11 +19,13 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import com.example.R
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
 class CursorManager(private val service: AccessibilityService) {
     private val windowManager = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private val mainHandler = Handler(Looper.getMainLooper())
     
     private var pointerView: ImageView? = null
     private var controlView: View? = null
@@ -62,9 +64,9 @@ class CursorManager(private val service: AccessibilityService) {
         if (!isRunning) return
         isRunning = false
         
-        pointerView?.let { windowManager.removeView(it) }
-        controlView?.let { windowManager.removeView(it) }
-        trackpadView?.let { windowManager.removeView(it) }
+        pointerView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
+        controlView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
+        trackpadView?.let { try { windowManager.removeView(it) } catch (e: Exception) {} }
         
         pointerView = null
         controlView = null
@@ -94,13 +96,15 @@ class CursorManager(private val service: AccessibilityService) {
     }
     
     private fun createControlView() {
+        val density = service.resources.displayMetrics.density
         val layout = LinearLayout(service).apply {
             orientation = LinearLayout.HORIZONTAL
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#DD222222"))
-                cornerRadius = 24f * service.resources.displayMetrics.density
+                setColor(Color.parseColor("#EE222222"))
+                cornerRadius = 24f * density
+                setStroke((1 * density).toInt(), Color.parseColor("#44FFFFFF"))
             }
-            setPadding(16, 16, 16, 16)
+            setPadding((12 * density).toInt(), (8 * density).toInt(), (12 * density).toInt(), (8 * density).toInt())
             gravity = Gravity.CENTER
         }
         
@@ -108,18 +112,31 @@ class CursorManager(private val service: AccessibilityService) {
             setImageResource(android.R.drawable.ic_media_pause)
             setBackgroundColor(Color.TRANSPARENT)
             setColorFilter(Color.WHITE)
+            setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
             setOnClickListener {
                 isPaused = !isPaused
                 setImageResource(if (isPaused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause)
                 trackpadView?.visibility = if (isPaused) View.GONE else View.VISIBLE
             }
         }
+
+        val btnClick = ImageButton(service).apply {
+            setImageResource(android.R.drawable.ic_menu_send)
+            setBackgroundColor(Color.TRANSPARENT)
+            setColorFilter(Color.parseColor("#4CAF50"))
+            setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
+            setOnClickListener {
+                val tipX = pointerX + (1f * density)
+                val tipY = pointerY + (1f * density)
+                performClick(tipX, tipY)
+            }
+        }
         
         val btnMode = ImageButton(service).apply {
-            setImageResource(android.R.drawable.ic_menu_crop)
+            setImageResource(if (isGlassShield) android.R.drawable.ic_menu_crop else android.R.drawable.ic_menu_gallery)
             setBackgroundColor(Color.TRANSPARENT)
             setColorFilter(Color.WHITE)
-            setPadding(48, 0, 48, 0)
+            setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
             setOnClickListener {
                 isGlassShield = !isGlassShield
                 setImageResource(if (isGlassShield) android.R.drawable.ic_menu_crop else android.R.drawable.ic_menu_gallery)
@@ -131,10 +148,12 @@ class CursorManager(private val service: AccessibilityService) {
             setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
             setBackgroundColor(Color.TRANSPARENT)
             setColorFilter(Color.WHITE)
+            setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
             setOnClickListener { stop() }
         }
         
         layout.addView(btnPause)
+        layout.addView(btnClick)
         layout.addView(btnMode)
         layout.addView(btnExit)
         
@@ -146,7 +165,7 @@ class CursorManager(private val service: AccessibilityService) {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            y = (100 * service.resources.displayMetrics.density).toInt()
+            y = (100 * density).toInt()
         }
         
         controlView = layout
@@ -154,41 +173,79 @@ class CursorManager(private val service: AccessibilityService) {
     }
     
     private fun createTrackpadView() {
+        val density = service.resources.displayMetrics.density
         trackpadView = FrameLayout(service).apply {
+            var downX = 0f
+            var downY = 0f
             var lastX = 0f
             var lastY = 0f
-            var lastTouchTime = 0L
+            var lastTapUpTime = 0L
+            var lastTapUpX = 0f
+            var lastTapUpY = 0f
+            var isDoubleTapCandidate = false
             
             setOnTouchListener { _, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        downX = event.rawX
+                        downY = event.rawY
                         lastX = event.rawX
                         lastY = event.rawY
                         
                         val now = System.currentTimeMillis()
-                        if (now - lastTouchTime < 300) {
-                            val tipX = pointerX + (1 * service.resources.displayMetrics.density)
-                            val tipY = pointerY + (1 * service.resources.displayMetrics.density)
-                            performClick(tipX, tipY)
-                        }
-                        lastTouchTime = now
+                        val timeDiff = now - lastTapUpTime
+                        val distFromLastTap = hypot((event.rawX - lastTapUpX).toDouble(), (event.rawY - lastTapUpY).toDouble())
+                        
+                        isDoubleTapCandidate = (timeDiff in 40..400) && (distFromLastTap < 40 * density)
+                        true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = event.rawX - lastX
                         val dy = event.rawY - lastY
+                        val distFromDown = hypot((event.rawX - downX).toDouble(), (event.rawY - downY).toDouble())
+                        
+                        if (distFromDown > 18 * density) {
+                            isDoubleTapCandidate = false
+                        }
+                        
                         lastX = event.rawX
                         lastY = event.rawY
                         
-                        pointerX += dx * 1.5f
-                        pointerY += dy * 1.5f
+                        pointerX += dx * 1.35f
+                        pointerY += dy * 1.35f
                         
                         pointerX = max(0f, min(screenWidth.toFloat(), pointerX))
                         pointerY = max(0f, min(screenHeight.toFloat(), pointerY))
                         
                         updatePointerPosition()
+                        true
                     }
+                    MotionEvent.ACTION_UP -> {
+                        val distFromDown = hypot((event.rawX - downX).toDouble(), (event.rawY - downY).toDouble())
+                        if (distFromDown < 20 * density) {
+                            // Valid tap released without dragging
+                            if (isDoubleTapCandidate) {
+                                val tipX = pointerX + (1f * density)
+                                val tipY = pointerY + (1f * density)
+                                performClick(tipX, tipY)
+                                lastTapUpTime = 0L // Reset so 3rd tap isn't immediately double tap
+                            } else {
+                                lastTapUpTime = System.currentTimeMillis()
+                                lastTapUpX = event.rawX
+                                lastTapUpY = event.rawY
+                            }
+                        } else {
+                            lastTapUpTime = 0L
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        isDoubleTapCandidate = false
+                        lastTapUpTime = 0L
+                        true
+                    }
+                    else -> false
                 }
-                true
             }
         }
         
@@ -205,6 +262,7 @@ class CursorManager(private val service: AccessibilityService) {
     
     private fun updateTrackpadLayout() {
         val params = trackpadView?.layoutParams as? WindowManager.LayoutParams ?: return
+        val density = service.resources.displayMetrics.density
         
         if (isGlassShield) {
             params.width = WindowManager.LayoutParams.MATCH_PARENT
@@ -214,14 +272,18 @@ class CursorManager(private val service: AccessibilityService) {
             params.y = 0
             trackpadView?.setBackgroundColor(Color.TRANSPARENT)
         } else {
-            val sizeWidth = (300 * service.resources.displayMetrics.density).toInt()
-            val sizeHeight = (300 * service.resources.displayMetrics.density).toInt()
+            val sizeWidth = (280 * density).toInt()
+            val sizeHeight = (280 * density).toInt()
             params.width = sizeWidth
             params.height = sizeHeight
             params.gravity = Gravity.BOTTOM or Gravity.END
-            params.y = (180 * service.resources.displayMetrics.density).toInt()
-            params.x = (16 * service.resources.displayMetrics.density).toInt()
-            trackpadView?.setBackgroundColor(Color.parseColor("#44888888"))
+            params.y = (170 * density).toInt()
+            params.x = (16 * density).toInt()
+            trackpadView?.background = GradientDrawable().apply {
+                setColor(Color.parseColor("#55333333"))
+                cornerRadius = 16f * density
+                setStroke((1.5f * density).toInt(), Color.parseColor("#88FFFFFF"))
+            }
         }
         
         windowManager.updateViewLayout(trackpadView, params)
@@ -231,14 +293,73 @@ class CursorManager(private val service: AccessibilityService) {
         val params = pointerView?.layoutParams as? WindowManager.LayoutParams ?: return
         params.x = pointerX.toInt()
         params.y = pointerY.toInt()
-        windowManager.updateViewLayout(pointerView, params)
+        try {
+            windowManager.updateViewLayout(pointerView, params)
+        } catch (e: Exception) {}
     }
     
     private fun performClick(x: Float, y: Float) {
+        // Visual tap animation feedback on the cursor
+        pointerView?.animate()
+            ?.scaleX(0.75f)
+            ?.scaleY(0.75f)
+            ?.setDuration(80)
+            ?.withEndAction {
+                pointerView?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(80)?.start()
+            }
+            ?.start()
+
+        val trackpad = trackpadView ?: return
+        val originalParams = trackpad.layoutParams as? WindowManager.LayoutParams ?: return
+        
+        // Temporarily make trackpad not touchable so injected gesture penetrates through to target window
+        val touchDisabledParams = WindowManager.LayoutParams().apply {
+            copyFrom(originalParams)
+            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+        try {
+            windowManager.updateViewLayout(trackpad, touchDisabledParams)
+        } catch (e: Exception) {}
+
+        var restored = false
+        fun restoreTouchable() {
+            if (restored) return
+            restored = true
+            try {
+                val currentP = trackpadView?.layoutParams as? WindowManager.LayoutParams ?: return
+                currentP.flags = currentP.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                windowManager.updateViewLayout(trackpadView, currentP)
+            } catch (e: Exception) {}
+        }
+
+        // Safety fallback timer to restore touchability if gesture callback does not fire
+        mainHandler.postDelayed({
+            restoreTouchable()
+        }, 300)
+
         val path = Path()
         path.moveTo(x, y)
         val gestureBuilder = GestureDescription.Builder()
         gestureBuilder.addStroke(GestureDescription.StrokeDescription(path, 0, 50))
-        service.dispatchGesture(gestureBuilder.build(), null, null)
+        
+        try {
+            service.dispatchGesture(
+                gestureBuilder.build(),
+                object : AccessibilityService.GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        restoreTouchable()
+                    }
+
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        restoreTouchable()
+                    }
+                },
+                mainHandler
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            restoreTouchable()
+        }
     }
 }
+

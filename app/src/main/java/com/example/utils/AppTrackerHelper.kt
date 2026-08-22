@@ -12,13 +12,16 @@ import android.os.Process
 import android.provider.Settings
 import android.widget.Toast
 import com.example.AppTrackerOpenerActivity
+import com.example.feature.sidebar.TrackedAppInfo
 import java.util.concurrent.TimeUnit
 
 object AppTrackerHelper {
 
     fun isAppTrackerConfigured(context: Context): Boolean {
-        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        return PageManager.isPageTypePresent(prefs, "app_tracker")
+        val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
+        if (PageManager.isPageTypePresent(prefs, "app_tracker")) return true
+        val appPrefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        return PageManager.isPageTypePresent(appPrefs, "app_tracker")
     }
 
     fun checkUsageStatsPermission(context: Context): Boolean {
@@ -32,12 +35,8 @@ object AppTrackerHelper {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    fun getRunningPackagesToStop(context: Context): List<String> {
+    fun getRecentApps(context: Context): List<TrackedAppInfo> {
         if (!checkUsageStatsPermission(context)) return emptyList()
-
-        val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
-        val whitelist = prefs.getStringSet("app_tracker_whitelist_current", emptySet()) ?: emptySet()
-        val showSystem = prefs.getBoolean("app_tracker_show_system_running", false)
 
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return emptyList()
         val endTime = System.currentTimeMillis()
@@ -54,8 +53,12 @@ object AppTrackerHelper {
             }
         }
 
+        val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
+        val whitelist = prefs.getStringSet("app_tracker_whitelist_current", emptySet()) ?: emptySet()
+        val showSystem = prefs.getBoolean("app_tracker_show_system_running", false)
+
         val pm = context.packageManager
-        val resultPackages = mutableListOf<Pair<String, Long>>()
+        val trackedApps = mutableListOf<TrackedAppInfo>()
 
         for ((packageName, lastUsed) in appLastUsed) {
             if (packageName == context.packageName) continue
@@ -66,11 +69,17 @@ object AppTrackerHelper {
                 val appInfo = pm.getApplicationInfo(packageName, 0)
                 val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 if (isSystem && !showSystem) continue
-                resultPackages.add(packageName to lastUsed)
+
+                val appName = pm.getApplicationLabel(appInfo).toString()
+                trackedApps.add(TrackedAppInfo(packageName = packageName, appName = appName, lastUsedTime = lastUsed))
             } catch (e: Exception) {}
         }
 
-        return resultPackages.sortedByDescending { it.second }.map { it.first }
+        return trackedApps.sortedByDescending { it.lastUsedTime }.take(28)
+    }
+
+    fun getRunningPackagesToStop(context: Context): List<String> {
+        return getRecentApps(context).map { it.packageName }
     }
 
     fun startForceStopSequence(context: Context) {

@@ -165,12 +165,17 @@ object PageManager {
 
     fun isPageTypePresent(prefs: SharedPreferences, pageType: String): Boolean {
         for ((key, value) in prefs.all) {
-            if ((key.endsWith("_pages") || key == "sidebar_pages") && value is String) {
+            if (value is String && (key.endsWith("_pages") || key == "sidebar_pages" || key.contains("pages") || key.contains("handle"))) {
+                if (value.contains("\"$pageType\"") || value.contains(":$pageType") || value.contains("/$pageType")) {
+                    return true
+                }
                 try {
                     val arr = JSONArray(value)
                     for (i in 0 until arr.length()) {
                         val obj = arr.getJSONObject(i)
-                        if (obj.optString("type") == pageType) {
+                        val type = obj.optString("type")
+                        val id = obj.optString("id")
+                        if (type == pageType || id.contains(pageType)) {
                             return true
                         }
                     }

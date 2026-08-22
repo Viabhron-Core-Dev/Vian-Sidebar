@@ -566,6 +566,14 @@ class AppsPageView(
                         val intent = android.content.Intent(context, ScreenRecordActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(intent)
+                    } else if (item.action == "camera_measure") {
+                        val intent = android.content.Intent(context, com.example.feature.system_hub.CameraMeasureActivity::class.java)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    } else if (item.action == "arrangement_checker" || item.action == "ghost_camera") {
+                        val intent = android.content.Intent(context, com.example.feature.system_hub.GhostCameraActivity::class.java)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
                     } else if (item.action == "settings") {
                         val intent = android.content.Intent(context, com.example.SettingsActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)

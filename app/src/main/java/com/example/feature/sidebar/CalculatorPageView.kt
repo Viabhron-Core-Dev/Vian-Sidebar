@@ -19,7 +19,7 @@ import java.text.DecimalFormat
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class CalculatorPageView(context: Context) : FrameLayout(context) {
+class CalculatorPageView(context: Context) : FrameLayout(context), SidebarPageControllable {
 
     private var expression = ""
     private var cursorIndex = 0

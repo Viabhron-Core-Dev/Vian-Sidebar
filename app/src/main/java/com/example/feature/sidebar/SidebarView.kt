@@ -103,12 +103,10 @@ class SidebarView(
             initialPage.wrapContentHeight
         } else {
             when (initialPage?.type) {
-                "calculator", "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
-                "media_player" -> true
-                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> {
-                    prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
-                }
-                else -> false
+                "scheduler", "notifications", "notification", "app_tracker" -> false
+                "calculator", "compass", "resources_tracker", "media_player" -> true
+                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
+                else -> true
             }
         }
 
@@ -281,7 +279,7 @@ class SidebarView(
                                 onClose()
                                 handledLocally = true
                             }
-                            "hybrid_grid" -> {
+                            "hybrid_grid", "default_hybrid" -> {
                                 val intent = Intent(context, com.example.HybridGridEditActivity::class.java).apply {
                                     putExtra("PAGE_ID", pageConfig.id)
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -309,6 +307,15 @@ class SidebarView(
                             "scheduler", "short_reminders", "reminder", "reminders" -> {
                                 val intent = Intent(context, com.example.feature.settings.TagManagementActivity::class.java).apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onClose()
+                                handledLocally = true
+                            }
+                            "calculator", "compass", "resources_tracker", "media_player", "widget" -> {
+                                val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    putExtra("start_route", "pages_${containerId}|edit_page:${pageConfig.id}")
                                 }
                                 context.startActivity(intent)
                                 onClose()
@@ -428,8 +435,7 @@ class SidebarView(
                     
                     val pageConfig = pageConfigs.getOrNull(actualPosition)
                     if (::editButton.isInitialized) {
-                        val isEditable = pageConfig?.type in listOf("apps", "widgets_grid", "hybrid_grid", "app_tracker")
-                        editButton.visibility = if (isEditable) View.VISIBLE else View.INVISIBLE
+                        editButton.visibility = View.VISIBLE
                     }
                     
                     AppWidgetHelper.startListening(context)
@@ -475,12 +481,10 @@ class SidebarView(
             page.wrapContentHeight
         } else {
             when (page.type) {
-                "calculator", "media_player" -> true
-                "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
-                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> {
-                    prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
-                }
-                else -> false
+                "scheduler", "notifications", "notification", "app_tracker" -> false
+                "calculator", "compass", "resources_tracker", "media_player" -> true
+                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
+                else -> true
             }
         }
 
@@ -560,9 +564,10 @@ class SidebarView(
             page.wrapContentHeight
         } else {
             when (page?.type) {
-                "calculator", "compass", "scheduler", "notifications", "notification", "resources_tracker", "app_tracker" -> false
-                "media_player" -> true
-                else -> prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
+                "scheduler", "notifications", "notification", "app_tracker" -> false
+                "calculator", "compass", "resources_tracker", "media_player" -> true
+                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
+                else -> true
             }
         }
         if (isPageWrap && viewPager.currentItem == bindingAdapterPosition) {

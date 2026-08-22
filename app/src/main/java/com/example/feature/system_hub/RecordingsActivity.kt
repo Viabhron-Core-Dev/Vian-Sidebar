@@ -34,6 +34,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import android.content.Intent
+import androidx.core.content.FileProvider
 
 data class RecordingItem(
     val id: String,
@@ -248,12 +249,26 @@ fun RecordingsScreen(onBack: () -> Unit) {
 }
 
 private fun shareRecording(context: Context, uri: Uri) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "audio/*"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    try {
+        val shareUri = if (uri.scheme == "file") {
+            val file = File(uri.path ?: "")
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        } else {
+            uri
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "audio/*"
+            putExtra(Intent.EXTRA_STREAM, shareUri)
+            clipData = android.content.ClipData.newRawUri("", shareUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(intent, "Share Recording")
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        android.widget.Toast.makeText(context, "Error sharing recording", android.widget.Toast.LENGTH_SHORT).show()
     }
-    context.startActivity(Intent.createChooser(intent, "Share Recording"))
 }
 
 private suspend fun deleteSelected(context: Context, recordings: List<RecordingItem>, ids: List<String>) {

@@ -206,5 +206,22 @@
             android:name=".feature.system_hub.RecordingsActivity"
             android:exported="false"
             android:theme="@style/Theme.LiteReader" />
+        <activity
+            android:name=".feature.system_hub.CameraMeasureActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiteReader" />
+        <activity
+            android:name=".feature.system_hub.GhostCameraActivity"
+            android:exported="false"
+            android:theme="@style/Theme.LiteReader" />
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

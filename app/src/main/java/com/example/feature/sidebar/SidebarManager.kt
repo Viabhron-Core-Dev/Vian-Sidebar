@@ -26,6 +26,9 @@ class SidebarManager(
         AppLogger.d("SidebarManager", "handleIntent: action=$action handleId=$handleId")
         
         when (action) {
+            "com.example.ACTION_CLOSE_SIDEBAR", "CLOSE_SIDEBAR" -> {
+                closeSidebar()
+            }
             "com.example.ACTION_TOGGLE_SIDEBAR" -> {
                 toggleSidebar(handleId, containerId)
             }
@@ -38,18 +41,32 @@ class SidebarManager(
                 AppLogger.d("SidebarManager", "Execute action/element: $actionId")
                 com.example.core.LogKeeper.writeLog("SidebarManager", "Execute action: $actionId")
                 when (actionId) {
-                    "system:force_stop_running_apps", "force_stop_running_apps" -> com.example.utils.AppTrackerHelper.startForceStopSequence(context)
-                    "system:dictionary_floating", "system:dictionary_full" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
-                    "system:translation_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "translation")
-                    "system:hybrid_grid_floating" -> com.example.feature.miniapps.MiniAppManager.toggleApp(context, "hybrid_grid")
+                    "system:force_stop_running_apps", "force_stop_running_apps" -> {
+                        closeSidebar()
+                        com.example.utils.AppTrackerHelper.startForceStopSequence(context)
+                    }
+                    "system:dictionary_floating", "system:dictionary_full" -> {
+                        closeSidebar()
+                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, "dictionary")
+                    }
+                    "system:translation_floating" -> {
+                        closeSidebar()
+                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, "translation")
+                    }
+                    "system:hybrid_grid_floating" -> {
+                        closeSidebar()
+                        com.example.feature.miniapps.MiniAppManager.toggleApp(context, "hybrid_grid")
+                    }
                     else -> {
                         val isSystemAction = actionId.startsWith("system:")
                         val systemActionKey = actionId.removePrefix("system:")
                         val accessibilityService = com.example.feature.system_hub.VianSideAccessibilityService.instance
                         if (isSystemAction && accessibilityService != null && accessibilityService.performAction(systemActionKey)) {
                             com.example.core.LogKeeper.writeLog("SidebarManager", "Handled system action via Accessibility: $systemActionKey")
+                            closeSidebar()
                         } else if (actionId.endsWith("_floating") || actionId.startsWith("page_window:")) {
                             val pageType = actionId.removePrefix("page_window:").removePrefix("system:").removeSuffix("_floating")
+                            closeSidebar()
                             com.example.feature.miniapps.MiniAppManager.toggleApp(context, pageType)
                         } else {
                             com.example.core.LogKeeper.writeLog("SidebarManager", "Ignored unrecognized action: $actionId")

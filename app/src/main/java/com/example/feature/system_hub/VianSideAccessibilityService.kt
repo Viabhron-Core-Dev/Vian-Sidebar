@@ -97,7 +97,12 @@ class VianSideAccessibilityService : AccessibilityService() {
         
         if (action == "cursor") {
             if (cursorManager == null) cursorManager = CursorManager(this)
-            if (cursorManager?.isRunning == true) cursorManager?.stop() else cursorManager?.start()
+            if (cursorManager?.isRunning == true) {
+                cursorManager?.stop()
+            } else {
+                com.example.service.SidebarService.instance?.closeSidebar()
+                cursorManager?.start()
+            }
             return true
         }
         if (action == "auto_scroll") {
@@ -106,17 +111,33 @@ class VianSideAccessibilityService : AccessibilityService() {
             return true
         }
         if (action == "long_screenshot") {
+            com.example.service.SidebarService.instance?.closeSidebar()
             if (longScreenshotManager == null) longScreenshotManager = LongScreenshotManager(this)
             longScreenshotManager?.start()
             return true
         }
 
         if (action == "screenshot") {
+            com.example.service.SidebarService.instance?.closeSidebar()
             handleScreenshotWithDelay()
             return true
         }
         if (action == "barcode_scanner") {
             val intent = Intent(this, com.example.feature.system_hub.BarcodeScannerActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            return true
+        }
+        if (action == "camera_measure") {
+            val intent = Intent(this, com.example.feature.system_hub.CameraMeasureActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            return true
+        }
+        if (action == "arrangement_checker" || action == "ghost_camera") {
+            val intent = Intent(this, com.example.feature.system_hub.GhostCameraActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
