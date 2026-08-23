@@ -154,6 +154,10 @@ class VianSideAccessibilityService : AccessibilityService() {
             handleQRScan()
             return true
         }
+        if (action == "redact_screenshot") {
+            handleRedactScreenshot()
+            return true
+        }
 
         return when (action) {
             "back" -> performGlobalAction(GLOBAL_ACTION_BACK)
@@ -302,6 +306,73 @@ class VianSideAccessibilityService : AccessibilityService() {
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
                 }
                 val intent = Intent(this@VianSideAccessibilityService, QRCropActivity::class.java).apply {
+                    putExtra("IMAGE_PATH", cacheFile.absolutePath)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(this@VianSideAccessibilityService, "Failed to prepare screenshot", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun handleRedactScreenshot() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Toast.makeText(this, "Preparing Screen Capture...", Toast.LENGTH_SHORT).show()
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+                        override fun onSuccess(screenshotResult: ScreenshotResult) {
+                            try {
+                                val hwBuffer = screenshotResult.hardwareBuffer
+                                val colorSpace = screenshotResult.colorSpace
+                                val bitmap = Bitmap.wrapHardwareBuffer(hwBuffer, colorSpace)
+                                if (bitmap != null) {
+                                    val softwareBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+                                    launchRedactActivity(softwareBitmap)
+                                } else {
+                                    Handler(Looper.getMainLooper()).post {
+                                        Toast.makeText(this@VianSideAccessibilityService, "Failed to get screenshot", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                hwBuffer.close()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                Handler(Looper.getMainLooper()).post {
+                                    Toast.makeText(this@VianSideAccessibilityService, "Error reading screenshot", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+
+                        override fun onFailure(errorCode: Int) {
+                            Handler(Looper.getMainLooper()).post {
+                                Toast.makeText(this@VianSideAccessibilityService, "Failed to take screenshot", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    })
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(this@VianSideAccessibilityService, "Screenshot capability unavailable", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }, 350)
+        } else {
+            Toast.makeText(this, "Redact Screenshot requires Android 11+", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun launchRedactActivity(bitmap: Bitmap) {
+        Thread {
+            try {
+                val cacheFile = java.io.File(cacheDir, "temp_redact_screenshot.png")
+                java.io.FileOutputStream(cacheFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+                val intent = Intent(this@VianSideAccessibilityService, RedactScreenshotActivity::class.java).apply {
                     putExtra("IMAGE_PATH", cacheFile.absolutePath)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }

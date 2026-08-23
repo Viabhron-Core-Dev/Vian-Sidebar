@@ -19,7 +19,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class ResourcesTrackerPageView(context: Context, private val scope: CoroutineScope) : FrameLayout(context), Choreographer.FrameCallback, SidebarPageControllable {
+class ResourcesTrackerPageView(
+    context: Context,
+    private val scope: CoroutineScope,
+    private val onHeightChanged: ((Int) -> Unit)? = null
+) : FrameLayout(context), Choreographer.FrameCallback, SidebarPageControllable {
 
     private val tvRamTotal: TextView
     private val tvRamFree: TextView
@@ -48,6 +52,14 @@ class ResourcesTrackerPageView(context: Context, private val scope: CoroutineSco
         rvMiniApps.layoutManager = LinearLayoutManager(context)
         adapter = MiniAppsAdapter()
         rvMiniApps.adapter = adapter
+
+        post {
+            measure(
+                MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (320 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            )
+            onHeightChanged?.invoke(measuredHeight)
+        }
     }
 
     private var trackingJob: Job? = null

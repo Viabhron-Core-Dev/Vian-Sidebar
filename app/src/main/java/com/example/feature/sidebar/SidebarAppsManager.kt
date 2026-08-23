@@ -165,6 +165,7 @@ val ALL_SCREEN_CAPTURE_ACTIONS = listOf(
     SidebarItem.SystemAction("screenshot", "Screenshot", android.R.drawable.ic_menu_camera),
     SidebarItem.SystemAction("long_screenshot", "Long Screenshot", android.R.drawable.ic_menu_crop),
     SidebarItem.SystemAction("screen_record", "Screen Record", android.R.drawable.ic_media_play),
+    SidebarItem.SystemAction("redact_screenshot", "Redact Screenshot", android.R.drawable.ic_menu_edit),
     SidebarItem.SystemAction("qr_scan", "Secure Screen Scanner", android.R.drawable.ic_menu_search),
     SidebarItem.SystemAction("barcode_scanner", "Secure Camera Scanner", android.R.drawable.ic_menu_camera),
 )

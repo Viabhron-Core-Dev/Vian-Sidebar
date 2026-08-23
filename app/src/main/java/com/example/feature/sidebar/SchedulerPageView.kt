@@ -173,7 +173,7 @@ class SchedulerPageView(
                         MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
                     )
                     val density = resources.displayMetrics.density
-                    val minH = (200 * density).toInt()
+                    val minH = if (activeTasks.isEmpty()) (100 * density).toInt() else (140 * density).toInt()
                     val maxH = (520 * density).toInt()
                     val targetH = measuredHeight.coerceIn(minH, maxH)
                     onHeightChanged?.invoke(targetH)

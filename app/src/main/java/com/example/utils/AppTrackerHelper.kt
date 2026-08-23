@@ -39,38 +39,42 @@ object AppTrackerHelper {
         if (!checkUsageStatsPermission(context)) return emptyList()
 
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return emptyList()
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-
-        // Get currently active processes in memory
-        val runningProcesses = activityManager?.runningAppProcesses ?: emptyList()
-        val activePackages = mutableSetOf<String>()
-        for (proc in runningProcesses) {
-            proc.pkgList?.let { activePackages.addAll(it) }
-        }
 
         val endTime = System.currentTimeMillis()
         val startTime = endTime - TimeUnit.HOURS.toMillis(24)
 
-        val events = usageStatsManager.queryEvents(startTime, endTime)
-        val event = UsageEvents.Event()
         val appLastUsed = mutableMapOf<String, Long>()
-        val appStopEvents = mutableMapOf<String, Long>()
 
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            when (event.eventType) {
-                UsageEvents.Event.ACTIVITY_RESUMED -> {
+        // 1. Primary retrieval via UsageEvents
+        try {
+            val events = usageStatsManager.queryEvents(startTime, endTime)
+            val event = UsageEvents.Event()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                     appLastUsed[event.packageName] = event.timeStamp
                 }
-                UsageEvents.Event.ACTIVITY_STOPPED -> {
-                    appStopEvents[event.packageName] = event.timeStamp
+            }
+        } catch (e: Exception) {}
+
+        // 2. Fallback / supplement via queryUsageStats in case events were pruned
+        try {
+            val statsList = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_BEST, startTime, endTime)
+            if (statsList != null) {
+                for (stats in statsList) {
+                    val lastTime = stats.lastTimeUsed
+                    if (lastTime > 0) {
+                        val current = appLastUsed[stats.packageName] ?: 0L
+                        if (lastTime > current) {
+                            appLastUsed[stats.packageName] = lastTime
+                        }
+                    }
                 }
             }
-        }
+        } catch (e: Exception) {}
 
         val prefs = context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         val whitelist = prefs.getStringSet("app_tracker_whitelist_current", emptySet()) ?: emptySet()
-        val showSystem = prefs.getBoolean("app_tracker_show_system_running", false)
 
         val pm = context.packageManager
         val trackedApps = mutableListOf<TrackedAppInfo>()
@@ -80,19 +84,8 @@ object AppTrackerHelper {
             if (packageName.contains("launcher", ignoreCase = true)) continue
             if (whitelist.contains(packageName)) continue
 
-            // If we have active processes reported by ActivityManager and package is not in running processes
-            // and last activity was stopped long ago or stopped after resumed, check if truly running
-            val isProcessAlive = activePackages.contains(packageName)
-            val isRecentUsage = (endTime - lastUsed) <= TimeUnit.MINUTES.toMillis(60)
-            
-            // Only keep if process is active in memory OR used very recently and not killed
-            if (!isProcessAlive && !isRecentUsage) continue
-
             try {
                 val appInfo = pm.getApplicationInfo(packageName, 0)
-                val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                if (isSystem && !showSystem) continue
-
                 val appName = pm.getApplicationLabel(appInfo).toString()
                 trackedApps.add(TrackedAppInfo(packageName = packageName, appName = appName, lastUsedTime = lastUsed))
             } catch (e: Exception) {}

@@ -204,6 +204,10 @@
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
         <activity
+            android:name=".feature.system_hub.RedactScreenshotActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+        <activity
             android:name=".feature.system_hub.RecordingsActivity"
             android:exported="false"
             android:theme="@style/Theme.LiteReader" />

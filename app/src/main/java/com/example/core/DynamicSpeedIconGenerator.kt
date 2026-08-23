@@ -14,6 +14,14 @@ object DynamicSpeedIconGenerator {
 
     data class SpeedDisplay(val number: String, val unit: String)
 
+    private var cachedBitmap: Bitmap? = null
+    private var cachedCanvas: Canvas? = null
+    private var cachedDensityDpi: Int = -1
+    private var cachedSizePx: Int = -1
+    private var cachedTypeface: Typeface? = null
+    private var cachedNumPaint: Paint? = null
+    private var cachedUnitPaint: Paint? = null
+
     fun formatSpeed(bytesPerSec: Long, forcedUnit: String? = null): SpeedDisplay {
         if (bytesPerSec <= 0) {
             return SpeedDisplay("0", if (forcedUnit == "MB/s") "MB/s" else "KB/s")
@@ -55,83 +63,105 @@ object DynamicSpeedIconGenerator {
     }
 
     /**
-     * Generates a pixel-perfect, crisp, transparent-background status bar icon bitmap matching NetSpeed Indicator.
-     * Uses device screen density or fallback to ensure 0 blurriness and exact alignment.
+     * Generates a crisp, pixel-perfect status bar icon bitmap directly at the notification small-icon dimensions.
+     * Positions text baselines precisely using Paint.FontMetrics without unnecessary scaling/filtering.
      */
     fun generateStatusBarBitmap(context: Context, bytesPerSec: Long, forcedUnit: String? = null): Bitmap {
         val display = formatSpeed(bytesPerSec, forcedUnit)
         
-        // Exact 24dp standard status bar icon size calculated per device density
-        val density = context.resources.displayMetrics.density
-        val sizePx = (24 * density).toInt().coerceAtLeast(48) // e.g. 72px (xhdpi), 96px (xxhdpi), etc.
+        val resources = context.resources
+        val displayMetrics = resources.displayMetrics
+        val density = displayMetrics.density
+        val densityDpi = displayMetrics.densityDpi
 
-        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-        bitmap.density = context.resources.displayMetrics.densityDpi
+        // Determine exact small icon dimension for the current display density (24dp standard)
+        val statusBarResId = resources.getIdentifier("status_bar_icon_size", "dimen", "android")
+        val systemSize = if (statusBarResId > 0) {
+            try { resources.getDimensionPixelSize(statusBarResId) } catch (e: Exception) { 0 }
+        } else {
+            0
+        }
+        val sizePx = if (systemSize > 0) systemSize else Math.round(24f * density).coerceAtLeast(16)
+
+        var bitmap = cachedBitmap
+        var canvas = cachedCanvas
+        if (bitmap == null || bitmap.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
+            bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+            bitmap.density = densityDpi
+            canvas = Canvas(bitmap)
+            cachedBitmap = bitmap
+            cachedCanvas = canvas
+            cachedSizePx = sizePx
+            cachedDensityDpi = densityDpi
+        }
+
         bitmap.eraseColor(Color.TRANSPARENT)
-        val canvas = Canvas(bitmap)
 
         val numberText = display.number
         val unitText = display.unit
 
-        val boldCondensedTypeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+        if (cachedTypeface == null) {
+            cachedTypeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+        }
 
-        val numPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+        // Use anti-aliasing and subpixel text for sharp glyph rendering; omit bitmap filter flags
+        val numPaint = cachedNumPaint ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = Color.WHITE
-            typeface = boldCondensedTypeface
+            typeface = cachedTypeface
             textAlign = Paint.Align.CENTER
             isFakeBoldText = true
-        }
+        }.also { cachedNumPaint = it }
 
-        val unitPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+        val unitPaint = cachedUnitPaint ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = Color.WHITE
-            typeface = boldCondensedTypeface
+            typeface = cachedTypeface
             textAlign = Paint.Align.CENTER
             isFakeBoldText = true
-        }
+        }.also { cachedUnitPaint = it }
 
-        // Dynamically size fonts to fill maximum vertical and horizontal space without clipping
-        // Speed number takes upper ~62% of height, Unit text takes lower ~35%
-        val maxNumHeight = sizePx * 0.60f
-        val maxUnitHeight = sizePx * 0.34f
+        // Partition vertical space into top section (number) and bottom section (unit)
+        val numberSectionHeight = Math.round(sizePx * 0.62f).toFloat()
+        val unitSectionHeight = sizePx - numberSectionHeight
 
-        var numTextSize = when (numberText.length) {
-            1 -> sizePx * 0.65f
-            2 -> sizePx * 0.60f
-            3 -> sizePx * 0.50f
-            4 -> sizePx * 0.42f
-            else -> sizePx * 0.36f
-        }
-        numPaint.textSize = numTextSize
+        // Fit number text within upper bounds
+        val maxNumH = numberSectionHeight * 0.95f
+        val maxNumW = sizePx * 0.96f
+        numPaint.textSize = maxNumH
+        val numMetricsInit = numPaint.fontMetrics
+        val numFontH = numMetricsInit.descent - numMetricsInit.ascent
+        val numTextW = numPaint.measureText(numberText)
+        val scaleNumW = if (numTextW > 0f) maxNumW / numTextW else 1f
+        val scaleNumH = if (numFontH > 0f) maxNumH / numFontH else 1f
+        val scaleNum = minOf(scaleNumW, scaleNumH, 1.0f)
+        numPaint.textSize = maxNumH * scaleNum
 
-        val numBounds = Rect()
-        numPaint.getTextBounds(numberText, 0, numberText.length, numBounds)
-        // Ensure number width does not exceed canvas
-        if (numBounds.width() > sizePx * 0.96f) {
-            numPaint.textSize = numTextSize * (sizePx * 0.96f / numBounds.width())
-            numPaint.getTextBounds(numberText, 0, numberText.length, numBounds)
-        }
+        // Calculate exact pixel-aligned baseline for the number
+        val finalNumMetrics = numPaint.fontMetrics
+        val numCenterY = numberSectionHeight / 2f
+        val numBaselineY = Math.round(numCenterY - (finalNumMetrics.ascent + finalNumMetrics.descent) / 2f).toFloat()
 
-        var unitTextSize = when (unitText.length) {
-            3 -> sizePx * 0.32f // "B/s"
-            4 -> sizePx * 0.30f // "KB/s", "MB/s"
-            else -> sizePx * 0.26f
-        }
-        unitPaint.textSize = unitTextSize
+        // Fit unit text within lower bounds
+        val maxUnitH = unitSectionHeight * 0.90f
+        val maxUnitW = sizePx * 0.96f
+        unitPaint.textSize = maxUnitH
+        val unitMetricsInit = unitPaint.fontMetrics
+        val unitFontH = unitMetricsInit.descent - unitMetricsInit.ascent
+        val unitTextW = unitPaint.measureText(unitText)
+        val scaleUnitW = if (unitTextW > 0f) maxUnitW / unitTextW else 1f
+        val scaleUnitH = if (unitFontH > 0f) maxUnitH / unitFontH else 1f
+        val scaleUnit = minOf(scaleUnitW, scaleUnitH, 1.0f)
+        unitPaint.textSize = maxUnitH * scaleUnit
 
-        val unitBounds = Rect()
-        unitPaint.getTextBounds(unitText, 0, unitText.length, unitBounds)
-        if (unitBounds.width() > sizePx * 0.96f) {
-            unitPaint.textSize = unitTextSize * (sizePx * 0.96f / unitBounds.width())
-            unitPaint.getTextBounds(unitText, 0, unitText.length, unitBounds)
-        }
+        // Calculate exact pixel-aligned baseline for the unit
+        val finalUnitMetrics = unitPaint.fontMetrics
+        val unitCenterY = numberSectionHeight + (unitSectionHeight / 2f)
+        val unitBaselineY = Math.round(unitCenterY - (finalUnitMetrics.ascent + finalUnitMetrics.descent) / 2f).toFloat()
 
-        // Align baseline accurately: top number vertically centered in upper area, unit in bottom area
-        val centerX = sizePx / 2f
-        val numY = sizePx * 0.56f
-        val unitY = sizePx * 0.93f
+        // Draw centered horizontally with integer pixel alignment
+        val centerX = Math.round(sizePx / 2f).toFloat()
 
-        canvas.drawText(numberText, centerX, numY, numPaint)
-        canvas.drawText(unitText, centerX, unitY, unitPaint)
+        canvas!!.drawText(numberText, centerX, numBaselineY, numPaint)
+        canvas.drawText(unitText, centerX, unitBaselineY, unitPaint)
 
         return bitmap
     }

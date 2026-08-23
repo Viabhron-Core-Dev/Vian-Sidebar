@@ -11,7 +11,10 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.example.R
 
-class CompassPageView(context: Context) : FrameLayout(context), SensorEventListener, SidebarPageControllable {
+class CompassPageView(
+    context: Context,
+    private val onHeightChanged: ((Int) -> Unit)? = null
+) : FrameLayout(context), SensorEventListener, SidebarPageControllable {
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private val magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
@@ -30,6 +33,14 @@ class CompassPageView(context: Context) : FrameLayout(context), SensorEventListe
         compassView = findViewById(R.id.compass_view)
         tvAzimuth = findViewById(R.id.tv_azimuth)
         tvDirection = findViewById(R.id.tv_direction)
+
+        post {
+            measure(
+                MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (320 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            )
+            onHeightChanged?.invoke(measuredHeight)
+        }
     }
 
     override fun onAttachedToWindow() {

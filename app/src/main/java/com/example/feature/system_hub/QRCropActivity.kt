@@ -17,7 +17,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -424,51 +428,72 @@ fun QRCropScreen(
                             val touchRadius = 44.dp.toPx()
                             val snapRadius = 48.dp.toPx()
 
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    // Check if user grabbed an existing vertex handle
-                                    val idx = polygonPoints.indexOfFirst { pt ->
-                                        (pt - offset).getDistance() <= touchRadius
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val downOffset = down.position
+
+                                val idx = polygonPoints.indexOfFirst { pt ->
+                                    (pt - downOffset).getDistance() <= touchRadius
+                                }
+
+                                var dragAmountTotal = Offset.Zero
+                                var isDrag = false
+                                val dragSlop = viewConfiguration.touchSlop
+
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (change.changedToUp()) {
+                                        change.consume()
+                                        break
                                     }
-                                    if (idx != -1) {
-                                        draggedPointIndex = idx
-                                    } else if (isPolygonClosed && (isPointInPoly(offset, polygonPoints) || isMoveMode)) {
-                                        isDraggingPolygonBody = true
-                                    } else if (!isPolygonClosed) {
-                                        // Check if connecting back to point 0
-                                        if (polygonPoints.size >= 3 && (polygonPoints.first() - offset).getDistance() <= snapRadius) {
-                                            isPolygonClosed = true
-                                            isMoveMode = true
-                                        } else {
-                                            polygonPoints.add(offset)
-                                            // Auto-close on 4 points (standard quad selection)
-                                            if (polygonPoints.size == 4) {
-                                                isPolygonClosed = true
-                                                isMoveMode = true
+                                    val drag = change.positionChange()
+                                    dragAmountTotal += drag
+                                    if (!isDrag && dragAmountTotal.getDistance() > dragSlop) {
+                                        isDrag = true
+                                        if (idx != -1) {
+                                            draggedPointIndex = idx
+                                        } else if (isPolygonClosed && (isPointInPoly(downOffset, polygonPoints) || isMoveMode)) {
+                                            isDraggingPolygonBody = true
+                                        }
+                                    }
+                                    if (isDrag) {
+                                        change.consume()
+                                        val targetIdx = draggedPointIndex
+                                        if (targetIdx != null && targetIdx in polygonPoints.indices) {
+                                            polygonPoints[targetIdx] = polygonPoints[targetIdx] + drag
+                                        } else if (isDraggingPolygonBody) {
+                                            for (i in polygonPoints.indices) {
+                                                polygonPoints[i] = polygonPoints[i] + drag
                                             }
                                         }
                                     }
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    val idx = draggedPointIndex
-                                    if (idx != null && idx in polygonPoints.indices) {
-                                        polygonPoints[idx] = polygonPoints[idx] + dragAmount
-                                    } else if (isDraggingPolygonBody) {
-                                        for (i in polygonPoints.indices) {
-                                            polygonPoints[i] = polygonPoints[i] + dragAmount
+                                }
+
+                                if (isDrag) {
+                                    draggedPointIndex = null
+                                    isDraggingPolygonBody = false
+                                } else {
+                                    // User performed a TAP!
+                                    if (!isPolygonClosed) {
+                                        if (polygonPoints.size >= 3 && (polygonPoints.first() - downOffset).getDistance() <= snapRadius) {
+                                            isPolygonClosed = true
+                                            isMoveMode = true
+                                        } else {
+                                            val existingIdx = polygonPoints.indexOfFirst { pt ->
+                                                (pt - downOffset).getDistance() <= touchRadius
+                                            }
+                                            if (existingIdx == -1) {
+                                                polygonPoints.add(downOffset)
+                                                if (polygonPoints.size == 4) {
+                                                    isPolygonClosed = true
+                                                    isMoveMode = true
+                                                }
+                                            }
                                         }
                                     }
-                                },
-                                onDragEnd = {
-                                    draggedPointIndex = null
-                                    isDraggingPolygonBody = false
-                                },
-                                onDragCancel = {
-                                    draggedPointIndex = null
-                                    isDraggingPolygonBody = false
                                 }
-                            )
+                            }
                         } else {
                             var dragHandle: String? = null
                             val touchRadius = 50.dp.toPx()

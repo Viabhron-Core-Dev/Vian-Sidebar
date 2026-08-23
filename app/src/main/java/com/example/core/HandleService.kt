@@ -263,6 +263,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         super.onTrimMemory(level)
         AppLogger.d("HandleService", "onTrimMemory level: $level")
         FloatingWindowManager.onTrimMemory(level)
+        com.example.service.SidebarService.instance?.onTrimMemory(level)
     }
 
     override fun onDestroy() {

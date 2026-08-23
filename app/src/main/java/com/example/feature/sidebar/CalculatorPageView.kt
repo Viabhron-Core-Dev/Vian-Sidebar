@@ -21,7 +21,10 @@ import java.text.DecimalFormat
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class CalculatorPageView(context: Context) : FrameLayout(context), SidebarPageControllable {
+class CalculatorPageView(
+    context: Context,
+    private val onHeightChanged: ((Int) -> Unit)? = null
+) : FrameLayout(context), SidebarPageControllable {
 
     private var expression = ""
     private var cursorIndex = 0
@@ -57,6 +60,7 @@ class CalculatorPageView(context: Context) : FrameLayout(context), SidebarPageCo
                 layoutExtendedDrawer.visibility = View.VISIBLE
                 ivDrawerArrow.rotation = 0f
             }
+            notifyHeight()
         }
 
         // Extended drawer buttons
@@ -79,6 +83,17 @@ class CalculatorPageView(context: Context) : FrameLayout(context), SidebarPageCo
             }
         }
         updateUI()
+        notifyHeight()
+    }
+
+    private fun notifyHeight() {
+        post {
+            measure(
+                MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (320 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            )
+            onHeightChanged?.invoke(measuredHeight)
+        }
     }
 
     private fun moveCursor(offset: Int) {

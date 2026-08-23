@@ -282,6 +282,7 @@ fun HandleItem(
                                         "auto_scroll" -> "Action: Auto Scroll"
                                         "barcode_scanner" -> "Action: Secure Camera Scanner"
                                         "qr_scan" -> "Action: Secure Screen Scanner"
+                                        "redact_screenshot" -> "Action: Redact Screenshot"
                                         else -> "Action: " + act.replace("_", " ").replaceFirstChar { it.uppercase() }
                                     }
                                 }
@@ -430,6 +431,7 @@ fun HandleItem(
                         "action_auto_scroll" to "Auto Scroll",
                         "action_barcode_scanner" to "Secure Camera Scanner",
                         "action_qr_scan" to "Secure Screen Scanner",
+                        "action_redact_screenshot" to "Redact Screenshot",
                         "toggle_reader" to "Toggle Floating Reader",
                         "open_element:page_window:calculator" to "Calculator (Floating)",
                         "open_element:page_window:compass" to "Compass (Floating)",
