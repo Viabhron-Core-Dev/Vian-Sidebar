@@ -103,6 +103,15 @@ class AppTrackerPageView(
         loadData()
     }
 
+    override fun onPageSelected() {
+        val perm = AppTrackerHelper.checkUsageStatsPermission(context)
+        if (perm != hasUsageStatsPermission) {
+            hasUsageStatsPermission = perm
+            llPermissionBanner.visibility = if (hasUsageStatsPermission) View.GONE else View.VISIBLE
+        }
+        loadData()
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         val perm = AppTrackerHelper.checkUsageStatsPermission(context)

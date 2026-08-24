@@ -53,12 +53,18 @@ class ResourcesTrackerPageView(
         adapter = MiniAppsAdapter()
         rvMiniApps.adapter = adapter
 
+        notifyHeight()
+    }
+
+    private fun notifyHeight() {
         post {
             measure(
                 MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (320 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
             )
-            onHeightChanged?.invoke(measuredHeight)
+            if (measuredHeight > 0) {
+                onHeightChanged?.invoke(measuredHeight)
+            }
         }
     }
 
@@ -66,6 +72,7 @@ class ResourcesTrackerPageView(
     private var appsJob: Job? = null
 
     override fun onPageSelected() {
+        notifyHeight()
         if (isTracking) return
         isTracking = true
         Choreographer.getInstance().postFrameCallback(this)
@@ -80,6 +87,7 @@ class ResourcesTrackerPageView(
         appsJob = scope.launch(Dispatchers.Main) {
             ActiveAppTracker.activeApps.collect { apps ->
                 adapter.submitList(apps)
+                notifyHeight()
             }
         }
     }

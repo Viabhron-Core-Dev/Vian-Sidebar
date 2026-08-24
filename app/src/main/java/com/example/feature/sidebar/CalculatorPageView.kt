@@ -92,8 +92,14 @@ class CalculatorPageView(
                 MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (320 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
             )
-            onHeightChanged?.invoke(measuredHeight)
+            if (measuredHeight > 0) {
+                onHeightChanged?.invoke(measuredHeight)
+            }
         }
+    }
+
+    override fun onPageSelected() {
+        notifyHeight()
     }
 
     private fun moveCursor(offset: Int) {

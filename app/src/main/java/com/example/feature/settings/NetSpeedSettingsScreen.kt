@@ -40,6 +40,14 @@ import androidx.core.content.ContextCompat
 import android.Manifest
 import android.os.Build
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.graphics.Color
+import com.example.core.DynamicSpeedIconGenerator
+import java.util.Locale
+
 data class AppUsageInfo(
     val packageName: String,
     val appName: String,
@@ -58,6 +66,76 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     }
     var speedUnits by remember { mutableStateOf(prefs.getString("speed_units", "Auto") ?: "Auto") }
     var dataUnits by remember { mutableStateOf(prefs.getString("data_units", "Auto") ?: "Auto") }
+
+    // Dynamic Icon Parameters
+    var iconFont by remember { mutableStateOf(prefs.getString("speed_icon_font", "sans-serif-condensed") ?: "sans-serif-condensed") }
+    var isFakeBold by remember { mutableStateOf(prefs.getBoolean("speed_icon_bold", true)) }
+    var numScale by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_num_scale", 1.0f)) }
+    var unitScale by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_unit_scale", 1.0f)) }
+    var numYOffset by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_num_y_offset", 0f)) }
+    var unitYOffset by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_unit_y_offset", 0f)) }
+    var bgShape by remember { mutableStateOf(prefs.getString("speed_icon_bg_shape", "None") ?: "None") }
+    var bgRadius by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_bg_radius", 4f)) }
+    var bgAlpha by remember { mutableIntStateOf(prefs.getInt("speed_icon_bg_alpha", 0)) }
+    var layoutMode by remember { mutableStateOf(prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked") }
+
+    val currentIconConfig = remember(iconFont, isFakeBold, numScale, unitScale, numYOffset, unitYOffset, bgShape, bgRadius, bgAlpha, layoutMode) {
+        DynamicSpeedIconGenerator.IconConfig(
+            font = iconFont,
+            isFakeBold = isFakeBold,
+            numScale = numScale,
+            unitScale = unitScale,
+            numYOffsetDp = numYOffset,
+            unitYOffsetDp = unitYOffset,
+            bgShape = bgShape,
+            bgRadiusDp = bgRadius,
+            bgAlpha = bgAlpha,
+            layoutMode = layoutMode
+        )
+    }
+
+    val saveIconConfig = {
+        prefs.edit()
+            .putString("speed_icon_font", iconFont)
+            .putBoolean("speed_icon_bold", isFakeBold)
+            .putFloat("speed_icon_num_scale", numScale)
+            .putFloat("speed_icon_unit_scale", unitScale)
+            .putFloat("speed_icon_num_y_offset", numYOffset)
+            .putFloat("speed_icon_unit_y_offset", unitYOffset)
+            .putString("speed_icon_bg_shape", bgShape)
+            .putFloat("speed_icon_bg_radius", bgRadius)
+            .putInt("speed_icon_bg_alpha", bgAlpha)
+            .putString("speed_icon_layout", layoutMode)
+            .apply()
+        DynamicSpeedIconGenerator.updateActiveConfig(currentIconConfig)
+    }
+
+    val resetToDefaults = {
+        iconFont = "sans-serif-condensed"
+        isFakeBold = true
+        numScale = 1.0f
+        unitScale = 1.0f
+        numYOffset = 0f
+        unitYOffset = 0f
+        bgShape = "None"
+        bgRadius = 4f
+        bgAlpha = 0
+        layoutMode = "Stacked"
+        
+        prefs.edit()
+            .putString("speed_icon_font", "sans-serif-condensed")
+            .putBoolean("speed_icon_bold", true)
+            .putFloat("speed_icon_num_scale", 1.0f)
+            .putFloat("speed_icon_unit_scale", 1.0f)
+            .putFloat("speed_icon_num_y_offset", 0f)
+            .putFloat("speed_icon_unit_y_offset", 0f)
+            .putString("speed_icon_bg_shape", "None")
+            .putFloat("speed_icon_bg_radius", 4f)
+            .putInt("speed_icon_bg_alpha", 0)
+            .putString("speed_icon_layout", "Stacked")
+            .apply()
+        DynamicSpeedIconGenerator.updateActiveConfig(DynamicSpeedIconGenerator.IconConfig())
+    }
 
     val networkStatsManager = remember { context.getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager }
     val packageManager = context.packageManager
@@ -100,12 +178,18 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
+            },
+            actions = {
+                IconButton(onClick = resetToDefaults) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Reset Defaults")
+                }
             }
         )
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
                 ListItem(
                     headlineContent = { Text("Enable Internet Speed Monitor") },
+                    supportingContent = { Text("Displays real-time upload/download speeds in the status bar") },
                     trailingContent = {
                         Switch(
                             checked = speedIndicatorEnabled,
@@ -159,7 +243,302 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                 )
                 Divider()
 
+                // Dynamic Icon Customization Header & Live Preview Card
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "Dynamic Status Bar Icon Appearance",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+
+                // Live Preview Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Live Status Bar Preview",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Preview box simulating the dark status bar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF1E2124), RoundedCornerShape(12.dp))
+                                .padding(vertical = 14.dp, horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Sample 1: Idle (0 KB/s)
+                            val bmp0 = remember(currentIconConfig, speedUnits) {
+                                DynamicSpeedIconGenerator.generateStatusBarBitmap(context, 0, speedUnits, currentIconConfig)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    bitmap = bmp0.asImageBitmap(),
+                                    contentDescription = "0 KB/s preview",
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Idle", style = MaterialTheme.typography.labelSmall, color = Color(0xFFAAAAAA))
+                            }
+
+                            // Sample 2: Active KB/s (450 KB/s)
+                            val bmpKb = remember(currentIconConfig, speedUnits) {
+                                DynamicSpeedIconGenerator.generateStatusBarBitmap(context, 450 * 1024L, speedUnits, currentIconConfig)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    bitmap = bmpKb.asImageBitmap(),
+                                    contentDescription = "450 KB/s preview",
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Normal", style = MaterialTheme.typography.labelSmall, color = Color(0xFFAAAAAA))
+                            }
+
+                            // Sample 3: High speed MB/s (14.8 MB/s)
+                            val bmpMb = remember(currentIconConfig, speedUnits) {
+                                DynamicSpeedIconGenerator.generateStatusBarBitmap(context, (14.8 * 1024 * 1024).toLong(), speedUnits, currentIconConfig)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    bitmap = bmpMb.asImageBitmap(),
+                                    contentDescription = "14.8 MB/s preview",
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Fast", style = MaterialTheme.typography.labelSmall, color = Color(0xFFAAAAAA))
+                            }
+                        }
+                    }
+                }
+
+                // Controls & Sliders
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    // Layout Mode
+                    Text("Display Layout", style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("Stacked" to "Stacked (2-Line)", "Compact" to "Compact (1-Line)", "NumberOnly" to "Number Only").forEach { (mode, label) ->
+                            FilterChip(
+                                selected = layoutMode == mode,
+                                onClick = {
+                                    layoutMode = mode
+                                    saveIconConfig()
+                                },
+                                label = { Text(label, style = MaterialTheme.typography.bodySmall) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Font Family
+                    Text("Font Style", style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "sans-serif-condensed" to "Condensed",
+                            "sans-serif" to "Default",
+                            "sans-serif-medium" to "Medium",
+                            "sans-serif-black" to "Black",
+                            "monospace" to "Mono",
+                            "serif" to "Serif"
+                        ).forEach { (fontKey, label) ->
+                            FilterChip(
+                                selected = iconFont == fontKey,
+                                onClick = {
+                                    iconFont = fontKey
+                                    saveIconConfig()
+                                },
+                                label = { Text(label, style = MaterialTheme.typography.bodySmall) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Boldness Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Bold Text Stroke", style = MaterialTheme.typography.titleSmall)
+                            Text("Enhance glyph thickness and contrast", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = isFakeBold,
+                            onCheckedChange = {
+                                isFakeBold = it
+                                saveIconConfig()
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Slider: Number Size Scale
+                    Column {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Number Text Size", style = MaterialTheme.typography.titleSmall)
+                            Text(String.format(Locale.US, "%.2fx", numScale), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Slider(
+                            value = numScale,
+                            onValueChange = {
+                                numScale = it
+                                saveIconConfig()
+                            },
+                            valueRange = 0.6f..1.4f,
+                            steps = 15
+                        )
+                    }
+
+                    // Slider: Unit Size Scale (only if not NumberOnly)
+                    if (layoutMode != "NumberOnly") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Unit Text Size", style = MaterialTheme.typography.titleSmall)
+                                Text(String.format(Locale.US, "%.2fx", unitScale), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Slider(
+                                value = unitScale,
+                                onValueChange = {
+                                    unitScale = it
+                                    saveIconConfig()
+                                },
+                                valueRange = 0.5f..1.5f,
+                                steps = 19
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Slider: Number Vertical Offset (Y)
+                    Column {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Number Vertical Offset", style = MaterialTheme.typography.titleSmall)
+                            Text("${numYOffset.toInt()} dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Slider(
+                            value = numYOffset,
+                            onValueChange = {
+                                numYOffset = it
+                                saveIconConfig()
+                            },
+                            valueRange = -6f..6f,
+                            steps = 12
+                        )
+                    }
+
+                    // Slider: Unit Vertical Offset (Y) (only if Stacked)
+                    if (layoutMode == "Stacked") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Unit Vertical Offset", style = MaterialTheme.typography.titleSmall)
+                                Text("${unitYOffset.toInt()} dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Slider(
+                                value = unitYOffset,
+                                onValueChange = {
+                                    unitYOffset = it
+                                    saveIconConfig()
+                                },
+                                valueRange = -6f..6f,
+                                steps = 12
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Background Shape
+                    Text("Background Shape", style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("None", "Rounded", "Pill", "Square").forEach { shape ->
+                            FilterChip(
+                                selected = bgShape == shape,
+                                onClick = {
+                                    bgShape = shape
+                                    if (shape != "None" && bgAlpha == 0) {
+                                        bgAlpha = 140 // Set default visible alpha
+                                    }
+                                    saveIconConfig()
+                                },
+                                label = { Text(shape, style = MaterialTheme.typography.bodySmall) }
+                            )
+                        }
+                    }
+
+                    // Background Radius & Opacity (if shape selected)
+                    if (bgShape != "None") {
+                        if (bgShape == "Rounded") {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Column {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Corner Radius", style = MaterialTheme.typography.titleSmall)
+                                    Text("${bgRadius.toInt()} dp", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                                }
+                                Slider(
+                                    value = bgRadius,
+                                    onValueChange = {
+                                        bgRadius = it
+                                        saveIconConfig()
+                                    },
+                                    valueRange = 0f..12f,
+                                    steps = 12
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Background Opacity", style = MaterialTheme.typography.titleSmall)
+                                Text("${((bgAlpha / 255f) * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Slider(
+                                value = bgAlpha.toFloat(),
+                                onValueChange = {
+                                    bgAlpha = it.toInt()
+                                    saveIconConfig()
+                                },
+                                valueRange = 0f..255f,
+                                steps = 25
+                            )
+                        }
+                    }
+                }
+
+                Divider(modifier = Modifier.padding(vertical = 12.dp))
+
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
                     text = "App Data Usage",

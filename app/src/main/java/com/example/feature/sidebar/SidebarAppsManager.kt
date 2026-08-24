@@ -263,7 +263,13 @@ class SidebarAppsManager(
 
     private var hasLoadedOnce = false
 
-    val iconCache = LruCache<String, Bitmap>(100) // 100 items
+    val iconCache = object : LruCache<String, Bitmap>(
+        (Runtime.getRuntime().maxMemory() / 1024 / 16).toInt().coerceIn(2048, 8192)
+    ) {
+        override fun sizeOf(key: String, value: Bitmap): Int {
+            return (value.byteCount / 1024).coerceAtLeast(1)
+        }
+    }
 
     private val updateListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
 
@@ -973,15 +979,18 @@ class SidebarAppsManager(
     }
 
     fun getBitmapFromDrawable(drawable: Drawable): Bitmap? {
-        if (drawable is BitmapDrawable) {
-            return drawable.bitmap
+        val targetSize = (48 * context.resources.displayMetrics.density).toInt().coerceIn(64, 144)
+        if (drawable is BitmapDrawable && drawable.bitmap != null) {
+            val bmp = drawable.bitmap
+            if (bmp.width <= targetSize && bmp.height <= targetSize) {
+                return bmp
+            }
+            return Bitmap.createScaledBitmap(bmp, targetSize, targetSize, true)
         }
         try {
-            val bitmap = Bitmap.createBitmap(
-                drawable.intrinsicWidth.coerceAtLeast(1),
-                drawable.intrinsicHeight.coerceAtLeast(1),
-                Bitmap.Config.ARGB_8888
-            )
+            val w = if (drawable.intrinsicWidth > 0) minOf(drawable.intrinsicWidth, targetSize) else targetSize
+            val h = if (drawable.intrinsicHeight > 0) minOf(drawable.intrinsicHeight, targetSize) else targetSize
+            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             drawable.setBounds(0, 0, canvas.width, canvas.height)
             drawable.draw(canvas)

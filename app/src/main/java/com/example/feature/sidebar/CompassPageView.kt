@@ -34,12 +34,18 @@ class CompassPageView(
         tvAzimuth = findViewById(R.id.tv_azimuth)
         tvDirection = findViewById(R.id.tv_direction)
 
+        notifyHeight()
+    }
+
+    private fun notifyHeight() {
         post {
             measure(
                 MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (320 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
             )
-            onHeightChanged?.invoke(measuredHeight)
+            if (measuredHeight > 0) {
+                onHeightChanged?.invoke(measuredHeight)
+            }
         }
     }
 
@@ -51,6 +57,7 @@ class CompassPageView(
     override fun onPageSelected() {
         accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
         magnetometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+        notifyHeight()
     }
     
     override fun onPageUnselected() {

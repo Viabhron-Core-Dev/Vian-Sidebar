@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.utils.PageManager
@@ -278,12 +279,10 @@ fun SidebarSettingsScreen(
                 )
                 
                 Divider()
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "Pages Management",
@@ -293,7 +292,7 @@ fun SidebarSettingsScreen(
                     Text(
                         text = "First page is default for gesture",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -370,8 +369,16 @@ fun SidebarSettingsScreen(
                             }
                         },
                         headlineContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(page.title)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = page.title,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
                                 if (index == 0) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
@@ -382,7 +389,9 @@ fun SidebarSettingsScreen(
                                             text = "Default",
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            softWrap = false,
+                                            maxLines = 1
                                         )
                                     }
                                 }
@@ -391,33 +400,44 @@ fun SidebarSettingsScreen(
                         supportingContent = { Text(page.type.replace("_", " ").replaceFirstChar { it.uppercase() }) },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = {
-                                    if (index > 0) {
-                                        val newPages = pages.toMutableList()
-                                        val temp = newPages[index]
-                                        newPages[index] = newPages[index - 1]
-                                        newPages[index - 1] = temp
-                                        savePages(newPages)
-                                    }
-                                }, enabled = index > 0) {
-                                    Icon(Icons.Default.ArrowUpward, "Move Up")
+                                IconButton(
+                                    onClick = {
+                                        if (index > 0) {
+                                            val newPages = pages.toMutableList()
+                                            val temp = newPages[index]
+                                            newPages[index] = newPages[index - 1]
+                                            newPages[index - 1] = temp
+                                            savePages(newPages)
+                                        }
+                                    },
+                                    enabled = index > 0,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.ArrowUpward, "Move Up", modifier = Modifier.size(20.dp))
                                 }
-                                IconButton(onClick = {
-                                    if (index < pages.size - 1) {
-                                        val newPages = pages.toMutableList()
-                                        val temp = newPages[index]
-                                        newPages[index] = newPages[index + 1]
-                                        newPages[index + 1] = temp
-                                        savePages(newPages)
-                                    }
-                                }, enabled = index < pages.size - 1) {
-                                    Icon(Icons.Default.ArrowDownward, "Move Down")
+                                IconButton(
+                                    onClick = {
+                                        if (index < pages.size - 1) {
+                                            val newPages = pages.toMutableList()
+                                            val temp = newPages[index]
+                                            newPages[index] = newPages[index + 1]
+                                            newPages[index + 1] = temp
+                                            savePages(newPages)
+                                        }
+                                    },
+                                    enabled = index < pages.size - 1,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.ArrowDownward, "Move Down", modifier = Modifier.size(20.dp))
                                 }
-                                IconButton(onClick = {
-                                    selectedActionPage = page
-                                    pageActionIndex = index
-                                }) {
-                                    Icon(Icons.Default.MoreVert, "More Options")
+                                IconButton(
+                                    onClick = {
+                                        selectedActionPage = page
+                                        pageActionIndex = index
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.MoreVert, "More Options", modifier = Modifier.size(20.dp))
                                 }
                             }
                         }

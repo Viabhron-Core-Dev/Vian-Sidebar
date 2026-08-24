@@ -114,6 +114,10 @@ class NotificationPageView(
         loadNotifications()
     }
 
+    override fun onPageSelected() {
+        loadNotifications()
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         try {
@@ -132,7 +136,17 @@ class NotificationPageView(
         if (!checkNotificationPermission()) {
             llPermissionBanner.visibility = View.VISIBLE
             tvEmpty.visibility = View.GONE
+            btnClearAll.visibility = View.GONE
             adapter.submitList(emptyList())
+            post {
+                measure(
+                    MeasureSpec.makeMeasureSpec(width.takeIf { it > 0 } ?: (330 * resources.displayMetrics.density).toInt(), MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+                )
+                val density = resources.displayMetrics.density
+                val targetH = if (measuredHeight > 0) measuredHeight else (160 * density).toInt()
+                onHeightChanged?.invoke(targetH)
+            }
             return
         }
 

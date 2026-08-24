@@ -358,6 +358,10 @@ class SidebarView(
         }
         
         viewPager.adapter = object : RecyclerView.Adapter<SidebarPageViewHolder>() {
+            override fun getItemViewType(position: Int): Int {
+                if (pageConfigs.isEmpty()) return 0
+                return if (isLooping) position % pageConfigs.size else position
+            }
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SidebarPageViewHolder {
                 val frame = FrameLayout(parent.context).apply {
                     layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -479,12 +483,32 @@ class SidebarView(
                 }
             }
         })
+
+        viewPager.post {
+            if (pageConfigs.isNotEmpty()) {
+                val actualPos = if (isLooping) startingIndex % pageConfigs.size else startingIndex
+                updateDots(actualPos)
+                updateWindowForPage(actualPos)
+                val rcv = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
+                rcv?.let {
+                    for (i in 0 until it.childCount) {
+                        val child = it.getChildAt(i)
+                        val holder = it.getChildViewHolder(child) as? SidebarPageViewHolder
+                        if (holder?.bindingAdapterPosition == startingIndex) {
+                            holder.ensureLoaded()
+                            (holder.pageView as? SidebarPageControllable)?.onPageSelected()
+                        }
+                    }
+                }
+            }
+        }
     }
     
     fun updateWindowForPage(actualPosition: Int) {
         if (pageConfigs.isEmpty()) return
         val page = pageConfigs.getOrNull(actualPosition) ?: return
         val density = context.resources.displayMetrics.density
+        val headerHeight = (22 * density).toInt()
 
         val targetWidthDp = if (page.useCustomSettings && page.width > 0) {
             page.width
@@ -503,33 +527,28 @@ class SidebarView(
         val isPageWrap = if (page.useCustomSettings) {
             page.wrapContentHeight
         } else {
-            when (page.type) {
-                "calculator", "compass", "resources_tracker", "media_player", "app_tracker", "scheduler", "notifications", "notification" -> true
-                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
-                else -> true
-            }
+            true
         }
 
-        val targetHeightPx = if (isPageWrap) {
-            WindowManager.LayoutParams.WRAP_CONTENT
+        val targetContentHeightPx = if (page.useCustomSettings && page.height > 0) {
+            (page.height * density).toInt()
         } else {
-            if (page.useCustomSettings && page.height > 0) {
-                (page.height * density).toInt()
-            } else if (page.type == "app_tracker") {
-                WindowManager.LayoutParams.MATCH_PARENT
-            } else {
-                val targetHeightDp = when (page.type) {
-                    "calculator" -> 460
-                    "compass" -> 480
-                    "scheduler" -> 520
-                    "notifications", "notification" -> 520
-                    "resources_tracker" -> 460
-                    "media_player" -> 360
-                    else -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 360))
-                }
-                (targetHeightDp * density).toInt()
+            val targetHeightDp = when (page.type) {
+                "calculator" -> 420
+                "compass" -> 310
+                "resources_tracker" -> 280
+                "media_player" -> 340
+                "scheduler" -> 360
+                "notifications", "notification" -> 220
+                "app_tracker" -> 220
+                "widgets_grid", "widget" -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 280))
+                "hybrid_grid", "default_hybrid" -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 280))
+                else -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 280))
             }
+            (targetHeightDp * density).toInt()
         }
+
+        val targetHeightPx = headerHeight + targetContentHeightPx
 
         val legacyEdge = if (prefs.getBoolean("sidebar_position_left", false)) "left" else "right"
         val isRight = prefs.getString("handle_${physicalHandleId}_edge", if (physicalHandleId == "sidebar") legacyEdge else "right") == "right"
@@ -558,16 +577,9 @@ class SidebarView(
         }
 
         val vpParams = viewPager.layoutParams
-        if (isPageWrap) {
-            if (vpParams.height != FrameLayout.LayoutParams.WRAP_CONTENT) {
-                vpParams.height = FrameLayout.LayoutParams.WRAP_CONTENT
-                viewPager.layoutParams = vpParams
-            }
-        } else {
-            if (vpParams.height != FrameLayout.LayoutParams.MATCH_PARENT) {
-                vpParams.height = FrameLayout.LayoutParams.MATCH_PARENT
-                viewPager.layoutParams = vpParams
-            }
+        if (vpParams.height != targetContentHeightPx) {
+            vpParams.height = targetContentHeightPx
+            viewPager.layoutParams = vpParams
         }
 
         if (changed && isAttached) {
@@ -585,21 +597,32 @@ class SidebarView(
         val isPageWrap = if (page?.useCustomSettings == true) {
             page.wrapContentHeight
         } else {
-            when (page?.type) {
-                "calculator", "compass", "resources_tracker", "media_player", "app_tracker", "scheduler", "notifications", "notification" -> true
-                "apps", "widgets_grid", "hybrid_grid", "default_hybrid", "widget" -> true
-                else -> true
-            }
+            true
         }
-        if (isPageWrap && viewPager.currentItem == bindingAdapterPosition) {
-            val params = viewPager.layoutParams
-            if (params.height != newHeight) {
-                params.height = newHeight
-                viewPager.layoutParams = params
-                if (isAttached) {
-                    try {
-                        windowManager.updateViewLayout(this@SidebarView, layoutParams)
-                    } catch (e: Exception) {}
+        if (isPageWrap && viewPager.currentItem == bindingAdapterPosition && newHeight > 0) {
+            val density = context.resources.displayMetrics.density
+            val headerHeight = (22 * density).toInt()
+            val screenHeight = context.resources.displayMetrics.heightPixels
+            val maxAllowedHeight = (screenHeight * 0.85f).toInt() - headerHeight
+            val boundedContentHeight = newHeight.coerceIn((100 * density).toInt(), maxAllowedHeight)
+            val totalWindowHeight = boundedContentHeight + headerHeight
+
+            var changed = false
+            val vpParams = viewPager.layoutParams
+            if (vpParams.height != boundedContentHeight) {
+                vpParams.height = boundedContentHeight
+                viewPager.layoutParams = vpParams
+                changed = true
+            }
+            if (layoutParams.height != totalWindowHeight) {
+                layoutParams.height = totalWindowHeight
+                changed = true
+            }
+            if (changed && isAttached) {
+                try {
+                    windowManager.updateViewLayout(this@SidebarView, layoutParams)
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -709,6 +732,12 @@ class SidebarView(
         private var currentConfig: SidebarPage? = null
 
         fun bind(config: SidebarPage, loadImmediately: Boolean) {
+            val configChanged = (currentConfig?.id != config.id) || (currentConfig?.type != config.type)
+            if (configChanged) {
+                (pageView as? SidebarPageControllable)?.onPageUnselected()
+                pageView = null
+                frame.removeAllViews()
+            }
             currentConfig = config
             if (loadImmediately) {
                 ensureLoaded()

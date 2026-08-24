@@ -50,6 +50,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         prefs.registerOnSharedPreferenceChangeListener(this)
+        DynamicSpeedIconGenerator.loadConfig(prefs)
         
         dailyMobileBytes = prefs.getLong("daily_mobile_rx", 0) + prefs.getLong("daily_mobile_tx", 0)
         dailyWifiBytes = prefs.getLong("daily_wifi_rx", 0) + prefs.getLong("daily_wifi_tx", 0)
@@ -178,7 +179,9 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setShowWhen(false)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setSortKey("00_netspeed_monitor")
+            .setPriority(if (isNetSpeedActive) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_LOW)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             
         if (isNetSpeedActive) {
             val speedUnits = prefs.getString("speed_units", "Auto")
@@ -231,6 +234,9 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             setupNetSpeed()
         } else if (key == "call_recorder_enabled" || key == "call_recorder_manual_enabled") {
             setupCallRecorder()
+        } else if (key != null && (key.startsWith("speed_icon_") || key == "speed_units")) {
+            DynamicSpeedIconGenerator.loadConfig(prefs)
+            updateForegroundNotification()
         }
         
         if (key != null && (key.startsWith("handle_") || key == "handles_list")) {
