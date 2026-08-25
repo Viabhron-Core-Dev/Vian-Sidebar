@@ -64,6 +64,9 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     var speedIndicatorEnabled by remember { 
         mutableStateOf(prefs.getBoolean("netspeed_enabled", prefs.getBoolean("speed_indicator_enabled", true))) 
     }
+    var hideWhenDisconnected by remember {
+        mutableStateOf(prefs.getBoolean("hide_when_disconnected", true))
+    }
     var speedUnits by remember { mutableStateOf(prefs.getString("speed_units", "Auto") ?: "Auto") }
     var dataUnits by remember { mutableStateOf(prefs.getString("data_units", "Auto") ?: "Auto") }
 
@@ -79,9 +82,9 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     var bgAlpha by remember { mutableIntStateOf(prefs.getInt("speed_icon_bg_alpha", 0)) }
     var layoutMode by remember { mutableStateOf(prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked") }
     // Blurriness reduction & sharpness parameters
-    var resScale by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_res_scale", 2.0f)) }
-    var aaMode by remember { mutableStateOf(prefs.getString("speed_icon_aa_mode", "Smooth") ?: "Smooth") }
-    var letterSpacing by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_letter_spacing", 0.0f)) }
+    var resScale by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_res_scale", 1.0f)) }
+    var aaMode by remember { mutableStateOf(prefs.getString("speed_icon_aa_mode", "Crisp") ?: "Crisp") }
+    var letterSpacing by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_letter_spacing", -0.02f)) }
     var strokeWidth by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_stroke_width", 0.0f)) }
 
     val currentIconConfig = remember(
@@ -126,6 +129,18 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
         DynamicSpeedIconGenerator.updateActiveConfig(currentIconConfig)
     }
 
+    val applyUltraSharpPreset = {
+        iconFont = "sans-serif-condensed"
+        isFakeBold = true
+        numScale = 1.05f
+        unitScale = 0.95f
+        resScale = 1.0f
+        aaMode = "Crisp"
+        letterSpacing = -0.02f
+        strokeWidth = 0.0f
+        saveIconConfig()
+    }
+
     val resetToDefaults = {
         iconFont = "sans-serif-condensed"
         isFakeBold = true
@@ -137,9 +152,9 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
         bgRadius = 4f
         bgAlpha = 0
         layoutMode = "Stacked"
-        resScale = 2.0f
-        aaMode = "Smooth"
-        letterSpacing = 0.0f
+        resScale = 1.0f
+        aaMode = "Crisp"
+        letterSpacing = -0.02f
         strokeWidth = 0.0f
         
         prefs.edit()
@@ -153,9 +168,9 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
             .putFloat("speed_icon_bg_radius", 4f)
             .putInt("speed_icon_bg_alpha", 0)
             .putString("speed_icon_layout", "Stacked")
-            .putFloat("speed_icon_res_scale", 2.0f)
-            .putString("speed_icon_aa_mode", "Smooth")
-            .putFloat("speed_icon_letter_spacing", 0.0f)
+            .putFloat("speed_icon_res_scale", 1.0f)
+            .putString("speed_icon_aa_mode", "Crisp")
+            .putFloat("speed_icon_letter_spacing", -0.02f)
             .putFloat("speed_icon_stroke_width", 0.0f)
             .apply()
         DynamicSpeedIconGenerator.updateActiveConfig(DynamicSpeedIconGenerator.IconConfig())
@@ -233,6 +248,21 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                     }
                 )
                 Divider()
+
+                ListItem(
+                    headlineContent = { Text("Hide when Disconnected") },
+                    supportingContent = { Text("Pauses polling and hides the status bar icon when offline (0% CPU/battery)") },
+                    trailingContent = {
+                        Switch(
+                            checked = hideWhenDisconnected,
+                            onCheckedChange = { enabled ->
+                                hideWhenDisconnected = enabled
+                                prefs.edit().putBoolean("hide_when_disconnected", enabled).apply()
+                            }
+                        )
+                    }
+                )
+                Divider()
                 
                 // Speed Units
                 ListItem(
@@ -276,6 +306,18 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SuggestionChip(
+                        onClick = applyUltraSharpPreset,
+                        label = { Text("⚡ Battery-Indicator Style (Ultra Sharp)", style = MaterialTheme.typography.labelSmall) }
+                    )
+                }
 
                 // Live Preview Card
                 Card(

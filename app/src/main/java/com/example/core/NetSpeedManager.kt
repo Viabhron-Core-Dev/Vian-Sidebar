@@ -2,6 +2,10 @@ package com.example.core
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.TrafficStats
 import com.example.util.AppLogger
 import kotlinx.coroutines.*
@@ -11,7 +15,8 @@ class NetSpeedManager(
     private val context: Context,
     private val prefs: SharedPreferences,
     private val onSpeedUpdate: (down: Long, up: Long) -> Unit,
-    private val onDailyDataUpdate: (mobileBytes: Long, wifiBytes: Long) -> Unit
+    private val onDailyDataUpdate: (mobileBytes: Long, wifiBytes: Long) -> Unit,
+    private val onConnectivityChanged: ((isConnected: Boolean) -> Unit)? = null
 ) {
     private var job: Job? = null
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -23,8 +28,105 @@ class NetSpeedManager(
     private var lastTime = System.currentTimeMillis()
     
     private var isRunning = false
+    private var isNetworkConnected = true
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+
+    init {
+        setupNetworkCallback()
+    }
+
+    private fun checkInitialConnection(): Boolean {
+        return try {
+            val activeNetwork = connectivityManager?.activeNetwork ?: return false
+            val caps = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        } catch (e: Exception) {
+            true
+        }
+    }
+
+    private fun setupNetworkCallback() {
+        if (connectivityManager == null) return
+        isNetworkConnected = checkInitialConnection()
+        
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                isNetworkConnected = true
+                AppLogger.d("NetSpeedManager", "Network available")
+                CoroutineScope(Dispatchers.Main).launch {
+                    onConnectivityChanged?.invoke(true)
+                    val hideWhenDisconnected = prefs.getBoolean("hide_when_disconnected", true)
+                    val isEnabled = prefs.getBoolean("netspeed_enabled", true) || prefs.getBoolean("speed_indicator_enabled", true)
+                    if (hideWhenDisconnected && isEnabled && !isRunning) {
+                        start()
+                    }
+                }
+            }
+
+            override fun onLost(network: Network) {
+                isNetworkConnected = checkInitialConnection()
+                AppLogger.d("NetSpeedManager", "Network lost. isConnected=$isNetworkConnected")
+                if (!isNetworkConnected) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        onConnectivityChanged?.invoke(false)
+                        val hideWhenDisconnected = prefs.getBoolean("hide_when_disconnected", true)
+                        if (hideWhenDisconnected) {
+                            pauseForDisconnect()
+                        }
+                    }
+                }
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                if (hasInternet != isNetworkConnected) {
+                    isNetworkConnected = hasInternet
+                    CoroutineScope(Dispatchers.Main).launch {
+                        onConnectivityChanged?.invoke(isNetworkConnected)
+                        val hideWhenDisconnected = prefs.getBoolean("hide_when_disconnected", true)
+                        val isEnabled = prefs.getBoolean("netspeed_enabled", true) || prefs.getBoolean("speed_indicator_enabled", true)
+                        if (isNetworkConnected && hideWhenDisconnected && isEnabled && !isRunning) {
+                            start()
+                        } else if (!isNetworkConnected && hideWhenDisconnected && isRunning) {
+                            pauseForDisconnect()
+                        }
+                    }
+                }
+            }
+        }
+
+        try {
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            connectivityManager.registerNetworkCallback(request, networkCallback!!)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun isConnected(): Boolean = isNetworkConnected
+
+    private fun pauseForDisconnect() {
+        if (!isRunning) return
+        isRunning = false
+        job?.cancel()
+        job = null
+        AppLogger.d("NetSpeedManager", "Paused speed polling (Disconnected - 0% CPU)")
+        CoroutineScope(Dispatchers.Main).launch {
+            onSpeedUpdate(0, 0)
+        }
+    }
 
     fun start() {
+        val hideWhenDisconnected = prefs.getBoolean("hide_when_disconnected", true)
+        if (hideWhenDisconnected && !isNetworkConnected) {
+            AppLogger.d("NetSpeedManager", "Skipping speed polling start (Disconnected)")
+            onConnectivityChanged?.invoke(false)
+            return
+        }
+
         if (isRunning) return
         isRunning = true
         AppLogger.d("NetSpeedManager", "Speed polling started")

@@ -26,10 +26,10 @@ object DynamicSpeedIconGenerator {
         val bgRadiusDp: Float = 4f,
         val bgAlpha: Int = 0, // 0 to 255
         val layoutMode: String = "Stacked", // "Stacked", "Compact", "NumberOnly"
-        // Blurriness reduction & clarity options
-        val resScale: Float = 2.0f, // Supersampling canvas multiplier (1.0x, 1.5x, 2.0x, 3.0x)
-        val aaMode: String = "Smooth", // "Smooth", "Crisp", "HighContrast"
-        val letterSpacing: Float = 0.0f, // -0.05f to 0.15f
+        // Blurriness reduction & clarity options (Battery-Indicator-Pro style)
+        val resScale: Float = 1.0f, // 1.0x exact density avoids bilinear OS resampling blur
+        val aaMode: String = "Crisp", // "Crisp" (No anti-alias, 1:1 binary pixels), "Smooth", "HighContrast"
+        val letterSpacing: Float = -0.02f, // Slight negative tracking prevents wide stem blur
         val strokeWidthDp: Float = 0f // 0 to 1.5 dp extra stroke sharpness
     )
 
@@ -57,9 +57,9 @@ object DynamicSpeedIconGenerator {
             bgRadiusDp = prefs.getFloat("speed_icon_bg_radius", 4f),
             bgAlpha = prefs.getInt("speed_icon_bg_alpha", 0),
             layoutMode = prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked",
-            resScale = prefs.getFloat("speed_icon_res_scale", 2.0f),
-            aaMode = prefs.getString("speed_icon_aa_mode", "Smooth") ?: "Smooth",
-            letterSpacing = prefs.getFloat("speed_icon_letter_spacing", 0.0f),
+            resScale = prefs.getFloat("speed_icon_res_scale", 1.0f),
+            aaMode = prefs.getString("speed_icon_aa_mode", "Crisp") ?: "Crisp",
+            letterSpacing = prefs.getFloat("speed_icon_letter_spacing", -0.02f),
             strokeWidthDp = prefs.getFloat("speed_icon_stroke_width", 0f)
         )
         activeConfig = config

@@ -83,6 +83,13 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
                     onDailyDataUpdate = { mobile, wifi ->
                         dailyMobileBytes = mobile
                         dailyWifiBytes = wifi
+                    },
+                    onConnectivityChanged = { isConnected ->
+                        if (!isConnected) {
+                            downSpeed = 0
+                            upSpeed = 0
+                        }
+                        updateForegroundNotification()
                     }
                 )
             }
@@ -147,14 +154,22 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         val totalTodayBytes = dailyMobileBytes + dailyWifiBytes
         val totalSpeed = downSpeed + upSpeed
 
-        val contentTitle = if (isNetSpeedActive) {
+        val isConnected = netSpeedManager?.isConnected() ?: true
+        val hideWhenDisconnected = prefs.getBoolean("hide_when_disconnected", true)
+        val shouldShowSpeed = isNetSpeedActive && (!hideWhenDisconnected || isConnected)
+
+        val contentTitle = if (shouldShowSpeed) {
             if (totalTodayBytes > 0) "Data: ${formatDataBytes(totalTodayBytes)}" else "Internet Speed Monitor"
+        } else if (isNetSpeedActive && !isConnected) {
+            "Internet Disconnected"
         } else {
             "Handles Active"
         }
 
-        val contentText = if (isNetSpeedActive) {
+        val contentText = if (shouldShowSpeed) {
             "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}"
+        } else if (isNetSpeedActive && !isConnected) {
+            "Data Today: ${formatDataBytes(totalTodayBytes)}"
         } else {
             "Listening for edge gestures"
         }
@@ -167,10 +182,10 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             .setOngoing(true)
             .setShowWhen(false)
             .setSortKey("00_netspeed_monitor")
-            .setPriority(if (isNetSpeedActive) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_LOW)
+            .setPriority(if (shouldShowSpeed) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_MIN)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             
-        if (isNetSpeedActive) {
+        if (shouldShowSpeed) {
             val speedUnits = prefs.getString("speed_units", "Auto")
             val bigText = "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}\nMobile: ${formatDataBytes(dailyMobileBytes)} • Wi-Fi: ${formatDataBytes(dailyWifiBytes)}"
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
