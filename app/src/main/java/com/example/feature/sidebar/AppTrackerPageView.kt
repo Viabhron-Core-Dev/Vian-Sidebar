@@ -99,8 +99,6 @@ class AppTrackerPageView(
 
         hasUsageStatsPermission = AppTrackerHelper.checkUsageStatsPermission(context)
         llPermissionBanner.visibility = if (hasUsageStatsPermission) View.GONE else View.VISIBLE
-
-        loadData()
     }
 
     override fun onPageSelected() {
@@ -110,6 +108,12 @@ class AppTrackerPageView(
             llPermissionBanner.visibility = if (hasUsageStatsPermission) View.GONE else View.VISIBLE
         }
         loadData()
+    }
+
+    override fun onPageUnselected() {
+        recentApps = emptyList()
+        cacheApps = emptyList()
+        adapter.submitList(emptyList(), true)
     }
 
     override fun onAttachedToWindow() {

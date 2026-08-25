@@ -25,6 +25,20 @@ import android.provider.ContactsContract
 
 class CallRecorderManager(private val context: Context, private val prefs: SharedPreferences) {
 
+    companion object {
+        @Volatile
+        private var instance: CallRecorderManager? = null
+
+        fun getInstance(context: Context): CallRecorderManager {
+            return instance ?: synchronized(this) {
+                instance ?: CallRecorderManager(
+                    context.applicationContext,
+                    context.applicationContext.getSharedPreferences("vian_settings", Context.MODE_PRIVATE)
+                ).also { instance = it }
+            }
+        }
+    }
+
     private val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
     private var mediaRecorder: MediaRecorder? = null
     private var isRecording = false
@@ -152,6 +166,31 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
             }
         }
         return true
+    }
+
+    fun onBroadcastEvent(stateStr: String?, phoneNumber: String?) {
+        if (phoneNumber != null) {
+            lastPhoneNumber = phoneNumber
+        }
+        val autoEnabled = prefs.getBoolean("call_recorder_enabled", false)
+        val manualEnabled = prefs.getBoolean("call_recorder_manual_enabled", false)
+        if (!autoEnabled && !manualEnabled) {
+            stopRecording()
+            hideManualButton()
+            return
+        }
+
+        when (stateStr) {
+            TelephonyManager.EXTRA_STATE_OFFHOOK -> {
+                handleCallState(TelephonyManager.CALL_STATE_OFFHOOK, phoneNumber)
+            }
+            TelephonyManager.EXTRA_STATE_IDLE -> {
+                handleCallState(TelephonyManager.CALL_STATE_IDLE, phoneNumber)
+            }
+            TelephonyManager.EXTRA_STATE_RINGING -> {
+                handleCallState(TelephonyManager.CALL_STATE_RINGING, phoneNumber)
+            }
+        }
     }
 
     private fun handleCallState(state: Int, phoneNumber: String?) {

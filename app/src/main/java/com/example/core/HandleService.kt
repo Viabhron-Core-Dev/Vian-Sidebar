@@ -25,7 +25,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
     private val triggerHandleViews = mutableListOf<TriggerHandleView>()
     private var readerHandleView: ReaderHandleView? = null
     private var netSpeedManager: NetSpeedManager? = null
-    private var callRecorderManager: CallRecorderManager? = null
     private var screenStateReceiver: BroadcastReceiver? = null
     private var downSpeed: Long = 0
     private var upSpeed: Long = 0
@@ -69,7 +68,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         reloadHandles()
         setupScreenStateReceiver()
         setupNetSpeed()
-        setupCallRecorder()
     }
 
 
@@ -94,17 +92,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             downSpeed = 0
             upSpeed = 0
             updateForegroundNotification()
-        }
-    }
-
-    private fun setupCallRecorder() {
-        if (callRecorderManager == null) {
-            callRecorderManager = CallRecorderManager(this, prefs)
-        }
-        if (prefs.getBoolean("call_recorder_enabled", false) || prefs.getBoolean("call_recorder_manual_enabled", false)) {
-            callRecorderManager?.startListening()
-        } else {
-            callRecorderManager?.stopListening()
         }
     }
 
@@ -232,8 +219,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         if (key == "netspeed_enabled" || key == "speed_indicator_enabled") {
             setupNetSpeed()
-        } else if (key == "call_recorder_enabled" || key == "call_recorder_manual_enabled") {
-            setupCallRecorder()
         } else if (key != null && (key.startsWith("speed_icon_") || key == "speed_units")) {
             DynamicSpeedIconGenerator.loadConfig(prefs)
             updateForegroundNotification()

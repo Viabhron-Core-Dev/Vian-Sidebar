@@ -25,7 +25,12 @@ object DynamicSpeedIconGenerator {
         val bgShape: String = "None", // "None", "Rounded", "Pill", "Square"
         val bgRadiusDp: Float = 4f,
         val bgAlpha: Int = 0, // 0 to 255
-        val layoutMode: String = "Stacked" // "Stacked", "Compact", "NumberOnly"
+        val layoutMode: String = "Stacked", // "Stacked", "Compact", "NumberOnly"
+        // Blurriness reduction & clarity options
+        val resScale: Float = 2.0f, // Supersampling canvas multiplier (1.0x, 1.5x, 2.0x, 3.0x)
+        val aaMode: String = "Smooth", // "Smooth", "Crisp", "HighContrast"
+        val letterSpacing: Float = 0.0f, // -0.05f to 0.15f
+        val strokeWidthDp: Float = 0f // 0 to 1.5 dp extra stroke sharpness
     )
 
     private var activeConfig = IconConfig()
@@ -38,6 +43,7 @@ object DynamicSpeedIconGenerator {
     private var cachedNumPaint: Paint? = null
     private var cachedUnitPaint: Paint? = null
     private var cachedBgPaint: Paint? = null
+    private var cachedStrokePaint: Paint? = null
 
     fun loadConfig(prefs: SharedPreferences): IconConfig {
         val config = IconConfig(
@@ -50,7 +56,11 @@ object DynamicSpeedIconGenerator {
             bgShape = prefs.getString("speed_icon_bg_shape", "None") ?: "None",
             bgRadiusDp = prefs.getFloat("speed_icon_bg_radius", 4f),
             bgAlpha = prefs.getInt("speed_icon_bg_alpha", 0),
-            layoutMode = prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked"
+            layoutMode = prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked",
+            resScale = prefs.getFloat("speed_icon_res_scale", 2.0f),
+            aaMode = prefs.getString("speed_icon_aa_mode", "Smooth") ?: "Smooth",
+            letterSpacing = prefs.getFloat("speed_icon_letter_spacing", 0.0f),
+            strokeWidthDp = prefs.getFloat("speed_icon_stroke_width", 0f)
         )
         activeConfig = config
         invalidatePaints()
@@ -67,6 +77,7 @@ object DynamicSpeedIconGenerator {
         cachedNumPaint = null
         cachedUnitPaint = null
         cachedBgPaint = null
+        cachedStrokePaint = null
     }
 
     fun formatSpeed(bytesPerSec: Long, forcedUnit: String? = null): SpeedDisplay {
@@ -134,7 +145,8 @@ object DynamicSpeedIconGenerator {
         } else {
             0
         }
-        val sizePx = if (systemSize > 0) systemSize else Math.round(24f * density).coerceAtLeast(16)
+        val baseSizePx = if (systemSize > 0) systemSize else Math.round(24f * density).coerceAtLeast(16)
+        val sizePx = Math.round(baseSizePx * config.resScale).coerceIn(16, 256)
 
         val isLive = (overrideConfig == null)
         var bitmap = if (isLive) cachedBitmap else null
@@ -157,7 +169,7 @@ object DynamicSpeedIconGenerator {
             canvas = Canvas(bitmap)
         }
 
-        renderIconToCanvas(canvas!!, sizePx, density, display, config)
+        renderIconToCanvas(canvas!!, sizePx, density * config.resScale, display, config)
 
         return bitmap
     }
@@ -195,19 +207,70 @@ object DynamicSpeedIconGenerator {
             Typeface.create(Typeface.DEFAULT, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
         }.also { if (config == activeConfig) cachedTypeface = it }
 
-        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        val paintFlags = when (config.aaMode) {
+            "Crisp" -> 0
+            "HighContrast" -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG
+            else -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.FILTER_BITMAP_FLAG
+        }
+
+        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(paintFlags).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
+            letterSpacing = config.letterSpacing
+            if (config.strokeWidthDp > 0f) {
+                style = Paint.Style.FILL_AND_STROKE
+                strokeWidth = config.strokeWidthDp * density
+            } else {
+                style = Paint.Style.FILL
+            }
         }.also { if (config == activeConfig) cachedNumPaint = it }
 
-        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        // Update dynamic mutable paint properties
+        numPaint.letterSpacing = config.letterSpacing
+        if (config.strokeWidthDp > 0f) {
+            numPaint.style = Paint.Style.FILL_AND_STROKE
+            numPaint.strokeWidth = config.strokeWidthDp * density
+        } else {
+            numPaint.style = Paint.Style.FILL
+        }
+
+        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(paintFlags).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
+            letterSpacing = config.letterSpacing
+            if (config.strokeWidthDp > 0f) {
+                style = Paint.Style.FILL_AND_STROKE
+                strokeWidth = (config.strokeWidthDp * 0.75f) * density
+            } else {
+                style = Paint.Style.FILL
+            }
         }.also { if (config == activeConfig) cachedUnitPaint = it }
+
+        unitPaint.letterSpacing = config.letterSpacing
+        if (config.strokeWidthDp > 0f) {
+            unitPaint.style = Paint.Style.FILL_AND_STROKE
+            unitPaint.strokeWidth = (config.strokeWidthDp * 0.75f) * density
+        } else {
+            unitPaint.style = Paint.Style.FILL
+        }
+
+        // Optional High-Contrast dark shadow/outline behind text
+        val outlinePaint = if (config.aaMode == "HighContrast") {
+            (if (config == activeConfig) cachedStrokePaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(180, 0, 0, 0)
+                typeface = tf
+                textAlign = Paint.Align.CENTER
+                style = Paint.Style.STROKE
+                strokeWidth = 2f * density
+                letterSpacing = config.letterSpacing
+            }.also { if (config == activeConfig) cachedStrokePaint = it }
+        } else null
+
+        outlinePaint?.letterSpacing = config.letterSpacing
 
         val centerX = Math.round(sizePx / 2f).toFloat()
 
@@ -219,7 +282,6 @@ object DynamicSpeedIconGenerator {
                 val maxH = sizePx * 0.75f * config.numScale
                 val maxW = sizePx * 0.94f
                 numPaint.textSize = maxH
-                val metrics = numPaint.fontMetrics
                 val textW = numPaint.measureText(compactText)
                 val scale = minOf(if (textW > 0f) maxW / textW else 1f, 1.0f)
                 numPaint.textSize = maxH * scale
@@ -227,6 +289,10 @@ object DynamicSpeedIconGenerator {
                 val finalMetrics = numPaint.fontMetrics
                 val centerY = (sizePx / 2f) + (config.numYOffsetDp * density)
                 val baselineY = Math.round(centerY - (finalMetrics.ascent + finalMetrics.descent) / 2f).toFloat()
+                if (outlinePaint != null) {
+                    outlinePaint.textSize = numPaint.textSize
+                    canvas.drawText(compactText, centerX, baselineY, outlinePaint)
+                }
                 canvas.drawText(compactText, centerX, baselineY, numPaint)
             }
             "NumberOnly" -> {
@@ -241,6 +307,10 @@ object DynamicSpeedIconGenerator {
                 val finalMetrics = numPaint.fontMetrics
                 val centerY = (sizePx / 2f) + (config.numYOffsetDp * density)
                 val baselineY = Math.round(centerY - (finalMetrics.ascent + finalMetrics.descent) / 2f).toFloat()
+                if (outlinePaint != null) {
+                    outlinePaint.textSize = numPaint.textSize
+                    canvas.drawText(display.number, centerX, baselineY, outlinePaint)
+                }
                 canvas.drawText(display.number, centerX, baselineY, numPaint)
             }
             else -> {
@@ -279,6 +349,13 @@ object DynamicSpeedIconGenerator {
                 val finalUnitMetrics = unitPaint.fontMetrics
                 val unitCenterY = numberSectionHeight + (unitSectionHeight / 2f) + (config.unitYOffsetDp * density)
                 val unitBaselineY = Math.round(unitCenterY - (finalUnitMetrics.ascent + finalUnitMetrics.descent) / 2f).toFloat()
+
+                if (outlinePaint != null) {
+                    outlinePaint.textSize = numPaint.textSize
+                    canvas.drawText(display.number, centerX, numBaselineY, outlinePaint)
+                    outlinePaint.textSize = unitPaint.textSize
+                    canvas.drawText(display.unit, centerX, unitBaselineY, outlinePaint)
+                }
 
                 canvas.drawText(display.number, centerX, numBaselineY, numPaint)
                 canvas.drawText(display.unit, centerX, unitBaselineY, unitPaint)

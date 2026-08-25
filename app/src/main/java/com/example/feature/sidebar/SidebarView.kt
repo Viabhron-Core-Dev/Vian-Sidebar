@@ -354,7 +354,7 @@ class SidebarView(
             } else {
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             }
-            offscreenPageLimit = if (physicalHandleId == "sidebar") 1 else ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
+            offscreenPageLimit = ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
         }
         
         viewPager.adapter = object : RecyclerView.Adapter<SidebarPageViewHolder>() {
@@ -534,13 +534,13 @@ class SidebarView(
             (page.height * density).toInt()
         } else {
             val targetHeightDp = when (page.type) {
-                "calculator" -> 420
-                "compass" -> 310
-                "resources_tracker" -> 280
-                "media_player" -> 340
-                "scheduler" -> 360
-                "notifications", "notification" -> 220
-                "app_tracker" -> 220
+                "calculator" -> 300
+                "compass" -> 220
+                "resources_tracker" -> 160
+                "media_player" -> 100
+                "scheduler" -> 200
+                "notifications", "notification" -> 160
+                "app_tracker" -> 180
                 "widgets_grid", "widget" -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 280))
                 "hybrid_grid", "default_hybrid" -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 280))
                 else -> prefs.getInt("handle_${containerId}_sidebar_height", prefs.getInt("sidebar_height", 280))
@@ -604,7 +604,7 @@ class SidebarView(
             val headerHeight = (22 * density).toInt()
             val screenHeight = context.resources.displayMetrics.heightPixels
             val maxAllowedHeight = (screenHeight * 0.85f).toInt() - headerHeight
-            val boundedContentHeight = newHeight.coerceIn((100 * density).toInt(), maxAllowedHeight)
+            val boundedContentHeight = newHeight.coerceIn((60 * density).toInt(), maxAllowedHeight)
             val totalWindowHeight = boundedContentHeight + headerHeight
 
             var changed = false

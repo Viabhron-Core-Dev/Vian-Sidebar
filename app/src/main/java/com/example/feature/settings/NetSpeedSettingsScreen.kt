@@ -78,8 +78,16 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     var bgRadius by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_bg_radius", 4f)) }
     var bgAlpha by remember { mutableIntStateOf(prefs.getInt("speed_icon_bg_alpha", 0)) }
     var layoutMode by remember { mutableStateOf(prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked") }
+    // Blurriness reduction & sharpness parameters
+    var resScale by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_res_scale", 2.0f)) }
+    var aaMode by remember { mutableStateOf(prefs.getString("speed_icon_aa_mode", "Smooth") ?: "Smooth") }
+    var letterSpacing by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_letter_spacing", 0.0f)) }
+    var strokeWidth by remember { mutableFloatStateOf(prefs.getFloat("speed_icon_stroke_width", 0.0f)) }
 
-    val currentIconConfig = remember(iconFont, isFakeBold, numScale, unitScale, numYOffset, unitYOffset, bgShape, bgRadius, bgAlpha, layoutMode) {
+    val currentIconConfig = remember(
+        iconFont, isFakeBold, numScale, unitScale, numYOffset, unitYOffset,
+        bgShape, bgRadius, bgAlpha, layoutMode, resScale, aaMode, letterSpacing, strokeWidth
+    ) {
         DynamicSpeedIconGenerator.IconConfig(
             font = iconFont,
             isFakeBold = isFakeBold,
@@ -90,7 +98,11 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
             bgShape = bgShape,
             bgRadiusDp = bgRadius,
             bgAlpha = bgAlpha,
-            layoutMode = layoutMode
+            layoutMode = layoutMode,
+            resScale = resScale,
+            aaMode = aaMode,
+            letterSpacing = letterSpacing,
+            strokeWidthDp = strokeWidth
         )
     }
 
@@ -106,6 +118,10 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
             .putFloat("speed_icon_bg_radius", bgRadius)
             .putInt("speed_icon_bg_alpha", bgAlpha)
             .putString("speed_icon_layout", layoutMode)
+            .putFloat("speed_icon_res_scale", resScale)
+            .putString("speed_icon_aa_mode", aaMode)
+            .putFloat("speed_icon_letter_spacing", letterSpacing)
+            .putFloat("speed_icon_stroke_width", strokeWidth)
             .apply()
         DynamicSpeedIconGenerator.updateActiveConfig(currentIconConfig)
     }
@@ -121,6 +137,10 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
         bgRadius = 4f
         bgAlpha = 0
         layoutMode = "Stacked"
+        resScale = 2.0f
+        aaMode = "Smooth"
+        letterSpacing = 0.0f
+        strokeWidth = 0.0f
         
         prefs.edit()
             .putString("speed_icon_font", "sans-serif-condensed")
@@ -133,6 +153,10 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
             .putFloat("speed_icon_bg_radius", 4f)
             .putInt("speed_icon_bg_alpha", 0)
             .putString("speed_icon_layout", "Stacked")
+            .putFloat("speed_icon_res_scale", 2.0f)
+            .putString("speed_icon_aa_mode", "Smooth")
+            .putFloat("speed_icon_letter_spacing", 0.0f)
+            .putFloat("speed_icon_stroke_width", 0.0f)
             .apply()
         DynamicSpeedIconGenerator.updateActiveConfig(DynamicSpeedIconGenerator.IconConfig())
     }
@@ -533,6 +557,98 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                                 steps = 25
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Clarity & Blurriness Reduction
+                    Text("Clarity & Blur Reduction", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("Eliminates fuzziness and optimizes rendering for high-DPI status bars", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Resolution / Supersampling Multiplier
+                    Text("Canvas Supersampling (Resolution)", style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            1.0f to "1.0x (Native)",
+                            1.5f to "1.5x (Sharp)",
+                            2.0f to "2.0x (Ultra)",
+                            3.0f to "3.0x (Max)"
+                        ).forEach { (scale, label) ->
+                            FilterChip(
+                                selected = resScale == scale,
+                                onClick = {
+                                    resScale = scale
+                                    saveIconConfig()
+                                },
+                                label = { Text(label, style = MaterialTheme.typography.bodySmall) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Anti-Aliasing Mode
+                    Text("Anti-Aliasing & Edge Hinting", style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "Smooth" to "Smooth (Subpixel)",
+                            "Crisp" to "Crisp (1-Bit Sharp)",
+                            "HighContrast" to "High Contrast Outline"
+                        ).forEach { (mode, label) ->
+                            FilterChip(
+                                selected = aaMode == mode,
+                                onClick = {
+                                    aaMode = mode
+                                    saveIconConfig()
+                                },
+                                label = { Text(label, style = MaterialTheme.typography.bodySmall) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Slider: Letter Spacing
+                    Column {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Character Spacing (Tracking)", style = MaterialTheme.typography.titleSmall)
+                            Text(String.format(Locale.US, "%+.2f", letterSpacing), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Slider(
+                            value = letterSpacing,
+                            onValueChange = {
+                                letterSpacing = it
+                                saveIconConfig()
+                            },
+                            valueRange = -0.05f..0.15f,
+                            steps = 20
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Slider: Extra Stroke Sharpness Weight
+                    Column {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Extra Sharpness Stroke", style = MaterialTheme.typography.titleSmall)
+                            Text(String.format(Locale.US, "%.2f dp", strokeWidth), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Slider(
+                            value = strokeWidth,
+                            onValueChange = {
+                                strokeWidth = it
+                                saveIconConfig()
+                            },
+                            valueRange = 0.0f..1.2f,
+                            steps = 12
+                        )
                     }
                 }
 

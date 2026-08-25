@@ -7,6 +7,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -31,8 +33,12 @@ class ResourcesTrackerPageView(
     private val tvFps: TextView
     private val tvTotalFrames: TextView
     private val rvMiniApps: RecyclerView
+    private val llMiniAppsHeader: LinearLayout
+    private val ivMiniAppsToggle: ImageView
+    private val tvMiniAppsTitle: TextView
     
     private val adapter: MiniAppsAdapter
+    private var isMiniAppsExpanded = false
     
     private var isTracking = false
     private var framesCount = 0L
@@ -48,12 +54,31 @@ class ResourcesTrackerPageView(
         tvFps = findViewById(R.id.tv_fps)
         tvTotalFrames = findViewById(R.id.tv_total_frames)
         rvMiniApps = findViewById(R.id.rv_mini_apps)
+        llMiniAppsHeader = findViewById(R.id.ll_mini_apps_header)
+        ivMiniAppsToggle = findViewById(R.id.iv_mini_apps_toggle)
+        tvMiniAppsTitle = findViewById(R.id.tv_mini_apps_title)
         
         rvMiniApps.layoutManager = LinearLayoutManager(context)
         adapter = MiniAppsAdapter()
         rvMiniApps.adapter = adapter
 
+        llMiniAppsHeader.setOnClickListener {
+            toggleMiniApps()
+        }
+
+        updateMiniAppsVisibility()
         notifyHeight()
+    }
+
+    private fun toggleMiniApps() {
+        isMiniAppsExpanded = !isMiniAppsExpanded
+        updateMiniAppsVisibility()
+        notifyHeight()
+    }
+
+    private fun updateMiniAppsVisibility() {
+        rvMiniApps.visibility = if (isMiniAppsExpanded) View.VISIBLE else View.GONE
+        ivMiniAppsToggle.rotation = if (isMiniAppsExpanded) 180f else 0f
     }
 
     private fun notifyHeight() {
@@ -87,6 +112,7 @@ class ResourcesTrackerPageView(
         appsJob = scope.launch(Dispatchers.Main) {
             ActiveAppTracker.activeApps.collect { apps ->
                 adapter.submitList(apps)
+                tvMiniAppsTitle.text = if (apps.isEmpty()) "Mini Apps Running (0)" else "Mini Apps Running (${apps.size})"
                 notifyHeight()
             }
         }

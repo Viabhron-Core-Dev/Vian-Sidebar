@@ -7,18 +7,14 @@ import android.telephony.TelephonyManager
 
 class CallStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
+        val action = intent.action ?: return
+        if (action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
             val stateStr = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
-            val prefs = context.getSharedPreferences("vian_settings", Context.MODE_PRIVATE)
-            val autoEnabled = prefs.getBoolean("call_recorder_enabled", false)
-            val manualEnabled = prefs.getBoolean("call_recorder_manual_enabled", false)
-            
-            if (autoEnabled || manualEnabled) {
-                // To keep it simple without rewriting CallRecorderManager, we can just start a quick IntentService 
-                // or just call CallRecorderManager if it can handle being instantiated per-call.
-                // Actually, if we just instantiate CallRecorderManager, it registers its own listeners, which might leak if not stopped.
-                // Let's just have an orchestrator service or use HandleService.
-            }
+            val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+            CallRecorderManager.getInstance(context).onBroadcastEvent(stateStr, number)
+        } else if (action == Intent.ACTION_NEW_OUTGOING_CALL) {
+            val number = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER)
+            CallRecorderManager.getInstance(context).onBroadcastEvent(TelephonyManager.EXTRA_STATE_OFFHOOK, number)
         }
     }
 }

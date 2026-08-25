@@ -105,6 +105,18 @@ class HybridGridPageView(
         try {
             context.unregisterReceiver(receiver)
         } catch (e: Exception) {}
+        appsManager.destroy()
+        gridLayout.removeAllViews()
+    }
+
+    override fun onPageSelected() {
+        if (gridLayout.childCount == 0 && width > 0) {
+            loadWidgets()
+        }
+    }
+
+    override fun onPageUnselected() {
+        // Keeps memory lightweight when navigated away
     }
 
     private fun getWidgetItems(): List<GridWidgetItem> {

@@ -4,23 +4,23 @@
     android:layout_height="wrap_content"
     android:gravity="center_horizontal"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="6dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Compass"
         android:textColor="#E0E0E0"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:textStyle="bold"
-        android:layout_marginBottom="4dp" />
+        android:layout_marginBottom="2dp" />
 
     <com.example.feature.sidebar.CompassDrawView
         android:id="@+id/compass_view"
-        android:layout_width="220dp"
-        android:layout_height="220dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="4dp" />
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="2dp" />
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -28,7 +28,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:layout_marginTop="2dp"
-        android:layout_marginBottom="4dp">
+        android:layout_marginBottom="2dp">
 
         <TextView
             android:id="@+id/tv_azimuth"
@@ -36,17 +36,17 @@
             android:layout_height="wrap_content"
             android:text="0°"
             android:textColor="#BB86FC"
-            android:textSize="32sp"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_direction"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
             android:text="N"
             android:textColor="#FFFFFF"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
     </LinearLayout>
 

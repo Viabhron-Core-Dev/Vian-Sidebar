@@ -25,7 +25,7 @@ class MediaPlayerPageView(
     context: Context,
     private val onCloseSidebar: () -> Unit,
     private val onHeightChanged: (Int) -> Unit
-) : FrameLayout(context) {
+) : FrameLayout(context), SidebarPageControllable {
 
     private val mediaSessionManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
     private var activeController: MediaController? = null
@@ -90,12 +90,20 @@ class MediaPlayerPageView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        startUpdates()
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         stopUpdates()
+    }
+
+    override fun onPageSelected() {
+        startUpdates()
+    }
+
+    override fun onPageUnselected() {
+        stopUpdates()
+        ivArtwork.setImageDrawable(null)
     }
 
     private fun startUpdates() {

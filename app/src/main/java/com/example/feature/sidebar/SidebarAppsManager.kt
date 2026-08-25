@@ -264,7 +264,7 @@ class SidebarAppsManager(
     private var hasLoadedOnce = false
 
     val iconCache = object : LruCache<String, Bitmap>(
-        (Runtime.getRuntime().maxMemory() / 1024 / 16).toInt().coerceIn(2048, 8192)
+        (Runtime.getRuntime().maxMemory() / 1024 / 32).toInt().coerceIn(1024, 2048)
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int {
             return (value.byteCount / 1024).coerceAtLeast(1)
@@ -340,6 +340,9 @@ class SidebarAppsManager(
         } catch (e: Exception) {}
         iconCache.evictAll()
         updateListeners.clear()
+        allInstalledApps = emptyList()
+        activeItems = emptyList()
+        hasLoadedOnce = false
     }
 
     fun ensureLoaded() {
@@ -979,7 +982,7 @@ class SidebarAppsManager(
     }
 
     fun getBitmapFromDrawable(drawable: Drawable): Bitmap? {
-        val targetSize = (48 * context.resources.displayMetrics.density).toInt().coerceIn(64, 144)
+        val targetSize = (40 * context.resources.displayMetrics.density).toInt().coerceIn(48, 96)
         if (drawable is BitmapDrawable && drawable.bitmap != null) {
             val bmp = drawable.bitmap
             if (bmp.width <= targetSize && bmp.height <= targetSize) {

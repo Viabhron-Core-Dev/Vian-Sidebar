@@ -118,6 +118,11 @@ class NotificationPageView(
         loadNotifications()
     }
 
+    override fun onPageUnselected() {
+        adapter.submitList(emptyList())
+        activeNotifications = emptyList()
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         try {
