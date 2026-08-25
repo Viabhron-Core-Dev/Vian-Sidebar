@@ -23,8 +23,9 @@ class AutoScrollManager(private val service: AccessibilityService) {
     private var floatingView: View? = null
     private val handler = Handler(Looper.getMainLooper())
 
+    private val prefs = service.getSharedPreferences("auto_scroll_prefs", Context.MODE_PRIVATE)
     private var isScrolling = true
-    private var speed = 3 // 1 to 10
+    private var speed = prefs.getInt("scroll_speed", 3) // 1 to 10
     var isRunning = false
     private var btnPausePlay: ImageButton? = null
 
@@ -133,6 +134,9 @@ class AutoScrollManager(private val service: AccessibilityService) {
         val inflater = LayoutInflater.from(service)
         floatingView = inflater.inflate(R.layout.overlay_auto_scroll, null)
 
+        val savedX = prefs.getInt("scroll_x", 0)
+        val savedY = prefs.getInt("scroll_y", 150)
+
         val layoutParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -141,7 +145,8 @@ class AutoScrollManager(private val service: AccessibilityService) {
             PixelFormat.TRANSLUCENT
         )
         layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-        layoutParams.y = 150
+        layoutParams.x = savedX
+        layoutParams.y = savedY
 
         btnPausePlay = floatingView?.findViewById<ImageButton>(R.id.btn_pause_play)
         val btnSlower = floatingView?.findViewById<ImageButton>(R.id.btn_slower)
@@ -175,12 +180,14 @@ class AutoScrollManager(private val service: AccessibilityService) {
         btnSlower?.setOnClickListener {
             if (speed > 1) {
                 speed--
+                prefs.edit().putInt("scroll_speed", speed).apply()
             }
         }
 
         btnFaster?.setOnClickListener {
             if (speed < 10) {
                 speed++
+                prefs.edit().putInt("scroll_speed", speed).apply()
             }
         }
 
@@ -207,6 +214,13 @@ class AutoScrollManager(private val service: AccessibilityService) {
                     layoutParams.x = initialX + (event.rawX - initialTouchX).toInt()
                     layoutParams.y = initialY - (event.rawY - initialTouchY).toInt()
                     windowManager.updateViewLayout(floatingView, layoutParams)
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    prefs.edit()
+                        .putInt("scroll_x", layoutParams.x)
+                        .putInt("scroll_y", layoutParams.y)
+                        .apply()
                     true
                 }
                 else -> false

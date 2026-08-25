@@ -461,18 +461,24 @@ class SidebarView(
                             // Measure and adjust height immediately for non-grid wrapped pages
                             holder.pageView?.let { pv ->
                                 pv.post {
-                                    if (pv.height > 0) {
-                                        handleChildHeightChange(position, pv.height)
-                                    } else {
+                                    val actualPos = if (isLooping) position % pageConfigs.size else position
+                                    val page = pageConfigs.getOrNull(actualPos)
+                                    val isPageWrap = if (page?.useCustomSettings == true) page.wrapContentHeight else true
+                                    if (isPageWrap) {
                                         val density = context.resources.displayMetrics.density
                                         val targetW = layoutParams.width.takeIf { it > 0 } ?: (320 * density).toInt()
                                         pv.measure(
                                             View.MeasureSpec.makeMeasureSpec(targetW, View.MeasureSpec.EXACTLY),
                                             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
                                         )
-                                        if (pv.measuredHeight > 0) {
-                                            handleChildHeightChange(position, pv.measuredHeight)
+                                        val measuredH = pv.measuredHeight
+                                        if (measuredH > 0) {
+                                            handleChildHeightChange(position, measuredH)
+                                        } else if (pv.height > 0) {
+                                            handleChildHeightChange(position, pv.height)
                                         }
+                                    } else {
+                                        updateWindowForPage(actualPos)
                                     }
                                 }
                             }
@@ -534,8 +540,8 @@ class SidebarView(
             (page.height * density).toInt()
         } else {
             val targetHeightDp = when (page.type) {
-                "calculator" -> 300
-                "compass" -> 220
+                "calculator" -> 255
+                "compass" -> 200
                 "resources_tracker" -> 160
                 "media_player" -> 100
                 "scheduler" -> 200

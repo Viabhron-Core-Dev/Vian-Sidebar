@@ -224,6 +224,7 @@ abstract class FloatingWindow(val context: Context, val title: String) {
                         if (isShiftedForKeyboard) {
                             originalYBeforeKeyboard = layoutParams?.y
                         }
+                        saveWindowGeometry()
                         FloatingWindowManager.checkCollisions(this@FloatingWindow)
                     }
                     true
@@ -263,6 +264,12 @@ abstract class FloatingWindow(val context: Context, val title: String) {
                     }
                     true
                 }
+                MotionEvent.ACTION_UP -> {
+                    if (!isFullScreen) {
+                        saveWindowGeometry()
+                    }
+                    true
+                }
                 else -> false
             }
         }
@@ -293,6 +300,19 @@ abstract class FloatingWindow(val context: Context, val title: String) {
         windowManager.updateViewLayout(container, layoutParams)
     }
     
+    private fun saveWindowGeometry() {
+        val lp = layoutParams ?: return
+        if (!isFullScreen) {
+            val prefs = context.getSharedPreferences("floating_windows_prefs", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putInt("win_${title}_x", lp.x)
+                .putInt("win_${title}_y", lp.y)
+                .putInt("win_${title}_w", lp.width)
+                .putInt("win_${title}_h", lp.height)
+                .apply()
+        }
+    }
+
     abstract fun createContentView(): View
     
     private fun setupLayoutParams() {
@@ -304,18 +324,25 @@ abstract class FloatingWindow(val context: Context, val title: String) {
         }
         
         val metrics = context.resources.displayMetrics
-        val w = (metrics.widthPixels * 0.85).toInt()
-        val h = (metrics.heightPixels * 0.6).toInt()
+        val defaultW = (metrics.widthPixels * 0.85).toInt()
+        val defaultH = (metrics.heightPixels * 0.6).toInt()
+        
+        val prefs = context.getSharedPreferences("floating_windows_prefs", Context.MODE_PRIVATE)
+        val minSizePx = (160 * metrics.density).toInt()
+        val savedW = prefs.getInt("win_${title}_w", defaultW).coerceIn(minSizePx, metrics.widthPixels)
+        val savedH = prefs.getInt("win_${title}_h", defaultH).coerceIn(minSizePx, metrics.heightPixels)
+        val savedX = prefs.getInt("win_${title}_x", 100).coerceIn(0, max(0, metrics.widthPixels - 100))
+        val savedY = prefs.getInt("win_${title}_y", 100).coerceIn(0, max(0, metrics.heightPixels - 100))
         
         layoutParams = WindowManager.LayoutParams(
-            w, h,
+            savedW, savedH,
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 100
-            y = 100
+            x = savedX
+            y = savedY
         }
     }
     
