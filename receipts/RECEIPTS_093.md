@@ -66,13 +66,23 @@
 * Deviations: None.
 * Known issues: None.
 
-* Timestamp: 2026-08-26T11:02:00-07:00
-* One-line summary: Connect Log Keeper in Settings, fix container hierarchy isolation, prevent cross-gesture page overwriting, and fix page indicators/swiping.
-* Exact files touched: `app/src/main/java/com/example/feature/settings/SettingsActivity.kt`, `app/src/main/java/com/example/utils/PageManager.kt`, `app/src/main/java/com/example/feature/settings/SidebarSettingsScreen.kt`, `app/src/main/java/com/example/feature/settings/PageManagementSettingsScreen.kt`, `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
-* What was actually done: Connected the Log Keeper item in SettingsActivity to launch LogKeeperActivity. Updated PageManager to strictly isolate container keys (handle_${containerId}_pages) without cross-overwriting handle_sidebar_pages when configuring specific gesture containers. Added transparent logging in PageManager and SidebarView via LogKeeper. Refactored PageManagementSettingsScreen with a Handle & Gesture hierarchy selector so pages can be managed per container. Updated SidebarSettingsScreen to avoid destructive auto-mutation on initAction. Fixed SidebarView ViewPager page binding and dot indicators to ensure smooth horizontal swiping across multiple pages.
+* Timestamp: 2026-08-26T12:53:00-07:00
+* One-line summary: Clean and sharpen status bar internet speed icon text rendering with standard supersampled high-DPI canvas.
+* Exact files touched: `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+* What was actually done: Removed micro-fractional positioning math and subpixel jitter flags. Switched to a clean standard 96x96 px high-density canvas with bold sans-serif condensed typography, explicit system density tagging, and clean integer vertical baseline centering, matching native SystemUI notification rendering.
 * How it was verified: local build only (compile_applet passed)
 * Deviations: None.
 * Known issues: None.
+
+* Timestamp: 2026-08-26T13:13:00-07:00
+* One-line summary: Implement lightweight stubs lifecycle, offscreen limit, and nested scroll configuration for smooth horizontal sidebar swiping.
+* Exact files touched: `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+* What was actually done: Configured ViewPager2's internal RecyclerView with disabled nested scrolling to allow clean horizontal swipe page transitions without being trapped by child vertical scroll views. Implemented lightweight stub binding on demand for active/adjacent pages only, keeping dormant pages uninflated to minimize RAM and CPU overhead.
+* How it was verified: local build only (compile_applet passed)
+* Deviations: None.
+* Known issues: None.
+
+
 
 
 

@@ -354,7 +354,13 @@ class SidebarView(
             } else {
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             }
-            offscreenPageLimit = ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
+            offscreenPageLimit = 1
+        }
+
+        // Configure ViewPager2 internal RecyclerView to handle nested touch scrolling cleanly
+        (viewPager.getChildAt(0) as? RecyclerView)?.apply {
+            isNestedScrollingEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
         }
         
         viewPager.adapter = object : RecyclerView.Adapter<SidebarPageViewHolder>() {
@@ -372,7 +378,9 @@ class SidebarView(
                 if (pageConfigs.isEmpty()) return
                 val actualPosition = if (isLooping) position % pageConfigs.size else position
                 val config = pageConfigs[actualPosition]
-                holder.bind(config, true)
+                // Lightweight on-demand binding: Only instantiate active / adjacent page view
+                val isCurrentOrAdjacent = kotlin.math.abs(position - viewPager.currentItem) <= 1
+                holder.bind(config, isCurrentOrAdjacent)
             }
             override fun getItemCount(): Int = if (isLooping) Int.MAX_VALUE else pageConfigs.size
         }
