@@ -33,7 +33,7 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
             return instance ?: synchronized(this) {
                 instance ?: CallRecorderManager(
                     context.applicationContext,
-                    context.applicationContext.getSharedPreferences("vian_settings", Context.MODE_PRIVATE)
+                    context.applicationContext.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
                 ).also { instance = it }
             }
         }
@@ -50,6 +50,36 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
 
     private var phoneStateListener: PhoneStateListener? = null
     private var telephonyCallback: TelephonyCallback? = null
+    private var isReceiverRegistered = false
+    private var isTelephonyRegistered = false
+
+    fun updateComponentState() {
+        val autoEnabled = prefs.getBoolean("call_recorder_enabled", false)
+        val manualEnabled = prefs.getBoolean("call_recorder_manual_enabled", false)
+        val isAnyEnabled = autoEnabled || manualEnabled
+
+        try {
+            val componentName = android.content.ComponentName(context, CallStateReceiver::class.java)
+            val newState = if (isAnyEnabled) {
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
+            context.packageManager.setComponentEnabledSetting(
+                componentName,
+                newState,
+                android.content.pm.PackageManager.DONT_KILL_APP
+            )
+        } catch (e: Exception) {
+            Log.e("CallRecorder", "Failed to update component state", e)
+        }
+
+        if (isAnyEnabled) {
+            startListening()
+        } else {
+            stopListening()
+        }
+    }
     
     private val phoneStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -75,60 +105,86 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
     fun startListening() {
         val autoEnabled = prefs.getBoolean("call_recorder_enabled", false)
         val manualEnabled = prefs.getBoolean("call_recorder_manual_enabled", false)
-        if (!autoEnabled && !manualEnabled) return
-
-        val filter = IntentFilter()
-        filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
-        filter.addAction(Intent.ACTION_NEW_OUTGOING_CALL)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(phoneStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(phoneStateReceiver, filter)
+        if (!autoEnabled && !manualEnabled) {
+            stopListening()
+            return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
-                override fun onCallStateChanged(state: Int) {
-                    handleCallState(state, null)
-                }
-            }
+        if (!isReceiverRegistered) {
+            val filter = IntentFilter()
+            filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
+            filter.addAction(Intent.ACTION_NEW_OUTGOING_CALL)
             try {
-                telephonyManager.registerTelephonyCallback(context.mainExecutor, telephonyCallback!!)
-            } catch (e: Exception) {
-                Log.e("CallRecorder", "Failed to register callback", e)
-                com.example.core.LogKeeper.writeLog("CallRecorder", "Failed to register callback: ${e.message}")
-            }
-        } else {
-            phoneStateListener = object : PhoneStateListener() {
-                @Deprecated("Deprecated in Java")
-                override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-                    handleCallState(state, phoneNumber)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.registerReceiver(phoneStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                } else {
+                    context.registerReceiver(phoneStateReceiver, filter)
                 }
-            }
-            try {
-                @Suppress("DEPRECATION")
-                telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                isReceiverRegistered = true
             } catch (e: Exception) {
-                Log.e("CallRecorder", "Failed to register listener", e)
-                com.example.core.LogKeeper.writeLog("CallRecorder", "Failed to register listener: ${e.message}")
+                Log.e("CallRecorder", "Failed to register phoneStateReceiver", e)
+            }
+        }
+
+        if (!isTelephonyRegistered) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (telephonyCallback == null) {
+                    telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+                        override fun onCallStateChanged(state: Int) {
+                            handleCallState(state, null)
+                        }
+                    }
+                }
+                try {
+                    telephonyManager.registerTelephonyCallback(context.mainExecutor, telephonyCallback!!)
+                    isTelephonyRegistered = true
+                } catch (e: Exception) {
+                    Log.e("CallRecorder", "Failed to register callback", e)
+                    com.example.core.LogKeeper.writeLog("CallRecorder", "Failed to register callback: ${e.message}")
+                }
+            } else {
+                if (phoneStateListener == null) {
+                    phoneStateListener = object : PhoneStateListener() {
+                        @Deprecated("Deprecated in Java")
+                        override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                            handleCallState(state, phoneNumber)
+                        }
+                    }
+                }
+                try {
+                    @Suppress("DEPRECATION")
+                    telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                    isTelephonyRegistered = true
+                } catch (e: Exception) {
+                    Log.e("CallRecorder", "Failed to register listener", e)
+                    com.example.core.LogKeeper.writeLog("CallRecorder", "Failed to register listener: ${e.message}")
+                }
             }
         }
     }
 
     fun stopListening() {
-        try {
-            context.unregisterReceiver(phoneStateReceiver)
-        } catch (e: Exception) {}
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                telephonyCallback?.let { telephonyManager.unregisterTelephonyCallback(it) }
-            } else {
-                phoneStateListener?.let { 
-                    @Suppress("DEPRECATION")
-                    telephonyManager.listen(it, PhoneStateListener.LISTEN_NONE) 
+        if (isReceiverRegistered) {
+            try {
+                context.unregisterReceiver(phoneStateReceiver)
+            } catch (e: Exception) {}
+            isReceiverRegistered = false
+        }
+        if (isTelephonyRegistered) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    telephonyCallback?.let { telephonyManager.unregisterTelephonyCallback(it) }
+                    telephonyCallback = null
+                } else {
+                    phoneStateListener?.let { 
+                        @Suppress("DEPRECATION")
+                        telephonyManager.listen(it, PhoneStateListener.LISTEN_NONE) 
+                    }
+                    phoneStateListener = null
                 }
-            }
-        } catch (e: Exception) {}
+            } catch (e: Exception) {}
+            isTelephonyRegistered = false
+        }
         stopRecording()
     }
 

@@ -34,3 +34,20 @@
 * Deviations: None.
 * Known issues: None.
 
+* Timestamp: 2026-08-26T03:40:00-07:00
+* One-line summary: Implement on-demand Audio Record element with AutoScroll-style draggable floating pill panel.
+* Exact files touched: `app/src/main/res/drawable/ic_audio_record.xml`, `app/src/main/res/drawable/ic_stop.xml`, `app/src/main/res/layout/overlay_audio_recorder.xml`, `app/src/main/java/com/example/feature/system_hub/AudioRecorderPanelManager.kt`, `app/src/main/java/com/example/feature/sidebar/SidebarAppsManager.kt`, `app/src/main/java/com/example/feature/system_hub/VianSideAccessibilityService.kt`, `app/src/main/java/com/example/feature/sidebar/AppsPageView.kt`, `app/src/main/java/com/example/feature/sidebar/HybridGridPageView.kt`, `app/src/main/java/com/example/feature/sidebar/SidebarManager.kt`, `app/src/main/java/com/example/feature/settings/HandlesListSettingsScreen.kt`, `app/src/main/java/com/example/feature/system_hub/RecordingsActivity.kt`
+* What was actually done: Created `AudioRecorderPanelManager` providing an on-demand floating draggable pill panel (matching `AutoScrollManager` styling) with dynamic timer, pause/play toggle, next (saves current audio chunk and starts next record immediately), stop (with inline custom name input or default timestamp naming saved to .Records/SAF), and close (releases all MediaRecorder resources immediately and removes overlay). Registered "Audio Record" (`audio_record`) across system capture action lists, accessibility dispatcher, sidebar pages, and handle gesture bindings. Updated `RecordingsActivity` to index and manage all `.m4a` / `VOICE_` / `REC_` audio recordings.
+* How it was verified: local build only (compile_applet passed)
+* Deviations: None.
+* Known issues: None.
+
+* Timestamp: 2026-08-26T03:59:00-07:00
+* One-line summary: Optimize DynamicSpeedIconGenerator memory footprint to ~36KB and enhance subpixel paint sharpness.
+* Exact files touched: `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+* What was actually done: Removed persistent preview bitmap/canvas allocation from the singleton object; settings preview bitmaps are now generated on-demand as temporary bitmaps for garbage collection. Kept a single lightweight ~36KB reusable ARGB_8888 buffer for live status bar updates. Enhanced Paint flags with SUBPIXEL_TEXT_FLAG, DITHER_FLAG, and isFilterBitmap=true to guarantee Battery-Indicator-Pro level pixel-perfect text sharpness without bilinear downsampling blur.
+* How it was verified: local build only (compile_applet passed)
+* Deviations: None.
+* Known issues: None.
+
+

@@ -280,6 +280,7 @@ fun HandleItem(
                                         "splitscreen" -> "Action: Split Screen"
                                         "cursor" -> "Action: Virtual Cursor"
                                         "auto_scroll" -> "Action: Auto Scroll"
+                                        "audio_record" -> "Action: Audio Record"
                                         "barcode_scanner" -> "Action: Secure Camera Scanner"
                                         "qr_scan" -> "Action: Secure Screen Scanner"
                                         "redact_screenshot" -> "Action: Redact Screenshot"
@@ -429,6 +430,7 @@ fun HandleItem(
                         "action_splitscreen" to "Split Screen",
                         "action_cursor" to "Virtual Cursor",
                         "action_auto_scroll" to "Auto Scroll",
+                        "action_audio_record" to "Audio Record",
                         "action_barcode_scanner" to "Secure Camera Scanner",
                         "action_qr_scan" to "Secure Screen Scanner",
                         "action_redact_screenshot" to "Redact Screenshot",

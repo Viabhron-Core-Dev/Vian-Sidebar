@@ -452,6 +452,8 @@ class HybridGridPageView(
                                             val intent = Intent(context, com.example.feature.miniapps.reader.FloatingReaderService::class.java)
                                             intent.putExtra("UNFOLD", true)
                                             context.startService(intent)
+                                        } else if (parsed.action == "audio_record") {
+                                            com.example.feature.system_hub.AudioRecorderPanelManager.getInstance(context).toggle()
                                         } else if (parsed.action == "screen_record") {
                                             val intent = Intent(context, ScreenRecordActivity::class.java)
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

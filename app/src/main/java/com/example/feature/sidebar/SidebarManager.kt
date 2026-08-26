@@ -41,6 +41,10 @@ class SidebarManager(
                 AppLogger.d("SidebarManager", "Execute action/element: $actionId")
                 com.example.core.LogKeeper.writeLog("SidebarManager", "Execute action: $actionId")
                 when (actionId) {
+                    "system:audio_record", "audio_record" -> {
+                        closeSidebar()
+                        com.example.feature.system_hub.AudioRecorderPanelManager.getInstance(context).toggle()
+                    }
                     "system:force_stop_running_apps", "force_stop_running_apps" -> {
                         closeSidebar()
                         com.example.utils.AppTrackerHelper.startForceStopSequence(context)

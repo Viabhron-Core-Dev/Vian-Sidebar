@@ -123,6 +123,7 @@ object DynamicSpeedIconGenerator {
     /**
      * Generates a crisp, pixel-perfect status bar icon bitmap directly at the notification small-icon dimensions.
      * Positions text baselines precisely using Paint.FontMetrics without unnecessary scaling/filtering.
+     * Ensures ultra-lightweight memory footprint (~36 KB single reusable buffer) with zero persistent preview retention.
      */
     fun generateStatusBarBitmap(
         context: Context,
@@ -149,27 +150,32 @@ object DynamicSpeedIconGenerator {
         val sizePx = Math.round(baseSizePx * config.resScale).coerceIn(16, 256)
 
         val isLive = (overrideConfig == null)
-        var bitmap = if (isLive) cachedBitmap else null
-        var canvas = if (isLive) cachedCanvas else null
+        val bitmap: Bitmap
+        val canvas: Canvas
 
         if (isLive) {
-            if (bitmap == null || bitmap.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
-                bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-                bitmap.density = densityDpi
-                canvas = Canvas(bitmap)
-                cachedBitmap = bitmap
-                cachedCanvas = canvas
+            var liveBmp = cachedBitmap
+            var liveCvs = cachedCanvas
+            if (liveBmp == null || liveBmp.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
+                liveBmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+                liveBmp.density = densityDpi
+                liveCvs = Canvas(liveBmp)
+                cachedBitmap = liveBmp
+                cachedCanvas = liveCvs
                 cachedSizePx = sizePx
                 cachedDensityDpi = densityDpi
             }
-            bitmap.eraseColor(Color.TRANSPARENT)
+            liveBmp.eraseColor(Color.TRANSPARENT)
+            bitmap = liveBmp
+            canvas = liveCvs ?: Canvas(liveBmp)
         } else {
+            // For one-off preview generation in settings UI: allocate temporary standalone bitmap that GC can promptly clean up
             bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
             bitmap.density = densityDpi
             canvas = Canvas(bitmap)
         }
 
-        renderIconToCanvas(canvas!!, sizePx, density * config.resScale, display, config)
+        renderIconToCanvas(canvas, sizePx, density * config.resScale, display, config)
 
         return bitmap
     }
@@ -208,9 +214,9 @@ object DynamicSpeedIconGenerator {
         }.also { if (config == activeConfig) cachedTypeface = it }
 
         val paintFlags = when (config.aaMode) {
-            "Crisp" -> Paint.SUBPIXEL_TEXT_FLAG
-            "HighContrast" -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG
-            else -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG
+            "Crisp" -> Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG
+            "HighContrast" -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG
+            else -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG
         }
 
         val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(paintFlags).apply {
@@ -219,8 +225,8 @@ object DynamicSpeedIconGenerator {
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             letterSpacing = config.letterSpacing
-            isDither = false
-            isFilterBitmap = false
+            isDither = true
+            isFilterBitmap = true
             if (config.strokeWidthDp > 0f) {
                 style = Paint.Style.FILL_AND_STROKE
                 strokeWidth = config.strokeWidthDp * density
@@ -231,8 +237,8 @@ object DynamicSpeedIconGenerator {
 
         // Update dynamic mutable paint properties
         numPaint.letterSpacing = config.letterSpacing
-        numPaint.isDither = false
-        numPaint.isFilterBitmap = false
+        numPaint.isDither = true
+        numPaint.isFilterBitmap = true
         if (config.strokeWidthDp > 0f) {
             numPaint.style = Paint.Style.FILL_AND_STROKE
             numPaint.strokeWidth = config.strokeWidthDp * density
@@ -246,8 +252,8 @@ object DynamicSpeedIconGenerator {
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             letterSpacing = config.letterSpacing
-            isDither = false
-            isFilterBitmap = false
+            isDither = true
+            isFilterBitmap = true
             if (config.strokeWidthDp > 0f) {
                 style = Paint.Style.FILL_AND_STROKE
                 strokeWidth = (config.strokeWidthDp * 0.75f) * density
@@ -257,8 +263,8 @@ object DynamicSpeedIconGenerator {
         }.also { if (config == activeConfig) cachedUnitPaint = it }
 
         unitPaint.letterSpacing = config.letterSpacing
-        unitPaint.isDither = false
-        unitPaint.isFilterBitmap = false
+        unitPaint.isDither = true
+        unitPaint.isFilterBitmap = true
         if (config.strokeWidthDp > 0f) {
             unitPaint.style = Paint.Style.FILL_AND_STROKE
             unitPaint.strokeWidth = (config.strokeWidthDp * 0.75f) * density

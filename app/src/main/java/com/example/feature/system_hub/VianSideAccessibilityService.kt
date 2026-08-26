@@ -117,6 +117,11 @@ class VianSideAccessibilityService : AccessibilityService() {
             return true
         }
 
+        if (action == "audio_record") {
+            com.example.service.SidebarService.instance?.closeSidebar()
+            AudioRecorderPanelManager.getInstance(this).toggle()
+            return true
+        }
         if (action == "screenshot") {
             com.example.service.SidebarService.instance?.closeSidebar()
             handleScreenshotWithDelay()

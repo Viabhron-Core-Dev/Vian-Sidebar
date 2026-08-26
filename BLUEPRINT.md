@@ -24,7 +24,7 @@
   - **Interactive Multi-Touch Canvas**: Pinch-to-zoom (adjust dBm sensitivity range) and drag-to-pan.
   - **Retro Frequency Tuner Dial**: Vintage radio-style 2.4 GHz, 5 GHz, and 6 GHz spectrum dial.
   - **Network Controls**: Wi-Fi toggle, Data shortcuts, and live ping/latency gauge.
-- [ ] **Floating Audio Recorder & Tools** (`AudioRecorderFloatingWindow`): Real-time waveform amplitude visualizer, recording pause/resume buffer, and local audio management.
+- [x] **Floating Audio Recorder & Tools** (`AudioRecorderPanelManager`): On-demand floating draggable pill panel with pause/play toggle, next chunking, stop with name input, and close/resource release.
 
 ### 13.3 — System Control & File Traversal (Tier 3 - Medium-High Difficulty)
 - [ ] **Floating File Explorer** (`FileExplorerFloatingWindow`): Storage Access Framework (SAF) integration, internal/SD card navigation, fast file operations (copy, move, delete, rename, share), and MIME-type intent dispatching.

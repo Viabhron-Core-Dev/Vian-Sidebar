@@ -301,7 +301,9 @@ private suspend fun loadRecordings(context: Context): List<RecordingItem> = with
             val documentFile = DocumentFile.fromTreeUri(context, uri)
             if (documentFile != null && documentFile.exists()) {
                 documentFile.listFiles().forEach { file ->
-                    if (file.name?.startsWith("CALL_") == true) {
+                    val fileName = file.name ?: ""
+                    val isAudio = fileName.startsWith("CALL_") || fileName.startsWith("VOICE_") || fileName.startsWith("REC_") || fileName.endsWith(".m4a") || fileName.endsWith(".3gp") || fileName.endsWith(".mp3")
+                    if (isAudio && !fileName.startsWith(".")) {
                         var duration = 0L
                         try {
                             retriever.setDataSource(context, file.uri)
@@ -329,7 +331,9 @@ private suspend fun loadRecordings(context: Context): List<RecordingItem> = with
         val recordsDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), ".Records")
         if (recordsDir.exists()) {
             recordsDir.listFiles()?.forEach { file ->
-                if (file.name.startsWith("CALL_") && file.isFile) {
+                val fileName = file.name
+                val isAudio = fileName.startsWith("CALL_") || fileName.startsWith("VOICE_") || fileName.startsWith("REC_") || fileName.endsWith(".m4a") || fileName.endsWith(".3gp") || fileName.endsWith(".mp3")
+                if (isAudio && file.isFile && !fileName.startsWith(".")) {
                     var duration = 0L
                     try {
                         retriever.setDataSource(file.absolutePath)

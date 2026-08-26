@@ -562,6 +562,8 @@ class AppsPageView(
                         val intent = android.content.Intent(context, FloatingReaderService::class.java)
                         intent.putExtra("UNFOLD", true)
                         context.startService(intent)
+                    } else if (item.action == "audio_record") {
+                        com.example.feature.system_hub.AudioRecorderPanelManager.getInstance(context).toggle()
                     } else if (item.action == "screen_record") {
                         val intent = android.content.Intent(context, ScreenRecordActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)

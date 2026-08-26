@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import com.example.R
 
 sealed class SidebarItem {
     abstract var id: String
@@ -165,6 +166,7 @@ val ALL_SCREEN_CAPTURE_ACTIONS = listOf(
     SidebarItem.SystemAction("screenshot", "Screenshot", android.R.drawable.ic_menu_camera),
     SidebarItem.SystemAction("long_screenshot", "Long Screenshot", android.R.drawable.ic_menu_crop),
     SidebarItem.SystemAction("screen_record", "Screen Record", android.R.drawable.ic_media_play),
+    SidebarItem.SystemAction("audio_record", "Audio Record", R.drawable.ic_audio_record),
     SidebarItem.SystemAction("redact_screenshot", "Redact Screenshot", android.R.drawable.ic_menu_edit),
     SidebarItem.SystemAction("qr_scan", "Secure Screen Scanner", android.R.drawable.ic_menu_search),
     SidebarItem.SystemAction("barcode_scanner", "Secure Camera Scanner", android.R.drawable.ic_menu_camera),
