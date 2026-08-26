@@ -236,8 +236,8 @@ fun MainSettingsScreen(onNavigateToReader: () -> Unit, onNavigateToGeneral: () -
                     headlineContent = { Text("Log Keeper") },
                     supportingContent = { Text("View system logs") },
                     modifier = Modifier.clickable { 
-                        val intent = Intent()
-                        android.widget.Toast.makeText(context, "Not Migrated", android.widget.Toast.LENGTH_SHORT).show()
+                        val intent = Intent(context, com.example.feature.settings.LogKeeperActivity::class.java)
+                        context.startActivity(intent)
                     }
                 )
                 Divider()

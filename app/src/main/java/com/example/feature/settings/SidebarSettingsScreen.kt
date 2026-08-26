@@ -73,7 +73,7 @@ fun SidebarSettingsScreen(
                 it.id == target || it.type == target || (effectiveType == "hybrid_grid" && (it.id.startsWith("default_hybrid") || it.type == "hybrid_grid"))
             }
             
-            if (index == -1) {
+            if (index == -1 && !prefs.contains("handle_${handleId}_pages")) {
                 val title = when (effectiveType) {
                     "apps" -> "Apps Grid"
                     "scheduler" -> "Short Reminders"
@@ -92,22 +92,7 @@ fun SidebarSettingsScreen(
                     type = effectiveType,
                     title = title
                 )
-                val newPages = if (pages.size == 1 && pages[0].type == "hybrid_grid" && effectiveType != "hybrid_grid" && !prefs.contains("handle_${handleId}_pages")) {
-                    mutableListOf(newPage)
-                } else {
-                    val list = pages.toMutableList()
-                    // Put chosen action page at the beginning if requested as initial gesture action
-                    list.add(0, newPage)
-                    list
-                }
-                pages = newPages
-                PageManager.savePages(prefs, handleId, newPages)
-                PageManager.saveDefaultPageIndex(prefs, handleId, 0)
-            } else if (index > 0) {
-                // Move it to first if explicitly opened with this action
-                val newPages = pages.toMutableList()
-                val item = newPages.removeAt(index)
-                newPages.add(0, item)
+                val newPages = mutableListOf(newPage)
                 pages = newPages
                 PageManager.savePages(prefs, handleId, newPages)
                 PageManager.saveDefaultPageIndex(prefs, handleId, 0)

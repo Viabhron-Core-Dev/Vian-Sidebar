@@ -99,7 +99,7 @@ object PageManager {
     fun getPages(prefs: SharedPreferences, rawHandleId: String): List<SidebarPage> {
         val cleanHandleId = getCleanHandleId(rawHandleId)
         val containerSpecificJson = prefs.getString("handle_${rawHandleId}_pages", null)
-        val handleSpecificJson = prefs.getString("handle_${cleanHandleId}_pages", null)
+        val handleSpecificJson = if (rawHandleId != cleanHandleId) prefs.getString("handle_${cleanHandleId}_pages", null) else null
         val globalSidebarJson = prefs.getString("handle_sidebar_pages", null)
         val legacy = prefs.getString("sidebar_pages", null)
         val pagesJson = containerSpecificJson ?: handleSpecificJson ?: globalSidebarJson ?: legacy
@@ -114,6 +114,7 @@ object PageManager {
         }
         if (pagesJson == null) {
             // Default setup
+            com.example.core.LogKeeper.writeLog("PageManager", "getPages for '$rawHandleId' (fallback clean='$cleanHandleId'): 1 default page")
             return listOf(defaultPage)
         }
         val list = mutableListOf<SidebarPage>()
@@ -143,10 +144,13 @@ object PageManager {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            com.example.core.LogKeeper.writeLog("PageManager", "getPages for '$rawHandleId' error parsing JSON: ${e.message}")
             return listOf(defaultPage)
         }
         
-        return if (list.isEmpty()) listOf(defaultPage) else list
+        val result = if (list.isEmpty()) listOf(defaultPage) else list
+        com.example.core.LogKeeper.writeLog("PageManager", "getPages for '$rawHandleId': resolved ${result.size} pages [${result.joinToString { it.title }}]")
+        return result
     }
 
     fun savePages(prefs: SharedPreferences, rawHandleId: String, pages: List<SidebarPage>) {
@@ -155,11 +159,12 @@ object PageManager {
         pages.filter { seenIds.add(it.id) }.forEach { arr.put(it.toJson()) }
         val jsonStr = arr.toString()
         val editor = prefs.edit().putString("handle_${rawHandleId}_pages", jsonStr)
-        if (rawHandleId == "sidebar" || getCleanHandleId(rawHandleId) == "sidebar") {
+        if (rawHandleId == "sidebar") {
             editor.putString("handle_sidebar_pages", jsonStr)
             editor.putString("sidebar_pages", jsonStr)
         }
         editor.apply()
+        com.example.core.LogKeeper.writeLog("PageManager", "savePages for '$rawHandleId': saved ${pages.size} pages [${pages.joinToString { it.title }}]")
     }
 
     fun getDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String): Int {
@@ -172,11 +177,12 @@ object PageManager {
 
     fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int) {
         val editor = prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index)
-        if (rawHandleId == "sidebar" || getCleanHandleId(rawHandleId) == "sidebar") {
+        if (rawHandleId == "sidebar") {
             editor.putInt("handle_sidebar_default_page_index", index)
             editor.putInt("sidebar_default_page_index", index)
         }
         editor.apply()
+        com.example.core.LogKeeper.writeLog("PageManager", "saveDefaultPageIndex for '$rawHandleId': index=$index")
     }
 
     fun isPageTypePresent(prefs: SharedPreferences, pageType: String): Boolean {

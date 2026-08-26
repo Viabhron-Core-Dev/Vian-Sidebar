@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.core.HandleManager
 import com.example.utils.PageManager
 import com.example.utils.SidebarPage
 import java.util.UUID
@@ -26,12 +27,46 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE) }
     
-    var pages by remember { mutableStateOf(PageManager.getPages(prefs, handleId)) }
-    var defaultIndex by remember { mutableStateOf(PageManager.getDefaultPageIndex(prefs, handleId)) }
+    val handles = remember { HandleManager.getHandles(prefs) }
+    var selectedHandleId by remember { mutableStateOf(PageManager.getCleanHandleId(handleId).ifEmpty { "sidebar" }) }
+    
+    val gestures = listOf(
+        "" to "Default (All Gestures)",
+        "swipe_left" to "Swipe Left",
+        "swipe_right" to "Swipe Right",
+        "swipe_up" to "Swipe Up",
+        "swipe_down" to "Swipe Down",
+        "tap" to "Tap",
+        "double_tap" to "Double Tap",
+        "long_press" to "Long Press"
+    )
+    
+    val initialGesture = remember {
+        when {
+            handleId.contains("_swipe_left") -> "swipe_left"
+            handleId.contains("_swipe_right") -> "swipe_right"
+            handleId.contains("_swipe_up") -> "swipe_up"
+            handleId.contains("_swipe_down") -> "swipe_down"
+            handleId.endsWith("_tap") -> "tap"
+            handleId.endsWith("_double_tap") -> "double_tap"
+            handleId.endsWith("_long_press") -> "long_press"
+            else -> ""
+        }
+    }
+    var selectedGesture by remember { mutableStateOf(initialGesture) }
+    
+    val currentContainerId = remember(selectedHandleId, selectedGesture) {
+        if (selectedGesture.isEmpty()) selectedHandleId else "${selectedHandleId}_$selectedGesture"
+    }
+    
+    var pages by remember(currentContainerId) { mutableStateOf(PageManager.getPages(prefs, currentContainerId)) }
+    var defaultIndex by remember(currentContainerId) { mutableStateOf(PageManager.getDefaultPageIndex(prefs, currentContainerId)) }
     
     var showAddDialog by remember { mutableStateOf(false) }
+    var handleDropdownExpanded by remember { mutableStateOf(false) }
+    var gestureDropdownExpanded by remember { mutableStateOf(false) }
 
-    DisposableEffect(context, handleId) {
+    DisposableEffect(context, currentContainerId) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: android.content.Intent?) {
                 if (intent?.action == "WIDGET_PAGE_CREATED") {
@@ -42,7 +77,7 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
                         val page = SidebarPage.createDefault(id = "widget:$widgetId", type = "widget", title = title)
                         newPages.add(page)
                         pages = newPages
-                        PageManager.savePages(prefs, handleId, pages)
+                        PageManager.savePages(prefs, currentContainerId, pages)
                     }
                 }
             }
@@ -57,9 +92,9 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
         }
     }
     
-    fun savePages() {
-        PageManager.savePages(prefs, handleId, pages)
-        PageManager.saveDefaultPageIndex(prefs, handleId, defaultIndex)
+    fun saveCurrentPages() {
+        PageManager.savePages(prefs, currentContainerId, pages)
+        PageManager.saveDefaultPageIndex(prefs, currentContainerId, defaultIndex)
     }
     
     Scaffold(
@@ -68,7 +103,7 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
                 title = { Text("Page Management") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        savePages()
+                        saveCurrentPages()
                         onBack()
                     }) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -82,90 +117,180 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
             }
         }
     ) { padding ->
-        LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
-            itemsIndexed(pages) { index, page ->
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            text = page.title,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            text = page.type.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    },
-                    leadingContent = {
-                        RadioButton(
-                            selected = index == defaultIndex,
-                            onClick = {
-                                defaultIndex = index
-                                savePages()
-                            }
-                        )
-                    },
-                    trailingContent = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = {
-                                    if (index > 1) { // 1 instead of 0 to protect index 0
-                                        val newPages = pages.toMutableList()
-                                        val temp = newPages[index]
-                                        newPages[index] = newPages[index - 1]
-                                        newPages[index - 1] = temp
-                                        if (defaultIndex == index) defaultIndex = index - 1
-                                        else if (defaultIndex == index - 1) defaultIndex = index
-                                        pages = newPages
-                                        savePages()
-                                    }
-                                },
-                                enabled = index > 1,
-                                modifier = Modifier.size(36.dp)
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // Container Hierarchy Selectors
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "Target Container Hierarchy",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Handle selector
+                        Box(modifier = Modifier.weight(1f)) {
+                            OutlinedButton(
+                                onClick = { handleDropdownExpanded = true },
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Default.ArrowUpward, "Move Up", modifier = Modifier.size(18.dp))
+                                val currentHandleName = handles.find { it.id == selectedHandleId }?.name ?: selectedHandleId
+                                Text(
+                                    text = "Handle: $currentHandleName",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                            IconButton(
-                                onClick = {
-                                    if (index > 0 && index < pages.size - 1) {
-                                        val newPages = pages.toMutableList()
-                                        val temp = newPages[index]
-                                        newPages[index] = newPages[index + 1]
-                                        newPages[index + 1] = temp
-                                        if (defaultIndex == index) defaultIndex = index + 1
-                                        else if (defaultIndex == index + 1) defaultIndex = index
-                                        pages = newPages
-                                        savePages()
-                                    }
-                                },
-                                enabled = index > 0 && index < pages.size - 1,
-                                modifier = Modifier.size(36.dp)
+                            DropdownMenu(
+                                expanded = handleDropdownExpanded,
+                                onDismissRequest = { handleDropdownExpanded = false }
                             ) {
-                                Icon(Icons.Default.ArrowDownward, "Move Down", modifier = Modifier.size(18.dp))
+                                handles.forEach { h ->
+                                    DropdownMenuItem(
+                                        text = { Text(h.name) },
+                                        onClick = {
+                                            saveCurrentPages()
+                                            selectedHandleId = h.id
+                                            handleDropdownExpanded = false
+                                        }
+                                    )
+                                }
                             }
-                            IconButton(
-                                onClick = {
-                                    if (index > 0 && pages.size > 1) {
-                                        val newPages = pages.toMutableList()
-                                        newPages.removeAt(index)
-                                        if (defaultIndex == index) defaultIndex = 0
-                                        else if (defaultIndex > index) defaultIndex--
-                                        pages = newPages
-                                        savePages()
-                                    }
-                                },
-                                enabled = index > 0 && pages.size > 1,
-                                modifier = Modifier.size(36.dp)
+                        }
+                        
+                        // Gesture selector
+                        Box(modifier = Modifier.weight(1f)) {
+                            OutlinedButton(
+                                onClick = { gestureDropdownExpanded = true },
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Default.Delete, "Delete", modifier = Modifier.size(18.dp))
+                                val currentGestureName = gestures.find { it.first == selectedGesture }?.second ?: "Default"
+                                Text(
+                                    text = "Gesture: $currentGestureName",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = gestureDropdownExpanded,
+                                onDismissRequest = { gestureDropdownExpanded = false }
+                            ) {
+                                gestures.forEach { (key, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            saveCurrentPages()
+                                            selectedGesture = key
+                                            gestureDropdownExpanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
-                )
-                Divider()
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Container Key: handle_${currentContainerId}_pages",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                itemsIndexed(pages) { index, page ->
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = page.title,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                text = page.type.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        leadingContent = {
+                            RadioButton(
+                                selected = index == defaultIndex,
+                                onClick = {
+                                    defaultIndex = index
+                                    saveCurrentPages()
+                                }
+                            )
+                        },
+                        trailingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = {
+                                        if (index > 0) {
+                                            val newPages = pages.toMutableList()
+                                            val temp = newPages[index]
+                                            newPages[index] = newPages[index - 1]
+                                            newPages[index - 1] = temp
+                                            if (defaultIndex == index) defaultIndex = index - 1
+                                            else if (defaultIndex == index - 1) defaultIndex = index
+                                            pages = newPages
+                                            saveCurrentPages()
+                                        }
+                                    },
+                                    enabled = index > 0,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.ArrowUpward, "Move Up", modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (index < pages.size - 1) {
+                                            val newPages = pages.toMutableList()
+                                            val temp = newPages[index]
+                                            newPages[index] = newPages[index + 1]
+                                            newPages[index + 1] = temp
+                                            if (defaultIndex == index) defaultIndex = index + 1
+                                            else if (defaultIndex == index + 1) defaultIndex = index
+                                            pages = newPages
+                                            saveCurrentPages()
+                                        }
+                                    },
+                                    enabled = index < pages.size - 1,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.ArrowDownward, "Move Down", modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (pages.size > 1) {
+                                            val newPages = pages.toMutableList()
+                                            newPages.removeAt(index)
+                                            if (defaultIndex == index) defaultIndex = 0
+                                            else if (defaultIndex > index) defaultIndex--
+                                            pages = newPages
+                                            saveCurrentPages()
+                                        }
+                                    },
+                                    enabled = pages.size > 1,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.Delete, "Delete", modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    )
+                    Divider()
+                }
             }
         }
         
@@ -193,7 +318,7 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
                                 val newPages = pages.toMutableList()
                                 newPages.add(SidebarPage.createDefault(id = UUID.randomUUID().toString(), type = type, title = title))
                                 pages = newPages
-                                savePages()
+                                saveCurrentPages()
                                 showAddDialog = false
                             }, modifier = Modifier.fillMaxWidth()) {
                                 Text(title, modifier = Modifier.fillMaxWidth())

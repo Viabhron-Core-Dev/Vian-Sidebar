@@ -11,73 +11,42 @@ import android.graphics.Typeface
 import androidx.core.graphics.drawable.IconCompat
 import java.util.Locale
 
+/**
+ * Pure, lightweight status bar speed icon generator based on the Battery Indicator Pro (BatteryBot) method.
+ * Renders pixel-snapped, ultra-sharp typography directly onto a 24dp status bar notification canvas.
+ * Zero sliders, zero configuration overhead, 100% sharp text with zero bilinear downsampling blur.
+ */
 object DynamicSpeedIconGenerator {
 
     data class SpeedDisplay(val number: String, val unit: String)
-
-    data class IconConfig(
-        val font: String = "sans-serif-condensed",
-        val isFakeBold: Boolean = true,
-        val numScale: Float = 1.0f,
-        val unitScale: Float = 1.0f,
-        val numYOffsetDp: Float = 0f,
-        val unitYOffsetDp: Float = 0f,
-        val bgShape: String = "None", // "None", "Rounded", "Pill", "Square"
-        val bgRadiusDp: Float = 4f,
-        val bgAlpha: Int = 0, // 0 to 255
-        val layoutMode: String = "Stacked", // "Stacked", "Compact", "NumberOnly"
-        // Blurriness reduction & clarity options (Battery-Indicator-Pro style)
-        val resScale: Float = 1.0f, // 1.0x exact density avoids bilinear OS resampling blur
-        val aaMode: String = "Crisp", // "Crisp" (No anti-alias, 1:1 binary pixels), "Smooth", "HighContrast"
-        val letterSpacing: Float = -0.02f, // Slight negative tracking prevents wide stem blur
-        val strokeWidthDp: Float = 0f // 0 to 1.5 dp extra stroke sharpness
-    )
-
-    private var activeConfig = IconConfig()
 
     private var cachedBitmap: Bitmap? = null
     private var cachedCanvas: Canvas? = null
     private var cachedDensityDpi: Int = -1
     private var cachedSizePx: Int = -1
-    private var cachedTypeface: Typeface? = null
-    private var cachedNumPaint: Paint? = null
-    private var cachedUnitPaint: Paint? = null
-    private var cachedBgPaint: Paint? = null
-    private var cachedStrokePaint: Paint? = null
+    
+    private val typeface: Typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
 
-    fun loadConfig(prefs: SharedPreferences): IconConfig {
-        val config = IconConfig(
-            font = prefs.getString("speed_icon_font", "sans-serif-condensed") ?: "sans-serif-condensed",
-            isFakeBold = prefs.getBoolean("speed_icon_bold", true),
-            numScale = prefs.getFloat("speed_icon_num_scale", 1.0f),
-            unitScale = prefs.getFloat("speed_icon_unit_scale", 1.0f),
-            numYOffsetDp = prefs.getFloat("speed_icon_num_y_offset", 0f),
-            unitYOffsetDp = prefs.getFloat("speed_icon_unit_y_offset", 0f),
-            bgShape = prefs.getString("speed_icon_bg_shape", "None") ?: "None",
-            bgRadiusDp = prefs.getFloat("speed_icon_bg_radius", 4f),
-            bgAlpha = prefs.getInt("speed_icon_bg_alpha", 0),
-            layoutMode = prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked",
-            resScale = prefs.getFloat("speed_icon_res_scale", 1.0f),
-            aaMode = prefs.getString("speed_icon_aa_mode", "Crisp") ?: "Crisp",
-            letterSpacing = prefs.getFloat("speed_icon_letter_spacing", -0.02f),
-            strokeWidthDp = prefs.getFloat("speed_icon_stroke_width", 0f)
-        )
-        activeConfig = config
-        invalidatePaints()
-        return config
+    private val numPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        color = Color.WHITE
+        typeface = this@DynamicSpeedIconGenerator.typeface
+        textAlign = Paint.Align.CENTER
+        isDither = true
+        isFilterBitmap = true
     }
 
-    fun updateActiveConfig(config: IconConfig) {
-        activeConfig = config
-        invalidatePaints()
+    private val unitPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        color = Color.WHITE
+        typeface = this@DynamicSpeedIconGenerator.typeface
+        textAlign = Paint.Align.CENTER
+        isDither = true
+        isFilterBitmap = true
     }
 
-    private fun invalidatePaints() {
-        cachedTypeface = null
-        cachedNumPaint = null
-        cachedUnitPaint = null
-        cachedBgPaint = null
-        cachedStrokePaint = null
+    private val textBounds = Rect()
+
+    fun loadConfig(prefs: SharedPreferences) {
+        // No-op: Battery Indicator Pro method uses standardized pixel-perfect geometry
     }
 
     fun formatSpeed(bytesPerSec: Long, forcedUnit: String? = null): SpeedDisplay {
@@ -98,7 +67,6 @@ object DynamicSpeedIconGenerator {
                 SpeedDisplay(str, "MB/s")
             }
             else -> {
-                // Auto formatting matching NetSpeed Indicator
                 when {
                     bytesPerSec < 1000 -> {
                         SpeedDisplay("0", "KB/s")
@@ -121,17 +89,13 @@ object DynamicSpeedIconGenerator {
     }
 
     /**
-     * Generates a crisp, pixel-perfect status bar icon bitmap directly at the notification small-icon dimensions.
-     * Positions text baselines precisely using Paint.FontMetrics without unnecessary scaling/filtering.
-     * Ensures ultra-lightweight memory footprint (~36 KB single reusable buffer) with zero persistent preview retention.
+     * Generates a 1:1 pixel-perfect bitmap for the status bar notification icon.
      */
     fun generateStatusBarBitmap(
         context: Context,
         bytesPerSec: Long,
-        forcedUnit: String? = null,
-        overrideConfig: IconConfig? = null
+        forcedUnit: String? = null
     ): Bitmap {
-        val config = overrideConfig ?: activeConfig
         val display = formatSpeed(bytesPerSec, forcedUnit)
         
         val resources = context.resources
@@ -139,43 +103,30 @@ object DynamicSpeedIconGenerator {
         val density = displayMetrics.density
         val densityDpi = displayMetrics.densityDpi
 
-        // Determine exact small icon dimension for the current display density (24dp standard)
+        // Standard status bar icon slot dimension (24dp)
         val statusBarResId = resources.getIdentifier("status_bar_icon_size", "dimen", "android")
         val systemSize = if (statusBarResId > 0) {
             try { resources.getDimensionPixelSize(statusBarResId) } catch (e: Exception) { 0 }
         } else {
             0
         }
-        val baseSizePx = if (systemSize > 0) systemSize else Math.round(24f * density).coerceAtLeast(16)
-        val sizePx = Math.round(baseSizePx * config.resScale).coerceIn(16, 256)
+        val sizePx = if (systemSize > 0) systemSize else Math.round(24f * density).coerceAtLeast(16)
 
-        val isLive = (overrideConfig == null)
-        val bitmap: Bitmap
-        val canvas: Canvas
+        var bitmap = cachedBitmap
+        var canvas = cachedCanvas
 
-        if (isLive) {
-            var liveBmp = cachedBitmap
-            var liveCvs = cachedCanvas
-            if (liveBmp == null || liveBmp.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
-                liveBmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-                liveBmp.density = densityDpi
-                liveCvs = Canvas(liveBmp)
-                cachedBitmap = liveBmp
-                cachedCanvas = liveCvs
-                cachedSizePx = sizePx
-                cachedDensityDpi = densityDpi
-            }
-            liveBmp.eraseColor(Color.TRANSPARENT)
-            bitmap = liveBmp
-            canvas = liveCvs ?: Canvas(liveBmp)
-        } else {
-            // For one-off preview generation in settings UI: allocate temporary standalone bitmap that GC can promptly clean up
+        if (bitmap == null || bitmap.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
             bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
             bitmap.density = densityDpi
             canvas = Canvas(bitmap)
+            cachedBitmap = bitmap
+            cachedCanvas = canvas
+            cachedSizePx = sizePx
+            cachedDensityDpi = densityDpi
         }
 
-        renderIconToCanvas(canvas, sizePx, density * config.resScale, display, config)
+        bitmap.eraseColor(Color.TRANSPARENT)
+        renderIconToCanvas(canvas!!, sizePx, density, display)
 
         return bitmap
     }
@@ -184,193 +135,39 @@ object DynamicSpeedIconGenerator {
         canvas: Canvas,
         sizePx: Int,
         density: Float,
-        display: SpeedDisplay,
-        config: IconConfig
+        display: SpeedDisplay
     ) {
-        // Draw background if configured
-        if (config.bgAlpha > 0 && config.bgShape != "None") {
-            val bgPaint = cachedBgPaint ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.FILL
-            }.also { if (config == activeConfig) cachedBgPaint = it }
-            bgPaint.color = Color.argb(config.bgAlpha, 0, 0, 0)
-            
-            val pad = 1f * density
-            val left = pad
-            val top = pad
-            val right = sizePx - pad
-            val bottom = sizePx - pad
-            val rad = when (config.bgShape) {
-                "Pill" -> sizePx / 2f
-                "Square" -> 0f
-                else -> config.bgRadiusDp * density
-            }
-            canvas.drawRoundRect(left, top, right, bottom, rad, rad, bgPaint)
-        }
-
-        val tf = cachedTypeface ?: try {
-            Typeface.create(config.font, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
-        } catch (e: Exception) {
-            Typeface.create(Typeface.DEFAULT, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
-        }.also { if (config == activeConfig) cachedTypeface = it }
-
-        val paintFlags = when (config.aaMode) {
-            "Crisp" -> Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG
-            "HighContrast" -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG
-            else -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG
-        }
-
-        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(paintFlags).apply {
-            color = Color.WHITE
-            typeface = tf
-            textAlign = Paint.Align.CENTER
-            isFakeBoldText = config.isFakeBold
-            letterSpacing = config.letterSpacing
-            isDither = true
-            isFilterBitmap = true
-            if (config.strokeWidthDp > 0f) {
-                style = Paint.Style.FILL_AND_STROKE
-                strokeWidth = config.strokeWidthDp * density
-            } else {
-                style = Paint.Style.FILL
-            }
-        }.also { if (config == activeConfig) cachedNumPaint = it }
-
-        // Update dynamic mutable paint properties
-        numPaint.letterSpacing = config.letterSpacing
-        numPaint.isDither = true
-        numPaint.isFilterBitmap = true
-        if (config.strokeWidthDp > 0f) {
-            numPaint.style = Paint.Style.FILL_AND_STROKE
-            numPaint.strokeWidth = config.strokeWidthDp * density
-        } else {
-            numPaint.style = Paint.Style.FILL
-        }
-
-        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(paintFlags).apply {
-            color = Color.WHITE
-            typeface = tf
-            textAlign = Paint.Align.CENTER
-            isFakeBoldText = config.isFakeBold
-            letterSpacing = config.letterSpacing
-            isDither = true
-            isFilterBitmap = true
-            if (config.strokeWidthDp > 0f) {
-                style = Paint.Style.FILL_AND_STROKE
-                strokeWidth = (config.strokeWidthDp * 0.75f) * density
-            } else {
-                style = Paint.Style.FILL
-            }
-        }.also { if (config == activeConfig) cachedUnitPaint = it }
-
-        unitPaint.letterSpacing = config.letterSpacing
-        unitPaint.isDither = true
-        unitPaint.isFilterBitmap = true
-        if (config.strokeWidthDp > 0f) {
-            unitPaint.style = Paint.Style.FILL_AND_STROKE
-            unitPaint.strokeWidth = (config.strokeWidthDp * 0.75f) * density
-        } else {
-            unitPaint.style = Paint.Style.FILL
-        }
-
-        // Optional High-Contrast dark shadow/outline behind text
-        val outlinePaint = if (config.aaMode == "HighContrast") {
-            (if (config == activeConfig) cachedStrokePaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
-                color = Color.argb(180, 0, 0, 0)
-                typeface = tf
-                textAlign = Paint.Align.CENTER
-                style = Paint.Style.STROKE
-                strokeWidth = 2f * density
-                letterSpacing = config.letterSpacing
-                isDither = false
-                isFilterBitmap = false
-            }.also { if (config == activeConfig) cachedStrokePaint = it }
-        } else null
-
-        outlinePaint?.letterSpacing = config.letterSpacing
-
         val centerX = Math.round(sizePx / 2f).toFloat()
-        val textBounds = android.graphics.Rect()
+        // 80/20 Stacked Split: 78-80% height dedicated to large prominent number, 20-22% to compact unit
+        val numberSectionHeight = Math.round(sizePx * 0.78f).toFloat()
+        val unitSectionHeight = sizePx - numberSectionHeight
 
-        when (config.layoutMode) {
-            "Compact" -> {
-                // Battery-Indicator-Pro single-glyph compact style: e.g. "45K" or "1.2M" taking full icon height
-                val shortUnit = if (display.unit.startsWith("M")) "M" else "K"
-                val compactText = "${display.number}$shortUnit"
-                val maxH = sizePx * 0.78f * config.numScale
-                val maxW = sizePx * 0.94f
-                numPaint.textSize = maxH
-                val textW = numPaint.measureText(compactText)
-                val scale = minOf(if (textW > 0f) maxW / textW else 1f, 1.0f)
-                numPaint.textSize = maxH * scale
-
-                // Battery-Indicator-Pro exact bounds-based vertical centering
-                numPaint.getTextBounds(compactText, 0, compactText.length, textBounds)
-                val baselineY = Math.round((sizePx / 2f) + (textBounds.height() / 2f) - textBounds.bottom + (config.numYOffsetDp * density)).toFloat()
-                
-                if (outlinePaint != null) {
-                    outlinePaint.textSize = numPaint.textSize
-                    canvas.drawText(compactText, centerX, baselineY, outlinePaint)
-                }
-                canvas.drawText(compactText, centerX, baselineY, numPaint)
-            }
-            "NumberOnly" -> {
-                // Number only centered across full height using exact bounds
-                val maxH = sizePx * 0.85f * config.numScale
-                val maxW = sizePx * 0.94f
-                numPaint.textSize = maxH
-                val textW = numPaint.measureText(display.number)
-                val scale = minOf(if (textW > 0f) maxW / textW else 1f, 1.0f)
-                numPaint.textSize = maxH * scale
-
-                numPaint.getTextBounds(display.number, 0, display.number.length, textBounds)
-                val baselineY = Math.round((sizePx / 2f) + (textBounds.height() / 2f) - textBounds.bottom + (config.numYOffsetDp * density)).toFloat()
-
-                if (outlinePaint != null) {
-                    outlinePaint.textSize = numPaint.textSize
-                    canvas.drawText(display.number, centerX, baselineY, outlinePaint)
-                }
-                canvas.drawText(display.number, centerX, baselineY, numPaint)
-            }
-            else -> {
-                // Stacked Mode with exact bounds-based integer baseline centering
-                val numberSectionHeight = Math.round(sizePx * 0.60f).toFloat()
-                val unitSectionHeight = sizePx - numberSectionHeight
-
-                // Number
-                val maxNumH = numberSectionHeight * 0.95f * config.numScale
-                val maxNumW = sizePx * 0.96f
-                numPaint.textSize = maxNumH
-                val numTextW = numPaint.measureText(display.number)
-                val scaleNum = minOf(if (numTextW > 0f) maxNumW / numTextW else 1f, 1.0f)
-                numPaint.textSize = maxNumH * scaleNum
-
-                val numBounds = android.graphics.Rect()
-                numPaint.getTextBounds(display.number, 0, display.number.length, numBounds)
-                val numBaselineY = Math.round((numberSectionHeight / 2f) + (numBounds.height() / 2f) - numBounds.bottom + (config.numYOffsetDp * density)).toFloat()
-
-                // Unit
-                val maxUnitH = unitSectionHeight * 0.90f * config.unitScale
-                val maxUnitW = sizePx * 0.96f
-                unitPaint.textSize = maxUnitH
-                val unitTextW = unitPaint.measureText(display.unit)
-                val scaleUnit = minOf(if (unitTextW > 0f) maxUnitW / unitTextW else 1f, 1.0f)
-                unitPaint.textSize = maxUnitH * scaleUnit
-
-                val unitBounds = android.graphics.Rect()
-                unitPaint.getTextBounds(display.unit, 0, display.unit.length, unitBounds)
-                val unitBaselineY = Math.round(numberSectionHeight + (unitSectionHeight / 2f) + (unitBounds.height() / 2f) - unitBounds.bottom + (config.unitYOffsetDp * density)).toFloat()
-
-                if (outlinePaint != null) {
-                    outlinePaint.textSize = numPaint.textSize
-                    canvas.drawText(display.number, centerX, numBaselineY, outlinePaint)
-                    outlinePaint.textSize = unitPaint.textSize
-                    canvas.drawText(display.unit, centerX, unitBaselineY, outlinePaint)
-                }
-
-                canvas.drawText(display.number, centerX, numBaselineY, numPaint)
-                canvas.drawText(display.unit, centerX, unitBaselineY, unitPaint)
-            }
+        // Number: 16.5sp base size (prominent large digits), scaled if needed to fit width without clipping
+        val baseNumSize = Math.round(16.5f * density).toFloat()
+        val maxNumW = sizePx * 0.96f
+        numPaint.textSize = baseNumSize
+        val numTextW = numPaint.measureText(display.number)
+        if (numTextW > maxNumW && numTextW > 0f) {
+            numPaint.textSize = baseNumSize * (maxNumW / numTextW)
         }
+
+        numPaint.getTextBounds(display.number, 0, display.number.length, textBounds)
+        val numY = Math.round((numberSectionHeight / 2f) + (textBounds.height() / 2f) - textBounds.bottom).toFloat()
+
+        // Unit: 6.5sp base size (compact crisp unit)
+        val baseUnitSize = Math.round(6.5f * density).toFloat()
+        val maxUnitW = sizePx * 0.96f
+        unitPaint.textSize = baseUnitSize
+        val unitTextW = unitPaint.measureText(display.unit)
+        if (unitTextW > maxUnitW && unitTextW > 0f) {
+            unitPaint.textSize = baseUnitSize * (maxUnitW / unitTextW)
+        }
+
+        unitPaint.getTextBounds(display.unit, 0, display.unit.length, textBounds)
+        val unitY = Math.round(numberSectionHeight + (unitSectionHeight / 2f) + (textBounds.height() / 2f) - textBounds.bottom).toFloat()
+
+        canvas.drawText(display.number, centerX, numY, numPaint)
+        canvas.drawText(display.unit, centerX, unitY, unitPaint)
     }
 
     fun generateIconCompat(context: Context, bytesPerSec: Long, forcedUnit: String? = null): IconCompat {
@@ -378,4 +175,3 @@ object DynamicSpeedIconGenerator {
         return IconCompat.createWithBitmap(bitmap)
     }
 }
-

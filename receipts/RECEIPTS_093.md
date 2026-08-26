@@ -50,4 +50,29 @@
 * Deviations: None.
 * Known issues: None.
 
+* Timestamp: 2026-08-26T09:18:00-07:00
+* One-line summary: Convert Speed Icon generator to pure Battery-Indicator-Pro renderer and remove all settings sliders.
+* Exact files touched: `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`, `app/src/main/java/com/example/feature/settings/NetSpeedSettingsScreen.kt`
+* What was actually done: Removed all customisation sliders, presets, typography options, background shapes, stroke weights, and supersampling settings from NetSpeedSettingsScreen, preserving only core functional controls (toggle, hide when offline, units, and App Data Usage list). Refactored DynamicSpeedIconGenerator to use the exact Battery Indicator Pro (BatteryBot) method: fixed integer dp typography, integer-snapped font metric baseline centering, pure white on transparent alpha canvas, and a 1:1 24dp status bar notification bitmap with zero runtime resampling blur.
+* How it was verified: local build only (compile_applet passed)
+* Deviations: None.
+* Known issues: None.
+
+* Timestamp: 2026-08-26T09:36:00-07:00
+* One-line summary: Adjust DynamicSpeedIconGenerator to 80/20 stacked split with big number and small unit.
+* Exact files touched: `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+* What was actually done: Configured the icon canvas vertical layout to an 80/20 proportion (78% number section height with 16.5sp prominent digits, 22% unit section height with 6.5sp compact text). Maintained integer pixel-snapped baseline positioning and subpixel typography flags for maximum status bar clarity.
+* How it was verified: local build only (compile_applet passed)
+* Deviations: None.
+* Known issues: None.
+
+* Timestamp: 2026-08-26T11:02:00-07:00
+* One-line summary: Connect Log Keeper in Settings, fix container hierarchy isolation, prevent cross-gesture page overwriting, and fix page indicators/swiping.
+* Exact files touched: `app/src/main/java/com/example/feature/settings/SettingsActivity.kt`, `app/src/main/java/com/example/utils/PageManager.kt`, `app/src/main/java/com/example/feature/settings/SidebarSettingsScreen.kt`, `app/src/main/java/com/example/feature/settings/PageManagementSettingsScreen.kt`, `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+* What was actually done: Connected the Log Keeper item in SettingsActivity to launch LogKeeperActivity. Updated PageManager to strictly isolate container keys (handle_${containerId}_pages) without cross-overwriting handle_sidebar_pages when configuring specific gesture containers. Added transparent logging in PageManager and SidebarView via LogKeeper. Refactored PageManagementSettingsScreen with a Handle & Gesture hierarchy selector so pages can be managed per container. Updated SidebarSettingsScreen to avoid destructive auto-mutation on initAction. Fixed SidebarView ViewPager page binding and dot indicators to ensure smooth horizontal swiping across multiple pages.
+* How it was verified: local build only (compile_applet passed)
+* Deviations: None.
+* Known issues: None.
+
+
 

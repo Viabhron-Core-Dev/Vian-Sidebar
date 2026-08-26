@@ -372,10 +372,7 @@ class SidebarView(
                 if (pageConfigs.isEmpty()) return
                 val actualPosition = if (isLooping) position % pageConfigs.size else position
                 val config = pageConfigs[actualPosition]
-                // Only immediately instantiate if it is the initially active starting page.
-                // Other pages load on-demand when scrolled into view.
-                val isCurrentOrTarget = (position == viewPager.currentItem) || (holder.pageView != null)
-                holder.bind(config, isCurrentOrTarget)
+                holder.bind(config, true)
             }
             override fun getItemCount(): Int = if (isLooping) Int.MAX_VALUE else pageConfigs.size
         }
@@ -659,7 +656,8 @@ class SidebarView(
             dots.add(dot)
             dotsLayout.addView(dot)
         }
-        updateDots(0)
+        val initialPos = if (count > 0) (if (isLooping) startingIndex % count else startingIndex).coerceIn(0, count - 1) else 0
+        updateDots(initialPos)
     }
     
     private fun updateDots(position: Int) {
@@ -688,7 +686,7 @@ class SidebarView(
 
     fun attach() {
         if (!isAttached) {
-            com.example.core.LogKeeper.writeLog("Sidebar", "Attached sidebar for containerId: $containerId")
+            com.example.core.LogKeeper.writeLog("Sidebar", "Attached sidebar for containerId: $containerId with ${pageConfigs.size} pages")
             AppWidgetHelper.startListening(context)
             windowManager.addView(this, layoutParams)
             isAttached = true
