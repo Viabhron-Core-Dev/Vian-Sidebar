@@ -208,9 +208,9 @@ object DynamicSpeedIconGenerator {
         }.also { if (config == activeConfig) cachedTypeface = it }
 
         val paintFlags = when (config.aaMode) {
-            "Crisp" -> 0
+            "Crisp" -> Paint.SUBPIXEL_TEXT_FLAG
             "HighContrast" -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG
-            else -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.FILTER_BITMAP_FLAG
+            else -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG
         }
 
         val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(paintFlags).apply {
@@ -219,6 +219,8 @@ object DynamicSpeedIconGenerator {
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             letterSpacing = config.letterSpacing
+            isDither = false
+            isFilterBitmap = false
             if (config.strokeWidthDp > 0f) {
                 style = Paint.Style.FILL_AND_STROKE
                 strokeWidth = config.strokeWidthDp * density
@@ -229,6 +231,8 @@ object DynamicSpeedIconGenerator {
 
         // Update dynamic mutable paint properties
         numPaint.letterSpacing = config.letterSpacing
+        numPaint.isDither = false
+        numPaint.isFilterBitmap = false
         if (config.strokeWidthDp > 0f) {
             numPaint.style = Paint.Style.FILL_AND_STROKE
             numPaint.strokeWidth = config.strokeWidthDp * density
@@ -242,6 +246,8 @@ object DynamicSpeedIconGenerator {
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             letterSpacing = config.letterSpacing
+            isDither = false
+            isFilterBitmap = false
             if (config.strokeWidthDp > 0f) {
                 style = Paint.Style.FILL_AND_STROKE
                 strokeWidth = (config.strokeWidthDp * 0.75f) * density
@@ -251,6 +257,8 @@ object DynamicSpeedIconGenerator {
         }.also { if (config == activeConfig) cachedUnitPaint = it }
 
         unitPaint.letterSpacing = config.letterSpacing
+        unitPaint.isDither = false
+        unitPaint.isFilterBitmap = false
         if (config.strokeWidthDp > 0f) {
             unitPaint.style = Paint.Style.FILL_AND_STROKE
             unitPaint.strokeWidth = (config.strokeWidthDp * 0.75f) * density
@@ -260,35 +268,39 @@ object DynamicSpeedIconGenerator {
 
         // Optional High-Contrast dark shadow/outline behind text
         val outlinePaint = if (config.aaMode == "HighContrast") {
-            (if (config == activeConfig) cachedStrokePaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            (if (config == activeConfig) cachedStrokePaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
                 color = Color.argb(180, 0, 0, 0)
                 typeface = tf
                 textAlign = Paint.Align.CENTER
                 style = Paint.Style.STROKE
                 strokeWidth = 2f * density
                 letterSpacing = config.letterSpacing
+                isDither = false
+                isFilterBitmap = false
             }.also { if (config == activeConfig) cachedStrokePaint = it }
         } else null
 
         outlinePaint?.letterSpacing = config.letterSpacing
 
         val centerX = Math.round(sizePx / 2f).toFloat()
+        val textBounds = android.graphics.Rect()
 
         when (config.layoutMode) {
             "Compact" -> {
-                // Compact: e.g. "45K" or "1.2M" on a single centered line
+                // Battery-Indicator-Pro single-glyph compact style: e.g. "45K" or "1.2M" taking full icon height
                 val shortUnit = if (display.unit.startsWith("M")) "M" else "K"
                 val compactText = "${display.number}$shortUnit"
-                val maxH = sizePx * 0.75f * config.numScale
+                val maxH = sizePx * 0.78f * config.numScale
                 val maxW = sizePx * 0.94f
                 numPaint.textSize = maxH
                 val textW = numPaint.measureText(compactText)
                 val scale = minOf(if (textW > 0f) maxW / textW else 1f, 1.0f)
                 numPaint.textSize = maxH * scale
 
-                val finalMetrics = numPaint.fontMetrics
-                val centerY = (sizePx / 2f) + (config.numYOffsetDp * density)
-                val baselineY = Math.round(centerY - (finalMetrics.ascent + finalMetrics.descent) / 2f).toFloat()
+                // Battery-Indicator-Pro exact bounds-based vertical centering
+                numPaint.getTextBounds(compactText, 0, compactText.length, textBounds)
+                val baselineY = Math.round((sizePx / 2f) + (textBounds.height() / 2f) - textBounds.bottom + (config.numYOffsetDp * density)).toFloat()
+                
                 if (outlinePaint != null) {
                     outlinePaint.textSize = numPaint.textSize
                     canvas.drawText(compactText, centerX, baselineY, outlinePaint)
@@ -296,7 +308,7 @@ object DynamicSpeedIconGenerator {
                 canvas.drawText(compactText, centerX, baselineY, numPaint)
             }
             "NumberOnly" -> {
-                // Number only centered across full height
+                // Number only centered across full height using exact bounds
                 val maxH = sizePx * 0.85f * config.numScale
                 val maxW = sizePx * 0.94f
                 numPaint.textSize = maxH
@@ -304,9 +316,9 @@ object DynamicSpeedIconGenerator {
                 val scale = minOf(if (textW > 0f) maxW / textW else 1f, 1.0f)
                 numPaint.textSize = maxH * scale
 
-                val finalMetrics = numPaint.fontMetrics
-                val centerY = (sizePx / 2f) + (config.numYOffsetDp * density)
-                val baselineY = Math.round(centerY - (finalMetrics.ascent + finalMetrics.descent) / 2f).toFloat()
+                numPaint.getTextBounds(display.number, 0, display.number.length, textBounds)
+                val baselineY = Math.round((sizePx / 2f) + (textBounds.height() / 2f) - textBounds.bottom + (config.numYOffsetDp * density)).toFloat()
+
                 if (outlinePaint != null) {
                     outlinePaint.textSize = numPaint.textSize
                     canvas.drawText(display.number, centerX, baselineY, outlinePaint)
@@ -314,41 +326,33 @@ object DynamicSpeedIconGenerator {
                 canvas.drawText(display.number, centerX, baselineY, numPaint)
             }
             else -> {
-                // Stacked (Default)
-                val numberSectionHeight = Math.round(sizePx * 0.62f).toFloat()
+                // Stacked Mode with exact bounds-based integer baseline centering
+                val numberSectionHeight = Math.round(sizePx * 0.60f).toFloat()
                 val unitSectionHeight = sizePx - numberSectionHeight
 
                 // Number
                 val maxNumH = numberSectionHeight * 0.95f * config.numScale
                 val maxNumW = sizePx * 0.96f
                 numPaint.textSize = maxNumH
-                val numMetricsInit = numPaint.fontMetrics
-                val numFontH = numMetricsInit.descent - numMetricsInit.ascent
                 val numTextW = numPaint.measureText(display.number)
-                val scaleNumW = if (numTextW > 0f) maxNumW / numTextW else 1f
-                val scaleNumH = if (numFontH > 0f) maxNumH / numFontH else 1f
-                val scaleNum = minOf(scaleNumW, scaleNumH, 1.0f)
+                val scaleNum = minOf(if (numTextW > 0f) maxNumW / numTextW else 1f, 1.0f)
                 numPaint.textSize = maxNumH * scaleNum
 
-                val finalNumMetrics = numPaint.fontMetrics
-                val numCenterY = (numberSectionHeight / 2f) + (config.numYOffsetDp * density)
-                val numBaselineY = Math.round(numCenterY - (finalNumMetrics.ascent + finalNumMetrics.descent) / 2f).toFloat()
+                val numBounds = android.graphics.Rect()
+                numPaint.getTextBounds(display.number, 0, display.number.length, numBounds)
+                val numBaselineY = Math.round((numberSectionHeight / 2f) + (numBounds.height() / 2f) - numBounds.bottom + (config.numYOffsetDp * density)).toFloat()
 
                 // Unit
                 val maxUnitH = unitSectionHeight * 0.90f * config.unitScale
                 val maxUnitW = sizePx * 0.96f
                 unitPaint.textSize = maxUnitH
-                val unitMetricsInit = unitPaint.fontMetrics
-                val unitFontH = unitMetricsInit.descent - unitMetricsInit.ascent
                 val unitTextW = unitPaint.measureText(display.unit)
-                val scaleUnitW = if (unitTextW > 0f) maxUnitW / unitTextW else 1f
-                val scaleUnitH = if (unitFontH > 0f) maxUnitH / unitFontH else 1f
-                val scaleUnit = minOf(scaleUnitW, scaleUnitH, 1.0f)
+                val scaleUnit = minOf(if (unitTextW > 0f) maxUnitW / unitTextW else 1f, 1.0f)
                 unitPaint.textSize = maxUnitH * scaleUnit
 
-                val finalUnitMetrics = unitPaint.fontMetrics
-                val unitCenterY = numberSectionHeight + (unitSectionHeight / 2f) + (config.unitYOffsetDp * density)
-                val unitBaselineY = Math.round(unitCenterY - (finalUnitMetrics.ascent + finalUnitMetrics.descent) / 2f).toFloat()
+                val unitBounds = android.graphics.Rect()
+                unitPaint.getTextBounds(display.unit, 0, display.unit.length, unitBounds)
+                val unitBaselineY = Math.round(numberSectionHeight + (unitSectionHeight / 2f) + (unitBounds.height() / 2f) - unitBounds.bottom + (config.unitYOffsetDp * density)).toFloat()
 
                 if (outlinePaint != null) {
                     outlinePaint.textSize = numPaint.textSize

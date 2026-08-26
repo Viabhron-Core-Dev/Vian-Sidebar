@@ -99,8 +99,10 @@ object PageManager {
     fun getPages(prefs: SharedPreferences, rawHandleId: String): List<SidebarPage> {
         val cleanHandleId = getCleanHandleId(rawHandleId)
         val containerSpecificJson = prefs.getString("handle_${rawHandleId}_pages", null)
-        val legacy = if (rawHandleId == "sidebar" || cleanHandleId == "sidebar") prefs.getString("sidebar_pages", null) else null
-        val pagesJson = containerSpecificJson ?: prefs.getString("handle_${cleanHandleId}_pages", legacy)
+        val handleSpecificJson = prefs.getString("handle_${cleanHandleId}_pages", null)
+        val globalSidebarJson = prefs.getString("handle_sidebar_pages", null)
+        val legacy = prefs.getString("sidebar_pages", null)
+        val pagesJson = containerSpecificJson ?: handleSpecificJson ?: globalSidebarJson ?: legacy
         
         val defaultPageId = if (rawHandleId == "sidebar") "default_hybrid" else "default_hybrid_$rawHandleId"
         val defaultPage = SidebarPage(id = defaultPageId, type = "hybrid_grid", title = "Home Grid")
@@ -151,16 +153,30 @@ object PageManager {
         val arr = JSONArray()
         val seenIds = mutableSetOf<String>()
         pages.filter { seenIds.add(it.id) }.forEach { arr.put(it.toJson()) }
-        prefs.edit().putString("handle_${rawHandleId}_pages", arr.toString()).apply()
+        val jsonStr = arr.toString()
+        val editor = prefs.edit().putString("handle_${rawHandleId}_pages", jsonStr)
+        if (rawHandleId == "sidebar" || getCleanHandleId(rawHandleId) == "sidebar") {
+            editor.putString("handle_sidebar_pages", jsonStr)
+            editor.putString("sidebar_pages", jsonStr)
+        }
+        editor.apply()
     }
 
     fun getDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String): Int {
         val cleanHandleId = getCleanHandleId(rawHandleId)
-        return prefs.getInt("handle_${rawHandleId}_default_page_index", prefs.getInt("handle_${cleanHandleId}_default_page_index", prefs.getInt("sidebar_default_page_index", 0)))
+        return prefs.getInt("handle_${rawHandleId}_default_page_index", 
+            prefs.getInt("handle_${cleanHandleId}_default_page_index", 
+            prefs.getInt("handle_sidebar_default_page_index", 
+            prefs.getInt("sidebar_default_page_index", 0))))
     }
 
     fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int) {
-        prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index).apply()
+        val editor = prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index)
+        if (rawHandleId == "sidebar" || getCleanHandleId(rawHandleId) == "sidebar") {
+            editor.putInt("handle_sidebar_default_page_index", index)
+            editor.putInt("sidebar_default_page_index", index)
+        }
+        editor.apply()
     }
 
     fun isPageTypePresent(prefs: SharedPreferences, pageType: String): Boolean {

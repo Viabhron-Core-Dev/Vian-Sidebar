@@ -129,11 +129,25 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
         DynamicSpeedIconGenerator.updateActiveConfig(currentIconConfig)
     }
 
-    val applyUltraSharpPreset = {
+    val applyUltraSharpCompactPreset = {
+        iconFont = "sans-serif-condensed"
+        isFakeBold = true
+        numScale = 1.1f
+        unitScale = 1.0f
+        layoutMode = "Compact"
+        resScale = 1.0f
+        aaMode = "Crisp"
+        letterSpacing = -0.02f
+        strokeWidth = 0.0f
+        saveIconConfig()
+    }
+
+    val applyUltraSharpStackedPreset = {
         iconFont = "sans-serif-condensed"
         isFakeBold = true
         numScale = 1.05f
         unitScale = 0.95f
+        layoutMode = "Stacked"
         resScale = 1.0f
         aaMode = "Crisp"
         letterSpacing = -0.02f
@@ -314,8 +328,12 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SuggestionChip(
-                        onClick = applyUltraSharpPreset,
-                        label = { Text("⚡ Battery-Indicator Style (Ultra Sharp)", style = MaterialTheme.typography.labelSmall) }
+                        onClick = applyUltraSharpCompactPreset,
+                        label = { Text("⚡ Compact (Battery-Indicator Pro)", style = MaterialTheme.typography.labelSmall) }
+                    )
+                    SuggestionChip(
+                        onClick = applyUltraSharpStackedPreset,
+                        label = { Text("⚡ Stacked (Ultra Sharp)", style = MaterialTheme.typography.labelSmall) }
                     )
                 }
 

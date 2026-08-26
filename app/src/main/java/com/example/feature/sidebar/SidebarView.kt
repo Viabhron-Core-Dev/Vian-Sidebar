@@ -715,19 +715,23 @@ class SidebarView(
     fun detach() {
         if (isAttached) {
             com.example.core.LogKeeper.writeLog("Sidebar", "Detached sidebar for containerId: $containerId")
-            // Notify unselected before removing
+            // Notify unselected and explicitly clean child page views before removing
             val rcv = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
             rcv?.let {
                 for (i in 0 until it.childCount) {
                     val child = it.getChildAt(i)
                     val holder = it.getChildViewHolder(child) as? SidebarPageViewHolder
                     (holder?.pageView as? SidebarPageControllable)?.onPageUnselected()
+                    holder?.pageView = null
+                    (child as? FrameLayout)?.removeAllViews()
                 }
             }
+            viewPager.adapter = null
             AppWidgetHelper.stopListening()
             appsManagers.values.forEach { it.destroy() }
             appsManagers.clear()
             windowManager.removeView(this)
+            removeAllViews()
             isAttached = false
             viewScope.cancel()
         }
