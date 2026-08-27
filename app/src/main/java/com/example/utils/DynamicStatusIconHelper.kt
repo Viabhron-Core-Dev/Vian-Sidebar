@@ -149,9 +149,11 @@ object DynamicStatusIconHelper {
     }
 
     /**
-     * Generates a 70/30 split dynamic status bar icon for Internet Speed:
-     * - Top 70%: Speed number (prominent, bold, auto-scaled to prevent clipping)
-     * - Bottom 30%: Speed unit (kB/s, MB/s)
+     * Generates a sharp, tight-stacked dynamic status bar icon for Internet Speed:
+     * - Top: Speed number (enlarged, bold condensed, auto-scaled to prevent clipping)
+     * - Bottom: Speed unit (enlarged kB/s / MB/s)
+     * - Gap: Snug, minimized vertical separation
+     * - Rendering: High-contrast subpixel anti-aliasing with zero dither bloom
      */
     fun createSpeedIcon(
         speedValue: String,
@@ -159,40 +161,49 @@ object DynamicStatusIconHelper {
         textColor: Int = Color.WHITE,
         sizePx: Int = 96
     ): Bitmap {
-        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
+            density = android.util.DisplayMetrics.DENSITY_DEFAULT
+        }
         val canvas = Canvas(bitmap)
         val centerX = sizePx / 2f
 
-        // 1. Top Section (70% height) -> Speed Number
-        val topAreaHeight = sizePx * 0.70f
-        val numberPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        // 1. Top Section -> Speed Number (Enlarged and bold)
+        val numberPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = textColor
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            isDither = false
             val len = speedValue.length
             textSize = when {
-                len >= 4 -> topAreaHeight * 0.58f
-                len == 3 -> topAreaHeight * 0.72f
-                len == 2 -> topAreaHeight * 0.88f
-                else -> topAreaHeight * 0.96f
+                len >= 4 -> sizePx * 0.44f
+                len == 3 -> sizePx * 0.54f
+                len == 2 -> sizePx * 0.65f
+                else -> sizePx * 0.72f
             }
         }
         val numFm = numberPaint.fontMetrics
-        val numY = (topAreaHeight / 2f) - ((numFm.ascent + numFm.descent) / 2f)
-        canvas.drawText(speedValue, centerX, numY, numberPaint)
 
-        // 2. Bottom Section (30% height) -> Speed Unit (e.g. kB/s or MB/s)
-        val bottomAreaHeight = sizePx * 0.30f
-        val unitPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        // 2. Bottom Section -> Speed Unit (kB/s, MB/s) (Enlarged and bold)
+        val unitPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = textColor
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-            textSize = bottomAreaHeight * 0.75f
+            isDither = false
+            textSize = sizePx * 0.28f
         }
         val unitFm = unitPaint.fontMetrics
-        val unitCenterY = topAreaHeight + (bottomAreaHeight / 2f)
-        val unitY = unitCenterY - ((unitFm.ascent + unitFm.descent) / 2f)
-        canvas.drawText(speedUnit, centerX, unitY, unitPaint)
+
+        // Calculate tight vertical stacking baselines (minimal gap between text rows)
+        val numHeight = numFm.descent - numFm.ascent
+        val unitHeight = unitFm.descent - unitFm.ascent
+        val totalTextHeight = numHeight + unitHeight - (sizePx * 0.04f)
+        val startY = ((sizePx - totalTextHeight) / 2f) - numFm.ascent
+
+        val numBaseline = startY
+        val unitBaseline = numBaseline + numFm.descent - unitFm.ascent - (sizePx * 0.04f)
+
+        canvas.drawText(speedValue, centerX, numBaseline, numberPaint)
+        canvas.drawText(speedUnit, centerX, unitBaseline, unitPaint)
 
         return bitmap
     }

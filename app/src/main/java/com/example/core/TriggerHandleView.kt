@@ -21,7 +21,7 @@ class TriggerHandleView(
     private val windowManager: WindowManager,
     private val handleId: String
 ) {
-    private val prefix = "handle_${handleId}_"
+    private val prefix = HandleManager.getPrefix(handleId)
     private var handleView: View? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private var isAttached = false
@@ -181,12 +181,27 @@ class TriggerHandleView(
                     startRawY = event.rawY
                     gestureHandled = false
                 }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!gestureHandled) {
+                        val dx = event.rawX - startRawX
+                        val dy = event.rawY - startRawY
+                        val density = context.resources.displayMetrics.density
+                        val minThreshold = 12 * density
+                        if (abs(dx) > abs(dy) && abs(dx) >= minThreshold) {
+                            gestureHandled = true
+                            if (dx > 0) handleAction("swipe_right") else handleAction("swipe_left")
+                        } else if (abs(dy) > abs(dx) && abs(dy) >= minThreshold) {
+                            gestureHandled = true
+                            if (dy > 0) handleAction("swipe_down") else handleAction("swipe_up")
+                        }
+                    }
+                }
                 MotionEvent.ACTION_UP -> {
                     if (!gestureHandled) {
                         val dx = event.rawX - startRawX
                         val dy = event.rawY - startRawY
                         val density = context.resources.displayMetrics.density
-                        val minThreshold = 20 * density
+                        val minThreshold = 10 * density
                         if (abs(dx) > abs(dy) && abs(dx) >= minThreshold) {
                             if (dx > 0) handleAction("swipe_right") else handleAction("swipe_left")
                         } else if (abs(dy) >= minThreshold) {
@@ -195,12 +210,15 @@ class TriggerHandleView(
                     }
                 }
             }
-            detected || true
+            true
         }
     }
 
     private fun handleAction(gesture: String) {
-        val action = prefs.getString("$prefix$gesture", "none") ?: "none"
+        val directKey = "$prefix$gesture"
+        val altKey1 = "handle_${handleId}_$gesture"
+        val altKey2 = "handle_handle_${handleId}_$gesture"
+        val action = prefs.getString(directKey, prefs.getString(altKey1, prefs.getString(altKey2, "none"))) ?: "none"
         com.example.core.LogKeeper.writeLog("Handle", "Handle ($handleId) gesture: $gesture -> action: $action")
         
         val sidebarIntent = Intent().apply {

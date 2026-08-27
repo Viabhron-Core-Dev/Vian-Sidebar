@@ -7,6 +7,11 @@ import org.json.JSONObject
 data class HandleConfig(val id: String, var name: String, var enabled: Boolean)
 
 object HandleManager {
+    fun getPrefix(handleId: String): String {
+        val clean = if (handleId.startsWith("handle_")) handleId.removePrefix("handle_") else handleId
+        return "handle_${clean}_"
+    }
+
     fun getHandles(prefs: SharedPreferences): List<HandleConfig> {
         val jsonStr = prefs.getString("handles_list", null)
         val list = mutableListOf<HandleConfig>()
@@ -37,12 +42,12 @@ object HandleManager {
     fun createNewHandle(prefs: SharedPreferences, customName: String? = null): HandleConfig {
         val existing = getHandles(prefs)
         val count = existing.size + 1
-        val newId = "handle_${System.currentTimeMillis()}"
+        val newId = "h_${System.currentTimeMillis()}"
         val name = customName ?: "Handle $count"
         
         // Stagger initial Y offset so handles do not stack invisibly on top of each other
         val initialY = (20 + (existing.size * 25)) % 80
-        val prefix = "handle_${newId}_"
+        val prefix = getPrefix(newId)
         
         prefs.edit().apply {
             putString("${prefix}edge", "right")

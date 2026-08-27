@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import java.util.UUID
 import com.example.core.HandleManager
 import com.example.core.HandleConfig
+import com.example.utils.PageManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +102,7 @@ fun HandleItem(
     onUpdate: (HandleConfig) -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showAddGestureDialog by remember { mutableStateOf(false) }
@@ -174,13 +176,13 @@ fun HandleItem(
                         "swipe_right" to "Swipe Right"
                     )
                     
-                    val prefix = "handle_${handle.id}_"
+                    val prefix = HandleManager.getPrefix(handle.id)
                     val gesturesMap = remember { mutableStateMapOf<String, String>() }
                     
                     LaunchedEffect(isExpanded, handle.id) {
                         gesturesMap.clear()
                         gestureKeys.forEach { key ->
-                            val action = prefs.getString("${prefix}$key", "none") ?: "none"
+                            val action = prefs.getString("${prefix}$key", prefs.getString("handle_${handle.id}_$key", "none")) ?: "none"
                             if (action != "none") {
                                 gesturesMap[key] = action
                             }
@@ -188,8 +190,8 @@ fun HandleItem(
                     }
                     
                     fun migrateGesture(oldGesture: String, newGesture: String) {
-                        val oldPrefix = "handle_${handle.id}_${oldGesture}"
-                        val newPrefix = "handle_${handle.id}_${newGesture}"
+                        val oldPrefix = "${prefix}${oldGesture}"
+                        val newPrefix = "${prefix}${newGesture}"
                         val editor = prefs.edit()
                         
                         val action = prefs.getString(oldPrefix, null)
@@ -218,18 +220,20 @@ fun HandleItem(
                         if (action != null) {
                             gesturesMap[newGesture] = action
                         }
+                        context.sendBroadcast(Intent(com.example.core.HandleService.ACTION_RELOAD_HANDLES))
                     }
                     
                     fun updateGesture(gesture: String, action: String) {
                         if (action == "none") {
                             gesturesMap.remove(gesture)
+                            prefs.edit().putString("${prefix}$gesture", "none").apply()
                         } else {
                             gesturesMap[gesture] = action
                             if (action.startsWith("open_page:")) {
                                 val pageType = action.removePrefix("open_page:")
                                 val containerId = "${handle.id}_$gesture"
-                                val currentPages = prefs.getString("handle_${containerId}_pages", null)
-                                if (currentPages == null) {
+                                val currentPages = PageManager.getPages(prefs, containerId)
+                                if (currentPages.isEmpty() || (currentPages.size == 1 && currentPages[0].id.startsWith("default_hybrid"))) {
                                     val pageTitle = when(pageType) {
                                         "apps" -> "Apps Grid"
                                         "widgets_grid" -> "Widgets Grid"
@@ -244,12 +248,12 @@ fun HandleItem(
                                         else -> "Page"
                                     }
                                     val newPage = com.example.utils.SidebarPage.createDefault(id = UUID.randomUUID().toString(), type = pageType, title = pageTitle)
-                                    val arr = org.json.JSONArray().apply { put(newPage.toJson()) }
-                                    prefs.edit().putString("handle_${containerId}_pages", arr.toString()).apply()
+                                    PageManager.savePages(prefs, containerId, listOf(newPage))
                                 }
                             }
+                            prefs.edit().putString("${prefix}$gesture", action).apply()
                         }
-                        prefs.edit().putString("${prefix}$gesture", action).apply()
+                        context.sendBroadcast(Intent(com.example.core.HandleService.ACTION_RELOAD_HANDLES))
                     }
 
                     if (gesturesMap.isEmpty()) {

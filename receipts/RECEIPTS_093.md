@@ -74,10 +74,15 @@
 * Deviations: None.
 * Known issues: None.
 
-* Timestamp: 2026-08-27T03:19:00-07:00
-* One-line summary: Integrate 70/30 dynamic internet speed status bar icon in DynamicStatusIconHelper and delete old generator.
-* Exact files touched: `app/src/main/java/com/example/utils/DynamicStatusIconHelper.kt`, `app/src/main/java/com/example/core/HandleService.kt`, `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
-* What was actually done: Extended DynamicStatusIconHelper with createSpeedIcon and createSpeedIconCompat enforcing a 70% top speed value and 30% bottom speed unit split with font metrics baseline centering and auto-scaling. Replaced old icon generator references in HandleService and deleted redundant DynamicSpeedIconGenerator.kt file.
+* Timestamp: 2026-08-27T14:12:00-07:00
+* One-line summary: Surgically fix Handle hierarchy, multi-handle creation, instant gesture sensitivity, and SidebarView page display.
+* Exact files touched: `app/src/main/java/com/example/core/HandleManager.kt`, `app/src/main/java/com/example/core/TriggerHandleView.kt`, `app/src/main/java/com/example/utils/PageManager.kt`, `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`, `app/src/main/java/com/example/feature/settings/HandlesListSettingsScreen.kt`, `app/src/main/java/com/example/feature/settings/HandleEditScreen.kt`
+* What was actually done: 
+  1. Standardized handle ID formatting and preference key resolution with HandleManager.getPrefix to prevent duplicate 'handle_handle_' key prefixes.
+  2. Fixed TriggerHandleView swipe detection to trigger with 10-12dp raw coordinate thresholds on ACTION_MOVE and ACTION_UP without requiring high fling velocities.
+  3. Restored reliable page loading in SidebarView by removing destructive unloadToStub during scrolling and ensuring ViewHolder.bind always instantiates child views immediately.
+  4. Updated PageManager to resolve and save pages across direct, cleaned, and container-specific keys.
+  5. Wired HandlesListSettingsScreen and HandleEditScreen with normalized handle prefixes and instant ACTION_RELOAD_HANDLES broadcasts.
 * How it was verified: local build only (compile_applet passed)
 * Deviations: None.
 * Known issues: None.

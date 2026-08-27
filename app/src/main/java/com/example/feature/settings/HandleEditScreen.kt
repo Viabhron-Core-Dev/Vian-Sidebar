@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.core.HandleManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,7 +28,7 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE) }
     
-    val prefix = "handle_${handleId}_"
+    val prefix = HandleManager.getPrefix(handleId)
     
     var yPos by remember { mutableFloatStateOf(prefs.getInt("${prefix}y", 50).toFloat()) }
     var sizeWidth by remember { mutableFloatStateOf(prefs.getInt("${prefix}width", if (handleId == "reader") 16 else 12).toFloat()) }

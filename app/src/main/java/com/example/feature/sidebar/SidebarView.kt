@@ -362,6 +362,7 @@ class SidebarView(
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
         }
+        viewPager.offscreenPageLimit = 1
         
         viewPager.adapter = object : RecyclerView.Adapter<SidebarPageViewHolder>() {
             override fun getItemViewType(position: Int): Int {
@@ -378,13 +379,7 @@ class SidebarView(
                 if (pageConfigs.isEmpty()) return
                 val actualPosition = if (isLooping) position % pageConfigs.size else position
                 val config = pageConfigs[actualPosition]
-                // Strict on-demand lazy loading: Only the active page is instantiated initially
-                val isActive = (position == viewPager.currentItem)
-                holder.bind(config, isActive)
-            }
-            override fun onViewRecycled(holder: SidebarPageViewHolder) {
-                super.onViewRecycled(holder)
-                holder.unloadToStub()
+                holder.bind(config)
             }
             override fun getItemCount(): Int = if (isLooping) Int.MAX_VALUE else pageConfigs.size
         }
@@ -494,10 +489,6 @@ class SidebarView(
                             }
                         } else {
                             (holder?.pageView as? SidebarPageControllable)?.onPageUnselected()
-                            // Free non-adjacent dormant pages back to lightweight stubs to minimize RAM
-                            if (kotlin.math.abs(holderPos - position) > 1) {
-                                holder?.unloadToStub()
-                            }
                         }
                     }
                 }
@@ -756,7 +747,7 @@ class SidebarView(
         var pageView: View? = null
         private var currentConfig: SidebarPage? = null
 
-        fun bind(config: SidebarPage, loadImmediately: Boolean) {
+        fun bind(config: SidebarPage) {
             val configChanged = (currentConfig?.id != config.id) || (currentConfig?.type != config.type)
             if (configChanged) {
                 (pageView as? SidebarPageControllable)?.onPageUnselected()
@@ -764,14 +755,7 @@ class SidebarView(
                 frame.removeAllViews()
             }
             currentConfig = config
-            if (loadImmediately) {
-                ensureLoaded()
-            } else {
-                // If not needed immediately, keep uninflated / empty to save RAM and initialization time
-                if (pageView == null) {
-                    frame.removeAllViews()
-                }
-            }
+            ensureLoaded()
         }
 
         fun unloadToStub() {
