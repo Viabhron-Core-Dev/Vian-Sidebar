@@ -34,6 +34,40 @@ object HandleManager {
         return list
     }
 
+    fun createNewHandle(prefs: SharedPreferences, customName: String? = null): HandleConfig {
+        val existing = getHandles(prefs)
+        val count = existing.size + 1
+        val newId = "handle_${System.currentTimeMillis()}"
+        val name = customName ?: "Handle $count"
+        
+        // Stagger initial Y offset so handles do not stack invisibly on top of each other
+        val initialY = (20 + (existing.size * 25)) % 80
+        val prefix = "handle_${newId}_"
+        
+        prefs.edit().apply {
+            putString("${prefix}edge", "right")
+            putInt("${prefix}y", initialY)
+            putInt("${prefix}height", 120)
+            putInt("${prefix}width", 12)
+            putString("${prefix}color", "#242962ff")
+            putString("${prefix}shape", "slanted_block")
+            // Default swipe gesture to open Home Grid sidebar
+            putString("${prefix}swipe_left", "open_page:default_hybrid")
+            putString("${prefix}swipe_right", "none")
+            putString("${prefix}tap", "none")
+            putString("${prefix}double_tap", "none")
+            putString("${prefix}long_press", "none")
+            putString("${prefix}swipe_up", "none")
+            putString("${prefix}swipe_down", "none")
+            apply()
+        }
+
+        val newHandle = HandleConfig(id = newId, name = name, enabled = true)
+        val updated = existing + newHandle
+        saveHandles(prefs, updated)
+        return newHandle
+    }
+
     fun saveHandles(prefs: SharedPreferences, handles: List<HandleConfig>) {
         val arr = JSONArray()
         for (h in handles) {

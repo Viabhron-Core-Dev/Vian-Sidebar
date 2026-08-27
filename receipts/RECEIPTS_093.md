@@ -74,10 +74,10 @@
 * Deviations: None.
 * Known issues: None.
 
-* Timestamp: 2026-08-26T13:13:00-07:00
-* One-line summary: Implement lightweight stubs lifecycle, offscreen limit, and nested scroll configuration for smooth horizontal sidebar swiping.
-* Exact files touched: `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
-* What was actually done: Configured ViewPager2's internal RecyclerView with disabled nested scrolling to allow clean horizontal swipe page transitions without being trapped by child vertical scroll views. Implemented lightweight stub binding on demand for active/adjacent pages only, keeping dormant pages uninflated to minimize RAM and CPU overhead.
+* Timestamp: 2026-08-27T03:19:00-07:00
+* One-line summary: Integrate 70/30 dynamic internet speed status bar icon in DynamicStatusIconHelper and delete old generator.
+* Exact files touched: `app/src/main/java/com/example/utils/DynamicStatusIconHelper.kt`, `app/src/main/java/com/example/core/HandleService.kt`, `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+* What was actually done: Extended DynamicStatusIconHelper with createSpeedIcon and createSpeedIconCompat enforcing a 70% top speed value and 30% bottom speed unit split with font metrics baseline centering and auto-scaling. Replaced old icon generator references in HandleService and deleted redundant DynamicSpeedIconGenerator.kt file.
 * How it was verified: local build only (compile_applet passed)
 * Deviations: None.
 * Known issues: None.

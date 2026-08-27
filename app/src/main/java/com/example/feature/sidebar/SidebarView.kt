@@ -378,9 +378,13 @@ class SidebarView(
                 if (pageConfigs.isEmpty()) return
                 val actualPosition = if (isLooping) position % pageConfigs.size else position
                 val config = pageConfigs[actualPosition]
-                // Lightweight on-demand binding: Only instantiate active / adjacent page view
-                val isCurrentOrAdjacent = kotlin.math.abs(position - viewPager.currentItem) <= 1
-                holder.bind(config, isCurrentOrAdjacent)
+                // Strict on-demand lazy loading: Only the active page is instantiated initially
+                val isActive = (position == viewPager.currentItem)
+                holder.bind(config, isActive)
+            }
+            override fun onViewRecycled(holder: SidebarPageViewHolder) {
+                super.onViewRecycled(holder)
+                holder.unloadToStub()
             }
             override fun getItemCount(): Int = if (isLooping) Int.MAX_VALUE else pageConfigs.size
         }
@@ -453,18 +457,19 @@ class SidebarView(
                     AppWidgetHelper.startListening(context)
                 }
                 
-                // Notify lifecycle and ensure current page is loaded on demand
+                // Notify lifecycle and ensure current page is loaded on demand, unloading dormant non-adjacent pages
                 val rcv = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
                 rcv?.let {
                     for (i in 0 until it.childCount) {
                         val child = it.getChildAt(i)
                         val holder = it.getChildViewHolder(child) as? SidebarPageViewHolder
-                        if (holder?.bindingAdapterPosition == position) {
-                            holder.ensureLoaded()
-                            (holder.pageView as? SidebarPageControllable)?.onPageSelected()
+                        val holderPos = holder?.bindingAdapterPosition ?: -1
+                        if (holderPos == position) {
+                            holder?.ensureLoaded()
+                            (holder?.pageView as? SidebarPageControllable)?.onPageSelected()
                             
                             // Measure and adjust height immediately for non-grid wrapped pages
-                            holder.pageView?.let { pv ->
+                            holder?.pageView?.let { pv ->
                                 pv.post {
                                     val actualPos = if (isLooping) position % pageConfigs.size else position
                                     val page = pageConfigs.getOrNull(actualPos)
@@ -489,6 +494,10 @@ class SidebarView(
                             }
                         } else {
                             (holder?.pageView as? SidebarPageControllable)?.onPageUnselected()
+                            // Free non-adjacent dormant pages back to lightweight stubs to minimize RAM
+                            if (kotlin.math.abs(holderPos - position) > 1) {
+                                holder?.unloadToStub()
+                            }
                         }
                     }
                 }
@@ -763,6 +772,12 @@ class SidebarView(
                     frame.removeAllViews()
                 }
             }
+        }
+
+        fun unloadToStub() {
+            (pageView as? SidebarPageControllable)?.onPageUnselected()
+            pageView = null
+            frame.removeAllViews()
         }
 
         fun ensureLoaded() {

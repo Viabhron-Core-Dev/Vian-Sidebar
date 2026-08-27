@@ -73,7 +73,8 @@ fun SidebarSettingsScreen(
                 it.id == target || it.type == target || (effectiveType == "hybrid_grid" && (it.id.startsWith("default_hybrid") || it.type == "hybrid_grid"))
             }
             
-            if (index == -1 && !prefs.contains("handle_${handleId}_pages")) {
+            // Only add default page if the list is completely empty
+            if (index == -1 && pages.isEmpty()) {
                 val title = when (effectiveType) {
                     "apps" -> "Apps Grid"
                     "scheduler" -> "Short Reminders"

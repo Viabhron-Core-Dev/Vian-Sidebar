@@ -34,6 +34,7 @@ fun HandlesListSettingsScreen(
     fun save() {
         HandleManager.saveHandles(prefs, handles)
         handles = handles.toList() // trigger recomposition
+        context.sendBroadcast(Intent(com.example.core.HandleService.ACTION_RELOAD_HANDLES))
     }
 
     var expandedHandleId by remember { mutableStateOf<String?>(null) }
@@ -51,9 +52,9 @@ fun HandlesListSettingsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
-                val newId = UUID.randomUUID().toString()
-                handles = handles + HandleConfig(id = newId, name = "Handle ${handles.size + 1}", enabled = true)
-                save()
+                val newHandle = HandleManager.createNewHandle(prefs)
+                handles = HandleManager.getHandles(prefs)
+                context.sendBroadcast(Intent(com.example.core.HandleService.ACTION_RELOAD_HANDLES))
             }) {
                 Icon(Icons.Default.Add, "Add Handle")
             }

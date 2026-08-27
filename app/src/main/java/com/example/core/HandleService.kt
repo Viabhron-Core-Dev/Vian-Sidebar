@@ -49,7 +49,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         prefs.registerOnSharedPreferenceChangeListener(this)
-        DynamicSpeedIconGenerator.loadConfig(prefs)
         
         dailyMobileBytes = prefs.getLong("daily_mobile_rx", 0) + prefs.getLong("daily_mobile_tx", 0)
         dailyWifiBytes = prefs.getLong("daily_wifi_rx", 0) + prefs.getLong("daily_wifi_tx", 0)
@@ -190,7 +189,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             val speedUnits = prefs.getString("speed_units", "Auto")
             val bigText = "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}\nMobile: ${formatDataBytes(dailyMobileBytes)} • Wi-Fi: ${formatDataBytes(dailyWifiBytes)}"
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
-            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(this, totalSpeed, speedUnits))
+            builder.setSmallIcon(com.example.utils.DynamicStatusIconHelper.createSpeedIconCompat(totalSpeed, speedUnits))
         } else {
             builder.setSmallIcon(android.R.drawable.ic_menu_crop)
         }
@@ -236,7 +235,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         if (key == "netspeed_enabled" || key == "speed_indicator_enabled") {
             setupNetSpeed()
         } else if (key != null && (key.startsWith("speed_icon_") || key == "speed_units")) {
-            DynamicSpeedIconGenerator.loadConfig(prefs)
             updateForegroundNotification()
         }
         

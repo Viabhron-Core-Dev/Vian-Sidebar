@@ -120,19 +120,27 @@ class TriggerHandleView(
     }
 
     private fun setupListeners() {
+        var startRawX = 0f
+        var startRawY = 0f
+        var gestureHandled = false
+
         val gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean {
+                gestureHandled = false
                 return true
             }
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                gestureHandled = true
                 handleAction("tap")
                 return true
             }
             override fun onDoubleTap(e: MotionEvent): Boolean {
+                gestureHandled = true
                 handleAction("double_tap")
                 return true
             }
             override fun onLongPress(e: MotionEvent) {
+                gestureHandled = true
                 handleAction("long_press")
             }
             override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
@@ -140,20 +148,54 @@ class TriggerHandleView(
                     val dx = e2.x - e1.x
                     val dy = e2.y - e1.y
                     if (abs(dx) > abs(dy)) {
-                        if (dx > 50) handleAction("swipe_right")
-                        else if (dx < -50) handleAction("swipe_left")
+                        if (dx > 30) {
+                            gestureHandled = true
+                            handleAction("swipe_right")
+                            return true
+                        } else if (dx < -30) {
+                            gestureHandled = true
+                            handleAction("swipe_left")
+                            return true
+                        }
                     } else {
-                        if (dy > 50) handleAction("swipe_down")
-                        else if (dy < -50) handleAction("swipe_up")
+                        if (dy > 30) {
+                            gestureHandled = true
+                            handleAction("swipe_down")
+                            return true
+                        } else if (dy < -30) {
+                            gestureHandled = true
+                            handleAction("swipe_up")
+                            return true
+                        }
                     }
-                    return true
                 }
                 return false
             }
         })
         
         handleView?.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
+            val detected = gestureDetector.onTouchEvent(event)
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startRawX = event.rawX
+                    startRawY = event.rawY
+                    gestureHandled = false
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!gestureHandled) {
+                        val dx = event.rawX - startRawX
+                        val dy = event.rawY - startRawY
+                        val density = context.resources.displayMetrics.density
+                        val minThreshold = 20 * density
+                        if (abs(dx) > abs(dy) && abs(dx) >= minThreshold) {
+                            if (dx > 0) handleAction("swipe_right") else handleAction("swipe_left")
+                        } else if (abs(dy) >= minThreshold) {
+                            if (dy > 0) handleAction("swipe_down") else handleAction("swipe_up")
+                        }
+                    }
+                }
+            }
+            detected || true
         }
     }
 
