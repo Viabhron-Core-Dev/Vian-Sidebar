@@ -192,8 +192,6 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
         }
     }
     
-    private var currentTranslator: com.google.mlkit.nl.translate.Translator? = null
-
     private fun translateText() {
         val text = sourceTextEdit.text.toString()
         if (text.isEmpty()) {
@@ -212,9 +210,6 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
                     val srcLang = if (languageCode == "und") TranslateLanguage.ENGLISH else languageCode
                     performTranslation(text, srcLang, targetLang)
                 }
-                .addOnCompleteListener {
-                    try { languageIdentifier.close() } catch (ignored: Exception) {}
-                }
         } else {
             val srcLang = allLanguages[srcPos - 1]
             performTranslation(text, srcLang, targetLang)
@@ -222,13 +217,11 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
     }
     
     private fun performTranslation(text: String, srcLang: String, targetLang: String) {
-        currentTranslator?.close()
         val options = TranslatorOptions.Builder()
             .setSourceLanguage(srcLang)
             .setTargetLanguage(targetLang)
             .build()
         val translator = Translation.getClient(options)
-        currentTranslator = translator
         
         val conditions = DownloadConditions.Builder().build()
         translator.downloadModelIfNeeded(conditions)
@@ -279,8 +272,6 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
         isShowing = false
         floatingView?.let { windowManager.removeView(it) }
         floatingView = null
-        currentTranslator?.close()
-        currentTranslator = null
         tts?.stop()
         tts?.shutdown()
         tts = null

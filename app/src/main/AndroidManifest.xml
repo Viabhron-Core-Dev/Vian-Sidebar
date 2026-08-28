@@ -60,21 +60,18 @@
             android:name=".service.SidebarService"
             android:enabled="true"
             android:exported="false"
-            android:process=":overlay_service"
             android:foregroundServiceType="specialUse" />
 
         <service
             android:name=".core.HandleService"
             android:enabled="true"
             android:exported="false"
-            android:process=":overlay_service"
             android:foregroundServiceType="specialUse" />
 
         <receiver
             android:name=".service.BootReceiver"
             android:enabled="true"
-            android:exported="true"
-            android:process=":overlay_service">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
@@ -83,8 +80,7 @@
         <receiver
             android:name=".service.MidnightResetReceiver"
             android:enabled="true"
-            android:exported="false"
-            android:process=":overlay_service" />
+            android:exported="false" />
             
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
@@ -145,23 +141,19 @@
         <service
             android:name=".feature.miniapps.browser.FloatingBrowserService"
             android:exported="false"
-            android:process=":overlay_service"
             android:foregroundServiceType="specialUse" />
         <service
             android:name=".feature.miniapps.reader.FloatingReaderService"
             android:exported="false"
-            android:process=":overlay_service"
             android:foregroundServiceType="mediaPlayback|microphone" />
 
         <service
             android:name=".service.PageWindowService"
             android:exported="false"
-            android:process=":overlay_service"
             android:foregroundServiceType="specialUse" />
         <service
             android:name=".service.FloatingTriggerService"
             android:exported="false"
-            android:process=":overlay_service"
             android:foregroundServiceType="specialUse" />
             <activity android:name=".feature.settings.AddElementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".feature.settings.ActionPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
@@ -172,8 +164,7 @@
         <service
             android:name=".feature.system_hub.VianSideAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true"
-            android:process=":overlay_service">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
@@ -185,8 +176,7 @@
             android:name=".service.AppNotificationListener"
             android:label="Vian Notification Listener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-            android:exported="true"
-            android:process=":overlay_service">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
@@ -208,7 +198,6 @@
         <service
             android:name=".service.ScreenRecordService"
             android:exported="false"
-            android:process=":overlay_service"
             android:foregroundServiceType="mediaProjection" />
         <activity
             android:name=".feature.system_hub.BarcodeScannerActivity"

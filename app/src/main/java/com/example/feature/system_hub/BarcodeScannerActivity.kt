@@ -339,30 +339,13 @@ class BarcodeScannerActivity : ComponentActivity() {
         )
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        liveTextRecognizer?.close()
-        liveTextRecognizer = null
-        liveBarcodeScanner?.close()
-        liveBarcodeScanner = null
-        try {
-            cameraExecutor.shutdown()
-        } catch (e: Exception) {}
-    }
-
-    private var liveTextRecognizer: com.google.mlkit.vision.text.TextRecognizer? = null
-    private var liveBarcodeScanner: com.google.mlkit.vision.barcode.BarcodeScanner? = null
-
     @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     private fun processLiveFrame(imageProxy: ImageProxy, isTextMode: Boolean, onResult: (String) -> Unit) {
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
             val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
             if (isTextMode) {
-                if (liveTextRecognizer == null) {
-                    liveTextRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                }
-                val recognizer = liveTextRecognizer ?: TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
                 recognizer.process(image)
                     .addOnSuccessListener { visionText ->
                         if (visionText.text.isNotBlank()) {
@@ -373,10 +356,7 @@ class BarcodeScannerActivity : ComponentActivity() {
                         imageProxy.close()
                     }
             } else {
-                if (liveBarcodeScanner == null) {
-                    liveBarcodeScanner = BarcodeScanning.getClient()
-                }
-                val scanner = liveBarcodeScanner ?: BarcodeScanning.getClient()
+                val scanner = BarcodeScanning.getClient()
                 scanner.process(image)
                     .addOnSuccessListener { barcodes ->
                         if (barcodes.isNotEmpty()) {
@@ -454,9 +434,6 @@ class BarcodeScannerActivity : ComponentActivity() {
                     }
                     Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 }
-                .addOnCompleteListener {
-                    try { recognizer.close() } catch (ignored: Exception) {}
-                }
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Crop OCR failed", Toast.LENGTH_SHORT).show()
@@ -527,6 +504,11 @@ class BarcodeScannerActivity : ComponentActivity() {
             e.printStackTrace()
             Toast.makeText(this, "Error sharing cropped area", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
     }
 }
 

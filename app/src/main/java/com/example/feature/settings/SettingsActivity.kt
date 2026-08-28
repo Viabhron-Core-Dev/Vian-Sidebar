@@ -3,7 +3,6 @@ package com.example.feature.settings
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
@@ -29,21 +28,13 @@ class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.example.core.LogKeeper.writeLog("Settings", "Opened SettingsActivity")
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-        )
+        enableEdgeToEdge()
         val startRoute = intent.getStringExtra("start_route") ?: "main"
         
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    SettingsApp(startRoute = startRoute) {
-                        finish()
-                    }
+            MaterialTheme {
+                SettingsApp(startRoute = startRoute) {
+                    finish()
                 }
             }
         }
@@ -236,8 +227,8 @@ fun MainSettingsScreen(onNavigateToReader: () -> Unit, onNavigateToGeneral: () -
                     headlineContent = { Text("Log Keeper") },
                     supportingContent = { Text("View system logs") },
                     modifier = Modifier.clickable { 
-                        val intent = Intent(context, com.example.feature.settings.LogKeeperActivity::class.java)
-                        context.startActivity(intent)
+                        val intent = Intent()
+                        android.widget.Toast.makeText(context, "Not Migrated", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 )
                 Divider()

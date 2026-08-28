@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.media.MediaRecorder
-import com.example.feature.system_hub.CallRecorderManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -58,11 +57,9 @@ fun CallRecorderSettingsScreen(onBack: () -> Unit) {
         if (results.all { it.value }) {
             enabled = true
             prefs.edit().putBoolean("call_recorder_enabled", true).apply()
-            CallRecorderManager.getInstance(context).updateComponentState()
         } else {
             enabled = false
             prefs.edit().putBoolean("call_recorder_enabled", false).apply()
-            CallRecorderManager.getInstance(context).updateComponentState()
         }
     }
 
@@ -70,11 +67,9 @@ fun CallRecorderSettingsScreen(onBack: () -> Unit) {
         if (results.all { it.value }) {
             manualEnabled = true
             prefs.edit().putBoolean("call_recorder_manual_enabled", true).apply()
-            CallRecorderManager.getInstance(context).updateComponentState()
         } else {
             manualEnabled = false
             prefs.edit().putBoolean("call_recorder_manual_enabled", false).apply()
-            CallRecorderManager.getInstance(context).updateComponentState()
         }
     }
 
@@ -110,7 +105,6 @@ fun CallRecorderSettingsScreen(onBack: () -> Unit) {
                                 } else {
                                     enabled = false
                                     prefs.edit().putBoolean("call_recorder_enabled", false).apply()
-                                    CallRecorderManager.getInstance(context).updateComponentState()
                                 }
                             }
                         )
@@ -129,7 +123,6 @@ fun CallRecorderSettingsScreen(onBack: () -> Unit) {
                                 } else {
                                     manualEnabled = false
                                     prefs.edit().putBoolean("call_recorder_manual_enabled", false).apply()
-                                    CallRecorderManager.getInstance(context).updateComponentState()
                                 }
                             }
                         )

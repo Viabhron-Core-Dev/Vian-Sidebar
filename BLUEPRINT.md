@@ -3,7 +3,7 @@
 ## Completed Core Architecture
 - [x] **Phase 8: Floating Apps & Utilities (Part 1)**: `CalculatorFloatingWindow`, `CompassFloatingWindow`, `DictionaryFloatingWindow`, `MiniAppManager`, Grid adapters.
 - [x] **Phase 8.5: Orphaned Sidebar Pages Catch-up**: `MediaPlayerPageView`, `WidgetPageView`, `AppTrackerPageView`, `ResourcesTrackerPageView`.
-- [x] **Phase 9: The UI Spines**: Settings & Handle Customization (`SettingsActivity`, `SidebarSettingsScreen`, `HandlesListSettingsScreen`, `PageManagementSettingsScreen` with Handle/Gesture container isolation, `LogKeeperActivity` navigation integration, `AddElementActivity`, `ActionPickerActivity`).
+- [x] **Phase 9: The UI Spines**: Settings & Handle Customization (`SettingsActivity`, `SidebarSettingsScreen`, `HandlesListSettingsScreen`, `AddElementActivity`, `ActionPickerActivity`).
 - [x] **Phase 10: The Background System Hub (Plugins & Accessibility)**: `VianSideAccessibilityService` unified System Tools Hub with on-demand module instantiation (Cursor, AutoScroll, Screenshot, AppKiller), hardware controls, CallRecorder, and screen-aware NetSpeedManager with Android 13+ POST_NOTIFICATIONS support.
 - [x] **Phase 11: Sidebar On-Demand Optimization**: `ViewPager2` lazy-loading, robust page ID resolution, zero phantom duplicate pages.
 - [x] **Phase 12: Unified Z-Window Manager & OS Popups (Part 1)**: Centralized `FloatingWindowManager` with automated Z-ordering, dormant folding, and magnetic grouping.
@@ -24,7 +24,7 @@
   - **Interactive Multi-Touch Canvas**: Pinch-to-zoom (adjust dBm sensitivity range) and drag-to-pan.
   - **Retro Frequency Tuner Dial**: Vintage radio-style 2.4 GHz, 5 GHz, and 6 GHz spectrum dial.
   - **Network Controls**: Wi-Fi toggle, Data shortcuts, and live ping/latency gauge.
-- [x] **Floating Audio Recorder & Tools** (`AudioRecorderPanelManager`): On-demand floating draggable pill panel with pause/play toggle, next chunking, stop with name input, and close/resource release.
+- [ ] **Floating Audio Recorder & Tools** (`AudioRecorderFloatingWindow`): Real-time waveform amplitude visualizer, recording pause/resume buffer, and local audio management.
 
 ### 13.3 — System Control & File Traversal (Tier 3 - Medium-High Difficulty)
 - [ ] **Floating File Explorer** (`FileExplorerFloatingWindow`): Storage Access Framework (SAF) integration, internal/SD card navigation, fast file operations (copy, move, delete, rename, share), and MIME-type intent dispatching.

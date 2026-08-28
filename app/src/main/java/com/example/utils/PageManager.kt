@@ -87,35 +87,22 @@ data class SidebarPage(
 
 object PageManager {
     fun getCleanHandleId(handleOrContainerId: String): String {
-        var id = handleOrContainerId
-        if (id.startsWith("handle_")) {
-            id = id.removePrefix("handle_")
-        }
         return when {
-            id.contains("_swipe_") -> id.substringBefore("_swipe_")
-            id.endsWith("_tap") -> id.removeSuffix("_tap")
-            id.endsWith("_double_tap") -> id.removeSuffix("_double_tap")
-            id.endsWith("_long_press") -> id.removeSuffix("_long_press")
-            else -> id
+            handleOrContainerId.contains("_swipe_") -> handleOrContainerId.substringBefore("_swipe_")
+            handleOrContainerId.endsWith("_tap") -> handleOrContainerId.removeSuffix("_tap")
+            handleOrContainerId.endsWith("_double_tap") -> handleOrContainerId.removeSuffix("_double_tap")
+            handleOrContainerId.endsWith("_long_press") -> handleOrContainerId.removeSuffix("_long_press")
+            else -> handleOrContainerId
         }
-    }
-
-    private fun getPagesKey(id: String): String {
-        val clean = if (id.startsWith("handle_")) id.removePrefix("handle_") else id
-        return "handle_${clean}_pages"
     }
 
     fun getPages(prefs: SharedPreferences, rawHandleId: String): List<SidebarPage> {
         val cleanHandleId = getCleanHandleId(rawHandleId)
-        val key1 = getPagesKey(rawHandleId)
-        val key2 = getPagesKey(cleanHandleId)
-        val containerSpecificJson = prefs.getString(key1, prefs.getString("handle_${rawHandleId}_pages", null))
-        val handleSpecificJson = if (rawHandleId != cleanHandleId) prefs.getString(key2, prefs.getString("handle_${cleanHandleId}_pages", null)) else null
-        val globalSidebarJson = prefs.getString("handle_sidebar_pages", null)
-        val legacy = prefs.getString("sidebar_pages", null)
-        val pagesJson = containerSpecificJson ?: handleSpecificJson ?: globalSidebarJson ?: legacy
+        val containerSpecificJson = prefs.getString("handle_${rawHandleId}_pages", null)
+        val legacy = if (rawHandleId == "sidebar" || cleanHandleId == "sidebar") prefs.getString("sidebar_pages", null) else null
+        val pagesJson = containerSpecificJson ?: prefs.getString("handle_${cleanHandleId}_pages", legacy)
         
-        val defaultPageId = if (cleanHandleId == "sidebar" || cleanHandleId.isEmpty()) "default_hybrid" else "default_hybrid_$cleanHandleId"
+        val defaultPageId = if (rawHandleId == "sidebar") "default_hybrid" else "default_hybrid_$rawHandleId"
         val defaultPage = SidebarPage(id = defaultPageId, type = "hybrid_grid", title = "Home Grid")
         if (!prefs.contains("hybrid_grid_" + defaultPageId)) {
             val jsonStr = "[{\"id\": \"system:ebook_reader\", \"cols\": 1, \"rows\": 1, \"x\": 0, \"y\": 0}, {\"id\": \"system:log_keeper\", \"cols\": 1, \"rows\": 1, \"x\": 1, \"y\": 0}]"
@@ -125,7 +112,6 @@ object PageManager {
         }
         if (pagesJson == null) {
             // Default setup
-            com.example.core.LogKeeper.writeLog("PageManager", "getPages for '$rawHandleId' (fallback clean='$cleanHandleId'): 1 default page")
             return listOf(defaultPage)
         }
         val list = mutableListOf<SidebarPage>()
@@ -155,50 +141,26 @@ object PageManager {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            com.example.core.LogKeeper.writeLog("PageManager", "getPages for '$rawHandleId' error parsing JSON: ${e.message}")
             return listOf(defaultPage)
         }
         
-        val result = if (list.isEmpty()) listOf(defaultPage) else list
-        com.example.core.LogKeeper.writeLog("PageManager", "getPages for '$rawHandleId': resolved ${result.size} pages [${result.joinToString { it.title }}]")
-        return result
+        return if (list.isEmpty()) listOf(defaultPage) else list
     }
 
     fun savePages(prefs: SharedPreferences, rawHandleId: String, pages: List<SidebarPage>) {
         val arr = JSONArray()
         val seenIds = mutableSetOf<String>()
         pages.filter { seenIds.add(it.id) }.forEach { arr.put(it.toJson()) }
-        val jsonStr = arr.toString()
-        val key = getPagesKey(rawHandleId)
-        val editor = prefs.edit().putString(key, jsonStr)
-        val clean = getCleanHandleId(rawHandleId)
-        if (clean == "sidebar" || rawHandleId == "sidebar") {
-            editor.putString("handle_sidebar_pages", jsonStr)
-            editor.putString("sidebar_pages", jsonStr)
-        }
-        if (rawHandleId != clean && clean.isNotEmpty()) {
-            editor.putString(getPagesKey(clean), jsonStr)
-        }
-        editor.apply()
-        com.example.core.LogKeeper.writeLog("PageManager", "savePages for '$rawHandleId' (key=$key): saved ${pages.size} pages [${pages.joinToString { it.title }}]")
+        prefs.edit().putString("handle_${rawHandleId}_pages", arr.toString()).apply()
     }
 
     fun getDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String): Int {
         val cleanHandleId = getCleanHandleId(rawHandleId)
-        return prefs.getInt("handle_${rawHandleId}_default_page_index", 
-            prefs.getInt("handle_${cleanHandleId}_default_page_index", 
-            prefs.getInt("handle_sidebar_default_page_index", 
-            prefs.getInt("sidebar_default_page_index", 0))))
+        return prefs.getInt("handle_${rawHandleId}_default_page_index", prefs.getInt("handle_${cleanHandleId}_default_page_index", prefs.getInt("sidebar_default_page_index", 0)))
     }
 
     fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int) {
-        val editor = prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index)
-        if (rawHandleId == "sidebar") {
-            editor.putInt("handle_sidebar_default_page_index", index)
-            editor.putInt("sidebar_default_page_index", index)
-        }
-        editor.apply()
-        com.example.core.LogKeeper.writeLog("PageManager", "saveDefaultPageIndex for '$rawHandleId': index=$index")
+        prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index).apply()
     }
 
     fun isPageTypePresent(prefs: SharedPreferences, pageType: String): Boolean {

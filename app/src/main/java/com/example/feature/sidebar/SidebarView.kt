@@ -354,15 +354,8 @@ class SidebarView(
             } else {
                 FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
             }
-            offscreenPageLimit = 1
+            offscreenPageLimit = ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT
         }
-
-        // Configure ViewPager2 internal RecyclerView to handle nested touch scrolling cleanly
-        (viewPager.getChildAt(0) as? RecyclerView)?.apply {
-            isNestedScrollingEnabled = false
-            overScrollMode = View.OVER_SCROLL_NEVER
-        }
-        viewPager.offscreenPageLimit = 1
         
         viewPager.adapter = object : RecyclerView.Adapter<SidebarPageViewHolder>() {
             override fun getItemViewType(position: Int): Int {
@@ -379,7 +372,10 @@ class SidebarView(
                 if (pageConfigs.isEmpty()) return
                 val actualPosition = if (isLooping) position % pageConfigs.size else position
                 val config = pageConfigs[actualPosition]
-                holder.bind(config)
+                // Only immediately instantiate if it is the initially active starting page.
+                // Other pages load on-demand when scrolled into view.
+                val isCurrentOrTarget = (position == viewPager.currentItem) || (holder.pageView != null)
+                holder.bind(config, isCurrentOrTarget)
             }
             override fun getItemCount(): Int = if (isLooping) Int.MAX_VALUE else pageConfigs.size
         }
@@ -452,19 +448,18 @@ class SidebarView(
                     AppWidgetHelper.startListening(context)
                 }
                 
-                // Notify lifecycle and ensure current page is loaded on demand, unloading dormant non-adjacent pages
+                // Notify lifecycle and ensure current page is loaded on demand
                 val rcv = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
                 rcv?.let {
                     for (i in 0 until it.childCount) {
                         val child = it.getChildAt(i)
                         val holder = it.getChildViewHolder(child) as? SidebarPageViewHolder
-                        val holderPos = holder?.bindingAdapterPosition ?: -1
-                        if (holderPos == position) {
-                            holder?.ensureLoaded()
-                            (holder?.pageView as? SidebarPageControllable)?.onPageSelected()
+                        if (holder?.bindingAdapterPosition == position) {
+                            holder.ensureLoaded()
+                            (holder.pageView as? SidebarPageControllable)?.onPageSelected()
                             
                             // Measure and adjust height immediately for non-grid wrapped pages
-                            holder?.pageView?.let { pv ->
+                            holder.pageView?.let { pv ->
                                 pv.post {
                                     val actualPos = if (isLooping) position % pageConfigs.size else position
                                     val page = pageConfigs.getOrNull(actualPos)
@@ -664,8 +659,7 @@ class SidebarView(
             dots.add(dot)
             dotsLayout.addView(dot)
         }
-        val initialPos = if (count > 0) (if (isLooping) startingIndex % count else startingIndex).coerceIn(0, count - 1) else 0
-        updateDots(initialPos)
+        updateDots(0)
     }
     
     private fun updateDots(position: Int) {
@@ -694,7 +688,7 @@ class SidebarView(
 
     fun attach() {
         if (!isAttached) {
-            com.example.core.LogKeeper.writeLog("Sidebar", "Attached sidebar for containerId: $containerId with ${pageConfigs.size} pages")
+            com.example.core.LogKeeper.writeLog("Sidebar", "Attached sidebar for containerId: $containerId")
             AppWidgetHelper.startListening(context)
             windowManager.addView(this, layoutParams)
             isAttached = true
@@ -721,23 +715,19 @@ class SidebarView(
     fun detach() {
         if (isAttached) {
             com.example.core.LogKeeper.writeLog("Sidebar", "Detached sidebar for containerId: $containerId")
-            // Notify unselected and explicitly clean child page views before removing
+            // Notify unselected before removing
             val rcv = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
             rcv?.let {
                 for (i in 0 until it.childCount) {
                     val child = it.getChildAt(i)
                     val holder = it.getChildViewHolder(child) as? SidebarPageViewHolder
                     (holder?.pageView as? SidebarPageControllable)?.onPageUnselected()
-                    holder?.pageView = null
-                    (child as? FrameLayout)?.removeAllViews()
                 }
             }
-            viewPager.adapter = null
             AppWidgetHelper.stopListening()
             appsManagers.values.forEach { it.destroy() }
             appsManagers.clear()
             windowManager.removeView(this)
-            removeAllViews()
             isAttached = false
             viewScope.cancel()
         }
@@ -747,7 +737,7 @@ class SidebarView(
         var pageView: View? = null
         private var currentConfig: SidebarPage? = null
 
-        fun bind(config: SidebarPage) {
+        fun bind(config: SidebarPage, loadImmediately: Boolean) {
             val configChanged = (currentConfig?.id != config.id) || (currentConfig?.type != config.type)
             if (configChanged) {
                 (pageView as? SidebarPageControllable)?.onPageUnselected()
@@ -755,13 +745,14 @@ class SidebarView(
                 frame.removeAllViews()
             }
             currentConfig = config
-            ensureLoaded()
-        }
-
-        fun unloadToStub() {
-            (pageView as? SidebarPageControllable)?.onPageUnselected()
-            pageView = null
-            frame.removeAllViews()
+            if (loadImmediately) {
+                ensureLoaded()
+            } else {
+                // If not needed immediately, keep uninflated / empty to save RAM and initialization time
+                if (pageView == null) {
+                    frame.removeAllViews()
+                }
+            }
         }
 
         fun ensureLoaded() {

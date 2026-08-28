@@ -49,6 +49,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         prefs.registerOnSharedPreferenceChangeListener(this)
+        DynamicSpeedIconGenerator.loadConfig(prefs)
         
         dailyMobileBytes = prefs.getLong("daily_mobile_rx", 0) + prefs.getLong("daily_mobile_tx", 0)
         dailyWifiBytes = prefs.getLong("daily_wifi_rx", 0) + prefs.getLong("daily_wifi_tx", 0)
@@ -67,7 +68,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         reloadHandles()
         setupScreenStateReceiver()
         setupNetSpeed()
-        CallRecorderManager.getInstance(this).updateComponentState()
     }
 
 
@@ -83,13 +83,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
                     onDailyDataUpdate = { mobile, wifi ->
                         dailyMobileBytes = mobile
                         dailyWifiBytes = wifi
-                    },
-                    onConnectivityChanged = { isConnected ->
-                        if (!isConnected) {
-                            downSpeed = 0
-                            upSpeed = 0
-                        }
-                        updateForegroundNotification()
                     }
                 )
             }
@@ -154,22 +147,14 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         val totalTodayBytes = dailyMobileBytes + dailyWifiBytes
         val totalSpeed = downSpeed + upSpeed
 
-        val isConnected = netSpeedManager?.isConnected() ?: true
-        val hideWhenDisconnected = prefs.getBoolean("hide_when_disconnected", true)
-        val shouldShowSpeed = isNetSpeedActive && (!hideWhenDisconnected || isConnected)
-
-        val contentTitle = if (shouldShowSpeed) {
+        val contentTitle = if (isNetSpeedActive) {
             if (totalTodayBytes > 0) "Data: ${formatDataBytes(totalTodayBytes)}" else "Internet Speed Monitor"
-        } else if (isNetSpeedActive && !isConnected) {
-            "Internet Disconnected"
         } else {
             "Handles Active"
         }
 
-        val contentText = if (shouldShowSpeed) {
+        val contentText = if (isNetSpeedActive) {
             "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}"
-        } else if (isNetSpeedActive && !isConnected) {
-            "Data Today: ${formatDataBytes(totalTodayBytes)}"
         } else {
             "Listening for edge gestures"
         }
@@ -182,14 +167,14 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             .setOngoing(true)
             .setShowWhen(false)
             .setSortKey("00_netspeed_monitor")
-            .setPriority(if (shouldShowSpeed) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_MIN)
+            .setPriority(if (isNetSpeedActive) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_LOW)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             
-        if (shouldShowSpeed) {
+        if (isNetSpeedActive) {
             val speedUnits = prefs.getString("speed_units", "Auto")
             val bigText = "Down: ${formatSpeed(downSpeed)}   Up: ${formatSpeed(upSpeed)}\nMobile: ${formatDataBytes(dailyMobileBytes)} • Wi-Fi: ${formatDataBytes(dailyWifiBytes)}"
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
-            builder.setSmallIcon(com.example.utils.DynamicStatusIconHelper.createSpeedIconCompat(totalSpeed, speedUnits))
+            builder.setSmallIcon(DynamicSpeedIconGenerator.generateIconCompat(this, totalSpeed, speedUnits))
         } else {
             builder.setSmallIcon(android.R.drawable.ic_menu_crop)
         }
@@ -235,6 +220,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         if (key == "netspeed_enabled" || key == "speed_indicator_enabled") {
             setupNetSpeed()
         } else if (key != null && (key.startsWith("speed_icon_") || key == "speed_units")) {
+            DynamicSpeedIconGenerator.loadConfig(prefs)
             updateForegroundNotification()
         }
         
@@ -256,8 +242,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             } else {
                 readerHandleView?.detach()
             }
-        } else if (key == "call_recorder_enabled" || key == "call_recorder_manual_enabled") {
-            CallRecorderManager.getInstance(this).updateComponentState()
         }
     }
 
@@ -283,7 +267,6 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         triggerHandleViews.clear()
         readerHandleView?.detach()
         readerHandleView = null
-        CallRecorderManager.getInstance(this).stopListening()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

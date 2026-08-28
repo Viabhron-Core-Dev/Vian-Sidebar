@@ -34,10 +34,9 @@ class CursorManager(private val service: AccessibilityService) {
     private var controlView: View? = null
     private var trackpadView: View? = null
     
-    private val prefs = service.getSharedPreferences("cursor_prefs", Context.MODE_PRIVATE)
     var isRunning = false
     private var isPaused = false
-    private var isGlassShield = prefs.getBoolean("is_glass_shield", false) // Default to comfortable Trackpad box mode so touch never leaks
+    private var isGlassShield = false // Default to comfortable Trackpad box mode so touch never leaks
     
     private var pointerX = 0f
     private var pointerY = 0f
@@ -179,7 +178,6 @@ class CursorManager(private val service: AccessibilityService) {
             setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
             setOnClickListener {
                 isGlassShield = !isGlassShield
-                prefs.edit().putBoolean("is_glass_shield", isGlassShield).apply()
                 setImageResource(if (isGlassShield) android.R.drawable.ic_menu_crop else android.R.drawable.ic_menu_gallery)
                 updateTrackpadLayout()
                 LogKeeper.writeLog("Cursor", "Switched mode: isGlassShield=$isGlassShield")

@@ -26,7 +26,6 @@ class CalculatorPageView(
     private val onHeightChanged: ((Int) -> Unit)? = null
 ) : FrameLayout(context), SidebarPageControllable {
 
-    private val prefs = context.getSharedPreferences("calc_page_prefs", Context.MODE_PRIVATE)
     private var expression = ""
     private var cursorIndex = 0
     private var resultText = ""
@@ -51,10 +50,6 @@ class CalculatorPageView(
         scrollResult = findViewById(R.id.scroll_result)
         layoutExtendedDrawer = findViewById(R.id.layout_extended_drawer)
         ivDrawerArrow = findViewById(R.id.iv_drawer_arrow)
-
-        expression = prefs.getString("expression", "") ?: ""
-        resultText = prefs.getString("result_text", "") ?: ""
-        cursorIndex = expression.length
 
         // Drawer Toggle
         findViewById<View>(R.id.btn_toggle_drawer).setOnClickListener {
@@ -247,11 +242,6 @@ class CalculatorPageView(
             else -> expression
         }
         tvResult.text = bottomDisplay
-
-        prefs.edit()
-            .putString("expression", expression)
-            .putString("result_text", resultText)
-            .apply()
 
         // Auto-scroll to end to follow cursor/input
         post {
