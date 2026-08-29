@@ -37,28 +37,48 @@
                 android:singleLine="true" />
         </HorizontalScrollView>
 
-        <!-- Bottom Display (Active result / calculation, auto-scaled) -->
-        <HorizontalScrollView
-            android:id="@+id/scroll_result"
+        <!-- Bottom Display (Active result / calculation, auto-scaled with Copy Result button) -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="1dp"
-            android:scrollbars="none"
-            android:fillViewport="true">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/tv_result"
-                android:layout_width="wrap_content"
+            <ImageView
+                android:id="@+id/btn_copy_result"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="6dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:src="@android:drawable/ic_menu_save"
+                android:tint="#80D8FF"
+                android:contentDescription="@string/calculator_copy_result" />
+
+            <HorizontalScrollView
+                android:id="@+id/scroll_result"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:text="0"
-                android:textColor="#FFFFFF"
-                android:textSize="26sp"
-                android:textStyle="bold"
-                android:fontFamily="sans-serif"
-                android:lines="1"
-                android:singleLine="true" />
-        </HorizontalScrollView>
+                android:layout_weight="1"
+                android:scrollbars="none"
+                android:fillViewport="true">
+
+                <TextView
+                    android:id="@+id/tv_result"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:text="0"
+                    android:textColor="#FFFFFF"
+                    android:textSize="26sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif"
+                    android:lines="1"
+                    android:singleLine="true" />
+            </HorizontalScrollView>
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Extended Functions Toggle Bar (Drawer Handle) -->

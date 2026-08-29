@@ -42,6 +42,10 @@ class SidebarView(
     private val onClose: () -> Unit
 ) : FrameLayout(context) {
 
+    val isRight: Boolean = run {
+        val legacyEdge = if (prefs.getBoolean("sidebar_position_left", false)) "left" else "right"
+        prefs.getString("handle_${physicalHandleId}_edge", if (physicalHandleId == "sidebar") legacyEdge else "right") == "right"
+    }
     private val wrapContent = prefs.getBoolean("handle_${containerId}_sidebar_wrap_content", prefs.getBoolean("sidebar_wrap_content", true))
     private val layoutParams: WindowManager.LayoutParams
     private val viewPager: ViewPager2
@@ -695,9 +699,41 @@ class SidebarView(
         if (!isAttached) {
             com.example.core.LogKeeper.writeLog("Sidebar", "Attached sidebar for containerId: $containerId")
             AppWidgetHelper.startListening(context)
+            
+            val density = context.resources.displayMetrics.density
+            val slideDist = (layoutParams.width.toFloat()).coerceAtLeast(200f * density)
+            translationX = if (isRight) slideDist else -slideDist
+            alpha = 0.6f
+
             windowManager.addView(this, layoutParams)
             isAttached = true
+
+            animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(160)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
         }
+    }
+    
+    fun closeWithAnimation(onFinished: () -> Unit) {
+        if (!isAttached) {
+            onFinished()
+            return
+        }
+        val density = context.resources.displayMetrics.density
+        val slideDist = (layoutParams.width.toFloat()).coerceAtLeast(200f * density)
+        val targetX = if (isRight) slideDist else -slideDist
+        animate()
+            .translationX(targetX)
+            .alpha(0f)
+            .setDuration(130)
+            .setInterpolator(android.view.animation.AccelerateInterpolator())
+            .withEndAction {
+                onFinished()
+            }
+            .start()
     }
     
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -720,6 +756,7 @@ class SidebarView(
     fun detach() {
         if (isAttached) {
             com.example.core.LogKeeper.writeLog("Sidebar", "Detached sidebar for containerId: $containerId")
+            animate().cancel()
             pageChangeCallback?.let {
                 viewPager.unregisterOnPageChangeCallback(it)
                 pageChangeCallback = null
@@ -746,7 +783,9 @@ class SidebarView(
             dotsLayout.removeAllViews()
             removeAllViews()
 
-            windowManager.removeView(this)
+            try {
+                windowManager.removeView(this)
+            } catch (e: Exception) {}
             isAttached = false
             viewScope.cancel()
         }

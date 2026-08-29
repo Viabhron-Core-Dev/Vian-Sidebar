@@ -90,9 +90,8 @@ class SidebarManager(
     }
     
     private fun showSidebar(physicalHandleId: String, containerId: String, targetPageId: String? = null) {
-        if (sidebarView != null) {
-            closeSidebar()
-        }
+        sidebarView?.detach()
+        sidebarView = null
         
         // Load pages specifically for this container (handle + gesture)
         val pages = PageManager.getPages(prefs, containerId)
@@ -116,8 +115,13 @@ class SidebarManager(
     }
     
     fun closeSidebar() {
-        sidebarView?.detach()
-        sidebarView = null
+        val current = sidebarView
+        if (current != null) {
+            sidebarView = null
+            current.closeWithAnimation {
+                current.detach()
+            }
+        }
     }
     
     fun onTrimMemory(level: Int) {

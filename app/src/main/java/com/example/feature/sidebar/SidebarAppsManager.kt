@@ -265,7 +265,7 @@ class SidebarAppsManager(
     private var hasLoadedOnce = false
 
     val iconCache = object : LruCache<String, Bitmap>(
-        (Runtime.getRuntime().maxMemory() / 1024 / 32).toInt().coerceIn(1024, 2048)
+        (Runtime.getRuntime().maxMemory() / 1024 / 48).toInt().coerceIn(512, 1024)
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int {
             return (value.byteCount / 1024).coerceAtLeast(1)
@@ -382,7 +382,22 @@ class SidebarAppsManager(
         val parsed = parseId(id) ?: return
         val customIconFile = java.io.File(context.filesDir, "custom_icons/${id.replace(Regex("[^a-zA-Z0-9.-]"), "_")}.webp")
         if (customIconFile.exists()) {
-            val customCached = iconCache.get("custom_${id}") ?: android.graphics.BitmapFactory.decodeFile(customIconFile.absolutePath)?.also { iconCache.put("custom_${id}", it) }
+            var customCached = iconCache.get("custom_${id}")
+            if (customCached == null) {
+                try {
+                    val rawBmp = android.graphics.BitmapFactory.decodeFile(customIconFile.absolutePath)
+                    customCached = if (rawBmp != null) {
+                        val density = context.resources.displayMetrics.density
+                        val targetSize = Math.round(48f * density).coerceIn(48, 144)
+                        if (rawBmp.width > targetSize || rawBmp.height > targetSize) {
+                            Bitmap.createScaledBitmap(rawBmp, targetSize, targetSize, true)
+                        } else {
+                            rawBmp
+                        }
+                    } else null
+                    if (customCached != null) iconCache.put("custom_${id}", customCached)
+                } catch (e: Exception) {}
+            }
             if (customCached != null) {
                 icon.setImageDrawable(null)
                 icon.clearColorFilter()
@@ -571,7 +586,16 @@ class SidebarAppsManager(
             var b = iconCache.get("custom_$id")
             if (b == null) {
                 try {
-                    b = android.graphics.BitmapFactory.decodeFile(customIconFile.absolutePath)
+                    val rawBmp = android.graphics.BitmapFactory.decodeFile(customIconFile.absolutePath)
+                    b = if (rawBmp != null) {
+                        val density = context.resources.displayMetrics.density
+                        val targetSize = Math.round(48f * density).coerceIn(48, 144)
+                        if (rawBmp.width > targetSize || rawBmp.height > targetSize) {
+                            Bitmap.createScaledBitmap(rawBmp, targetSize, targetSize, true)
+                        } else {
+                            rawBmp
+                        }
+                    } else null
                     if (b != null) iconCache.put("custom_$id", b)
                 } catch(e: Exception) {}
             }
@@ -983,7 +1007,8 @@ class SidebarAppsManager(
     }
 
     fun getBitmapFromDrawable(drawable: Drawable): Bitmap? {
-        val targetSize = (40 * context.resources.displayMetrics.density).toInt().coerceIn(48, 96)
+        val density = context.resources.displayMetrics.density
+        val targetSize = Math.round(48f * density).coerceIn(48, 144)
         if (drawable is BitmapDrawable && drawable.bitmap != null) {
             val bmp = drawable.bitmap
             if (bmp.width <= targetSize && bmp.height <= targetSize) {

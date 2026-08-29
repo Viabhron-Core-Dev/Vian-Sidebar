@@ -88,6 +88,58 @@
 * How it was verified: local build only (compile_applet passed)
 * Deviations: None.
 * Known issues: None.
+* Timestamp: 2026-08-29T06:39:30-07:00
+* One-line summary: Phase 1: Downsampled icon loading and bounded LRU cache in SidebarAppsManager to optimize RAM footprint.
+* Exact files touched: `app/src/main/java/com/example/feature/sidebar/SidebarAppsManager.kt`
+* What was actually done:
+  - Downsampled bitmap decoding and drawable loading in `getBitmapFromDrawable` to exact 48dp display dimensions (`Math.round(48f * density).coerceIn(48, 144)`).
+  - Downsampled custom user icon decodings in `bindIcon` and `getIconBitmap` to 48dp thumbnails.
+  - Adjusted `iconCache` max memory allocation to a tightly bounded footprint (`maxMemory / 48`, capped at 512KB - 1024KB).
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+* Timestamp: 2026-08-29T07:47:30-07:00
+* One-line summary: Phase 4: Added Copy Result button to Sidebar Calculator page.
+* Exact files touched:
+  - `app/src/main/res/values/strings.xml`
+  - `app/src/main/res/layout/page_calculator.xml`
+  - `app/src/main/java/com/example/feature/sidebar/CalculatorPageView.kt`
+* What was actually done:
+  - Added `calculator_copy_result` and `calculator_result_copied` strings to `strings.xml`.
+  - Added `btn_copy_result` ImageView button beside the result display in `page_calculator.xml` with subtle tint and touch feedback.
+  - Implemented `copyResultToClipboard()` in `CalculatorPageView.kt` copying the active result or evaluated expression to Android `ClipboardManager` and displaying a user confirmation toast.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+* Timestamp: 2026-08-29T07:59:30-07:00
+* One-line summary: Phase 2 & 3: Implemented dynamic handle-edge snapping, animated sidebar transitions, lazy page inflation, and closed-state widget host idling.
+* Exact files touched:
+  - `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarManager.kt`
+* What was actually done:
+  - Added dynamic `isRight` determination in `SidebarView` bound to the triggering `physicalHandleId`, correctly setting `Gravity.START` or `Gravity.END` with matching corner radii and background contours.
+  - Implemented dynamic slide-in and `closeWithAnimation()` transitions that emerge from and retreat toward the matching handle edge.
+  - Ensured secondary pages in `SidebarPageViewHolder` remain uninflated until actively navigated to, conserving RAM and startup CPU cycles.
+  - Confirmed and fortified `AppWidgetHelper.startListening()` on sidebar open and `AppWidgetHelper.stopListening()` / child cleanup on sidebar detach to prevent widgets from running in the background.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+* Timestamp: 2026-08-29T10:23:45-07:00
+* One-line summary: Phase 5: Multi-Handle & Multi-Gesture integration verified across codebase.
+* Exact files touched:
+  - `ON_DEMAND_PLAN.md`
+  - `receipts/RECEIPTS_093.md`
+* What was actually done:
+  - Conducted full multi-handle and multi-gesture architectural audit.
+  - Verified `HandleManager` loops and handles dynamic list of handles without hardcoded bounds.
+  - Verified `TriggerHandleView` passes container IDs (`${handleId}_${gesture}`) cleanly to `SidebarManager` and `PageManager`.
+  - Verified edge snapping, lazy loading, and widget lifecycle compatibility across multiple simultaneous handles.
+  - Completed successful clean build with `compile_applet`.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+
+
 
 
 

@@ -1,5 +1,7 @@
 package com.example.feature.sidebar
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Typeface
 import android.text.SpannableStringBuilder
@@ -16,6 +18,7 @@ import android.widget.ImageView
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
+import android.widget.Toast
 import com.example.R
 import java.text.DecimalFormat
 import kotlin.math.pow
@@ -37,6 +40,7 @@ class CalculatorPageView(
     private val scrollResult: HorizontalScrollView
     private val layoutExtendedDrawer: View
     private val ivDrawerArrow: ImageView
+    private val btnCopyResult: ImageView?
 
     init {
         layoutParams = ViewGroup.LayoutParams(
@@ -50,6 +54,11 @@ class CalculatorPageView(
         scrollResult = findViewById(R.id.scroll_result)
         layoutExtendedDrawer = findViewById(R.id.layout_extended_drawer)
         ivDrawerArrow = findViewById(R.id.iv_drawer_arrow)
+        btnCopyResult = findViewById(R.id.btn_copy_result)
+
+        btnCopyResult?.setOnClickListener {
+            copyResultToClipboard()
+        }
 
         // Drawer Toggle
         findViewById<View>(R.id.btn_toggle_drawer).setOnClickListener {
@@ -128,6 +137,30 @@ class CalculatorPageView(
         }
         evaluateAndSetResult()
         updateUI()
+    }
+
+    private fun copyResultToClipboard() {
+        val rawResult = when {
+            resultText.isNotEmpty() -> resultText.removePrefix("=")
+            expression.isNotEmpty() -> {
+                val evaluated = evaluateExpression(expression)
+                if (evaluated.isNotEmpty() && evaluated != "Error") evaluated else expression
+            }
+            else -> "0"
+        }
+        val textToCopy = rawResult.trim()
+        if (textToCopy == "Error") {
+            Toast.makeText(context, "Cannot copy error", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            val clip = ClipData.newPlainText("Calculator Result", textToCopy)
+            clipboard?.setPrimaryClip(clip)
+            Toast.makeText(context, context.getString(R.string.calculator_result_copied), Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Failed to copy", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun onBtnClick(btn: String) {
