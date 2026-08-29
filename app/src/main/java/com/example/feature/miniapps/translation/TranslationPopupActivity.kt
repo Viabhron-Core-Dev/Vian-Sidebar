@@ -111,40 +111,50 @@ fun TranslationPopupContent(
         }
         
         isTranslating = true
+        var activeTranslator: com.google.mlkit.nl.translate.Translator? = null
         val languageIdentifier = LanguageIdentification.getClient()
-        languageIdentifier.identifyLanguage(initialText)
-            .addOnSuccessListener { languageCode ->
-                val srcLang = if (languageCode == "und") TranslateLanguage.ENGLISH else languageCode
-                sourceLanguage = srcLang
-                
-                val options = TranslatorOptions.Builder()
-                    .setSourceLanguage(srcLang)
-                    .setTargetLanguage(targetLanguage)
-                    .build()
-                val translator = Translation.getClient(options)
-                
-                val conditions = DownloadConditions.Builder().build()
-                translator.downloadModelIfNeeded(conditions)
-                    .addOnSuccessListener {
-                        translator.translate(initialText)
-                            .addOnSuccessListener { translated ->
-                                translatedText = translated
-                                isTranslating = false
-                            }
-                            .addOnFailureListener {
-                                translatedText = "Error translating text."
-                                isTranslating = false
-                            }
-                    }
-                    .addOnFailureListener {
-                        translatedText = "Error downloading language model."
-                        isTranslating = false
-                    }
-            }
-            .addOnFailureListener {
-                translatedText = "Error identifying language."
-                isTranslating = false
-            }
+        try {
+            languageIdentifier.identifyLanguage(initialText)
+                .addOnSuccessListener { languageCode ->
+                    val srcLang = if (languageCode == "und") TranslateLanguage.ENGLISH else languageCode
+                    sourceLanguage = srcLang
+                    
+                    val options = TranslatorOptions.Builder()
+                        .setSourceLanguage(srcLang)
+                        .setTargetLanguage(targetLanguage)
+                        .build()
+                    val translator = Translation.getClient(options)
+                    activeTranslator = translator
+                    
+                    val conditions = DownloadConditions.Builder().build()
+                    translator.downloadModelIfNeeded(conditions)
+                        .addOnSuccessListener {
+                            translator.translate(initialText)
+                                .addOnSuccessListener { translated ->
+                                    translatedText = translated
+                                    isTranslating = false
+                                }
+                                .addOnFailureListener {
+                                    translatedText = "Error translating text."
+                                    isTranslating = false
+                                }
+                        }
+                        .addOnFailureListener {
+                            translatedText = "Error downloading language model."
+                            isTranslating = false
+                        }
+                }
+                .addOnFailureListener {
+                    translatedText = "Error identifying language."
+                    isTranslating = false
+                }
+                .addOnCompleteListener {
+                    languageIdentifier.close()
+                }
+        } catch (e: Exception) {
+            languageIdentifier.close()
+            isTranslating = false
+        }
     }
     
     Column(

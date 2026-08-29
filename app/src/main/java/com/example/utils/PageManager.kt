@@ -39,13 +39,14 @@ data class SidebarPage(
         fun createDefault(id: String, type: String, title: String): SidebarPage {
             val isStandaloneTool = type in listOf("calculator", "compass", "notification", "notifications", "scheduler", "app_tracker", "resources_tracker")
             val wrap = when (type) {
-                "calculator", "compass", "notification", "notifications", "scheduler", "app_tracker", "resources_tracker" -> false
+                "calculator", "compass" -> true
+                "notification", "notifications", "scheduler", "app_tracker", "resources_tracker" -> false
                 "media_player" -> true
                 else -> true
             }
             val h = when (type) {
-                "calculator" -> 460
-                "compass" -> 480
+                "calculator" -> 260
+                "compass" -> 270
                 "notification", "notifications", "scheduler" -> 520
                 "resources_tracker" -> 460
                 "app_tracker" -> 560
@@ -54,7 +55,9 @@ data class SidebarPage(
                 else -> 450
             }
             val w = when (type) {
-                "calculator", "compass", "resources_tracker" -> 320
+                "calculator" -> 280
+                "compass" -> 250
+                "resources_tracker" -> 320
                 "notification", "notifications", "scheduler", "app_tracker" -> 330
                 "media_player" -> 300
                 "widgets_grid", "hybrid_grid" -> 260

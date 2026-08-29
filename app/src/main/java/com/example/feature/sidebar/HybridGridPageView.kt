@@ -456,6 +456,8 @@ class HybridGridPageView(
                                             val intent = Intent(context, ScreenRecordActivity::class.java)
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                             context.startActivity(intent)
+                                        } else if (parsed.action == "audio_record") {
+                                            com.example.feature.system_hub.AudioRecordFloatingPanel.toggle(context)
                                         } else if (parsed.action == "camera_measure") {
                                             val intent = Intent(context, com.example.feature.system_hub.CameraMeasureActivity::class.java)
                                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

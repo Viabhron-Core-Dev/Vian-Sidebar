@@ -68,6 +68,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         reloadHandles()
         setupScreenStateReceiver()
         setupNetSpeed()
+        CallRecorderManager.getInstance(this).startListening()
     }
 
 
@@ -242,6 +243,8 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
             } else {
                 readerHandleView?.detach()
             }
+        } else if (key == "call_recorder_enabled" || key == "call_recorder_manual_enabled") {
+            CallRecorderManager.getInstance(this).startListening()
         }
     }
 
@@ -267,6 +270,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         triggerHandleViews.clear()
         readerHandleView?.detach()
         readerHandleView = null
+        CallRecorderManager.getInstance(this).stopListening()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

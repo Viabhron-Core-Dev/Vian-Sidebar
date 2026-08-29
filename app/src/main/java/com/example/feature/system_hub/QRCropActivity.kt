@@ -213,6 +213,9 @@ class QRCropActivity : ComponentActivity() {
                     }
                     Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 }
+                .addOnCompleteListener {
+                    recognizer.close()
+                }
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Failed to crop for OCR", Toast.LENGTH_SHORT).show()

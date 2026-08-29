@@ -57,6 +57,10 @@ class SidebarManager(
                         closeSidebar()
                         com.example.feature.miniapps.MiniAppManager.toggleApp(context, "hybrid_grid")
                     }
+                    "system:audio_record", "audio_record" -> {
+                        closeSidebar()
+                        com.example.feature.system_hub.AudioRecordFloatingPanel.toggle(context)
+                    }
                     else -> {
                         val isSystemAction = actionId.startsWith("system:")
                         val systemActionKey = actionId.removePrefix("system:")

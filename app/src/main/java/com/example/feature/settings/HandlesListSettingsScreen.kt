@@ -225,26 +225,48 @@ fun HandleItem(
                         } else {
                             gesturesMap[gesture] = action
                             if (action.startsWith("open_page:")) {
-                                val pageType = action.removePrefix("open_page:")
+                                val target = action.removePrefix("open_page:")
                                 val containerId = "${handle.id}_$gesture"
-                                val currentPages = prefs.getString("handle_${containerId}_pages", null)
-                                if (currentPages == null) {
-                                    val pageTitle = when(pageType) {
-                                        "apps" -> "Apps Grid"
-                                        "widgets_grid" -> "Widgets Grid"
-                                        "hybrid_grid" -> if (pageType == "default_hybrid") "Home Grid" else "Hybrid"
-                                        "app_tracker" -> "App Tracker"
-                                        "resources_tracker" -> "Resources Tracker"
-                                        "media_player" -> "Media Player"
-                                        "calculator" -> "Calculator"
-                                        "scheduler" -> "Short Reminders"
-                                        "compass" -> "Compass"
-                                        "notifications", "notification" -> "Notifications"
-                                        else -> "Page"
+                                val pageType = if (target.startsWith("default_hybrid")) "hybrid_grid" else target
+                                val pageTitle = when(pageType) {
+                                    "apps" -> "Apps Grid"
+                                    "widgets_grid" -> "Widgets Grid"
+                                    "hybrid_grid" -> if (target == "default_hybrid" || target.startsWith("default_hybrid")) "Home Grid" else "Hybrid"
+                                    "app_tracker" -> "App Tracker"
+                                    "resources_tracker" -> "Resources Tracker"
+                                    "media_player" -> "Media Player"
+                                    "calculator" -> "Calculator"
+                                    "scheduler" -> "Short Reminders"
+                                    "compass" -> "Compass"
+                                    "notifications", "notification" -> "Notifications"
+                                    else -> "Page"
+                                }
+                                val existingPages = com.example.utils.PageManager.getPages(prefs, containerId).toMutableList()
+                                val existingIndex = existingPages.indexOfFirst { 
+                                    it.id == target || it.type == pageType || (pageType == "hybrid_grid" && (it.id.startsWith("default_hybrid") || it.type == "hybrid_grid"))
+                                }
+                                
+                                if (existingPages.size <= 1) {
+                                    val newPage = com.example.utils.SidebarPage.createDefault(
+                                        id = if (pageType == "hybrid_grid") "default_hybrid_$containerId" else UUID.randomUUID().toString(),
+                                        type = pageType,
+                                        title = pageTitle
+                                    )
+                                    com.example.utils.PageManager.savePages(prefs, containerId, listOf(newPage))
+                                    com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, 0)
+                                } else {
+                                    if (existingIndex != -1) {
+                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingIndex)
+                                    } else {
+                                        val newPage = com.example.utils.SidebarPage.createDefault(
+                                            id = UUID.randomUUID().toString(),
+                                            type = pageType,
+                                            title = pageTitle
+                                        )
+                                        existingPages.add(newPage)
+                                        com.example.utils.PageManager.savePages(prefs, containerId, existingPages)
+                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingPages.size - 1)
                                     }
-                                    val newPage = com.example.utils.SidebarPage.createDefault(id = UUID.randomUUID().toString(), type = pageType, title = pageTitle)
-                                    val arr = org.json.JSONArray().apply { put(newPage.toJson()) }
-                                    prefs.edit().putString("handle_${containerId}_pages", arr.toString()).apply()
                                 }
                             }
                         }
@@ -280,6 +302,7 @@ fun HandleItem(
                                         "splitscreen" -> "Action: Split Screen"
                                         "cursor" -> "Action: Virtual Cursor"
                                         "auto_scroll" -> "Action: Auto Scroll"
+                                        "audio_record" -> "Action: Audio Record"
                                         "barcode_scanner" -> "Action: Secure Camera Scanner"
                                         "qr_scan" -> "Action: Secure Screen Scanner"
                                         "redact_screenshot" -> "Action: Redact Screenshot"
@@ -429,6 +452,7 @@ fun HandleItem(
                         "action_splitscreen" to "Split Screen",
                         "action_cursor" to "Virtual Cursor",
                         "action_auto_scroll" to "Auto Scroll",
+                        "action_audio_record" to "Audio Record",
                         "action_barcode_scanner" to "Secure Camera Scanner",
                         "action_qr_scan" to "Secure Screen Scanner",
                         "action_redact_screenshot" to "Redact Screenshot",
@@ -459,19 +483,20 @@ fun HandleItem(
                         )
                         var selectedCategory by remember { mutableStateOf("sidebar") }
                         
-                        val sidebarPageOptions = mutableListOf(
-                            "toggle_sidebar" to "Default / Current Active Page"
-                        )
-                        if (pageConfigs.isNotEmpty()) {
-                            sidebarPageOptions.addAll(pageConfigs.map { "open_page:${it.id}" to "${it.title} (${it.type})" })
-                        }
+                        val sidebarPageOptions = mutableListOf<Pair<String, String>>()
                         availableSidebarPresets.forEach { preset ->
-                            if (sidebarPageOptions.none { it.first == preset.first }) {
-                                sidebarPageOptions.add(preset)
+                            sidebarPageOptions.add(preset)
+                        }
+                        if (pageConfigs.isNotEmpty()) {
+                            pageConfigs.forEach { page ->
+                                val pageEntry = "open_page:${page.id}" to "${page.title} (${page.type})"
+                                if (sidebarPageOptions.none { it.first == pageEntry.first || it.first == "open_page:${page.type}" }) {
+                                    sidebarPageOptions.add(pageEntry)
+                                }
                             }
                         }
                         
-                        var selectedSidebarOption by remember { mutableStateOf(sidebarPageOptions.first().first) }
+                        var selectedSidebarOption by remember { mutableStateOf(sidebarPageOptions.firstOrNull()?.first ?: "open_page:default_hybrid") }
                         var selectedElementOption by remember { mutableStateOf(elementActionOptions.first().first) }
                         
                         AlertDialog(
@@ -483,7 +508,7 @@ fun HandleItem(
                                     Spacer(modifier = Modifier.height(12.dp))
                                     
                                     if (selectedCategory == "sidebar") {
-                                        ActionDropdown("Select Sidebar Page / Behavior", selectedSidebarOption, sidebarPageOptions) { selectedSidebarOption = it }
+                                        ActionDropdown("Select Sidebar Page", selectedSidebarOption, sidebarPageOptions) { selectedSidebarOption = it }
                                     } else {
                                         ActionDropdown("Select Action / Element", selectedElementOption, elementActionOptions) { selectedElementOption = it }
                                     }
@@ -519,19 +544,20 @@ fun HandleItem(
                         )
                         var selectedCategory by remember { mutableStateOf("sidebar") }
                         
-                        val sidebarPageOptions = mutableListOf(
-                            "toggle_sidebar" to "Default / Current Active Page"
-                        )
-                        if (pageConfigs.isNotEmpty()) {
-                            sidebarPageOptions.addAll(pageConfigs.map { "open_page:${it.id}" to "${it.title} (${it.type})" })
-                        }
+                        val sidebarPageOptions = mutableListOf<Pair<String, String>>()
                         availableSidebarPresets.forEach { preset ->
-                            if (sidebarPageOptions.none { it.first == preset.first }) {
-                                sidebarPageOptions.add(preset)
+                            sidebarPageOptions.add(preset)
+                        }
+                        if (pageConfigs.isNotEmpty()) {
+                            pageConfigs.forEach { page ->
+                                val pageEntry = "open_page:${page.id}" to "${page.title} (${page.type})"
+                                if (sidebarPageOptions.none { it.first == pageEntry.first || it.first == "open_page:${page.type}" }) {
+                                    sidebarPageOptions.add(pageEntry)
+                                }
                             }
                         }
                         
-                        var selectedSidebarOption by remember { mutableStateOf(sidebarPageOptions.first().first) }
+                        var selectedSidebarOption by remember { mutableStateOf(sidebarPageOptions.firstOrNull()?.first ?: "open_page:default_hybrid") }
                         var selectedElementOption by remember { mutableStateOf(elementActionOptions.first().first) }
                         
                         AlertDialog(
@@ -545,7 +571,7 @@ fun HandleItem(
                                     Spacer(modifier = Modifier.height(12.dp))
                                     
                                     if (selectedCategory == "sidebar") {
-                                        ActionDropdown("Select Sidebar Page / Behavior", selectedSidebarOption, sidebarPageOptions) { selectedSidebarOption = it }
+                                        ActionDropdown("Select Sidebar Page", selectedSidebarOption, sidebarPageOptions) { selectedSidebarOption = it }
                                     } else {
                                         ActionDropdown("Select Action / Element", selectedElementOption, elementActionOptions) { selectedElementOption = it }
                                     }

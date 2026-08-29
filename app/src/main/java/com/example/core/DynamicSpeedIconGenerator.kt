@@ -120,9 +120,14 @@ object DynamicSpeedIconGenerator {
         }
     }
 
+    fun getNotificationIconSize(context: Context): Int {
+        val density = context.resources.displayMetrics.density
+        return (24 * density).toInt().coerceAtLeast(48)
+    }
+
     /**
      * Generates a crisp, pixel-perfect status bar icon bitmap directly at the notification small-icon dimensions.
-     * Positions text baselines precisely using Paint.FontMetrics without unnecessary scaling/filtering.
+     * Computes dimensions from device display density without downsampling distortion.
      */
     fun generateStatusBarBitmap(
         context: Context,
@@ -138,15 +143,8 @@ object DynamicSpeedIconGenerator {
         val density = displayMetrics.density
         val densityDpi = displayMetrics.densityDpi
 
-        // Determine exact small icon dimension for the current display density (24dp standard)
-        val statusBarResId = resources.getIdentifier("status_bar_icon_size", "dimen", "android")
-        val systemSize = if (statusBarResId > 0) {
-            try { resources.getDimensionPixelSize(statusBarResId) } catch (e: Exception) { 0 }
-        } else {
-            0
-        }
-        val baseSizePx = if (systemSize > 0) systemSize else Math.round(24f * density).coerceAtLeast(16)
-        val sizePx = Math.round(baseSizePx * config.resScale).coerceIn(16, 256)
+        // Determine exact small icon dimension directly from device display density
+        val sizePx = getNotificationIconSize(context)
 
         val isLive = (overrideConfig == null)
         var bitmap = if (isLive) cachedBitmap else null
@@ -154,8 +152,9 @@ object DynamicSpeedIconGenerator {
 
         if (isLive) {
             if (bitmap == null || bitmap.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
-                bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-                bitmap.density = densityDpi
+                bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
+                    this.density = densityDpi
+                }
                 canvas = Canvas(bitmap)
                 cachedBitmap = bitmap
                 cachedCanvas = canvas
@@ -164,12 +163,13 @@ object DynamicSpeedIconGenerator {
             }
             bitmap.eraseColor(Color.TRANSPARENT)
         } else {
-            bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-            bitmap.density = densityDpi
+            bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
+                this.density = densityDpi
+            }
             canvas = Canvas(bitmap)
         }
 
-        renderIconToCanvas(canvas!!, sizePx, density * config.resScale, display, config)
+        renderIconToCanvas(canvas!!, sizePx, density, display, config)
 
         return bitmap
     }
@@ -202,13 +202,17 @@ object DynamicSpeedIconGenerator {
         }
 
         val tf = cachedTypeface ?: try {
-            Typeface.create(config.font, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
+            if (config.font.isNotEmpty()) {
+                Typeface.create(config.font, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
+            } else {
+                Typeface.create(Typeface.SANS_SERIF, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
+            }
         } catch (e: Exception) {
-            Typeface.create(Typeface.DEFAULT, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
+            if (config.isFakeBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }.also { if (config == activeConfig) cachedTypeface = it }
 
         val paintFlags = when (config.aaMode) {
-            "Crisp" -> 0
+            "Crisp" -> Paint.ANTI_ALIAS_FLAG
             "HighContrast" -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG
             else -> Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.FILTER_BITMAP_FLAG
         }
@@ -314,51 +318,40 @@ object DynamicSpeedIconGenerator {
                 canvas.drawText(display.number, centerX, baselineY, numPaint)
             }
             else -> {
-                // Stacked (Default)
-                val numberSectionHeight = Math.round(sizePx * 0.62f).toFloat()
-                val unitSectionHeight = sizePx - numberSectionHeight
-
-                // Number
-                val maxNumH = numberSectionHeight * 0.95f * config.numScale
+                // Stacked (Default 70/30 Split)
+                // Top Speed Value: textSize = sizePx * 0.58f (bold, centered in top 70%)
+                val maxNumH = sizePx * 0.58f * config.numScale
                 val maxNumW = sizePx * 0.96f
                 numPaint.textSize = maxNumH
-                val numMetricsInit = numPaint.fontMetrics
-                val numFontH = numMetricsInit.descent - numMetricsInit.ascent
                 val numTextW = numPaint.measureText(display.number)
-                val scaleNumW = if (numTextW > 0f) maxNumW / numTextW else 1f
-                val scaleNumH = if (numFontH > 0f) maxNumH / numFontH else 1f
-                val scaleNum = minOf(scaleNumW, scaleNumH, 1.0f)
+                val scaleNum = minOf(if (numTextW > 0f) maxNumW / numTextW else 1f, 1.0f)
                 numPaint.textSize = maxNumH * scaleNum
 
-                val finalNumMetrics = numPaint.fontMetrics
-                val numCenterY = (numberSectionHeight / 2f) + (config.numYOffsetDp * density)
-                val numBaselineY = Math.round(numCenterY - (finalNumMetrics.ascent + finalNumMetrics.descent) / 2f).toFloat()
+                val numFm = numPaint.fontMetrics
+                val topCenterY = (sizePx * 0.36f) + (config.numYOffsetDp * density)
+                val numY = topCenterY - ((numFm.ascent + numFm.descent) / 2f)
 
-                // Unit
-                val maxUnitH = unitSectionHeight * 0.90f * config.unitScale
+                // Bottom Unit (kB/s): textSize = sizePx * 0.28f (bold, centered in bottom 30%)
+                val maxUnitH = sizePx * 0.28f * config.unitScale
                 val maxUnitW = sizePx * 0.96f
                 unitPaint.textSize = maxUnitH
-                val unitMetricsInit = unitPaint.fontMetrics
-                val unitFontH = unitMetricsInit.descent - unitMetricsInit.ascent
                 val unitTextW = unitPaint.measureText(display.unit)
-                val scaleUnitW = if (unitTextW > 0f) maxUnitW / unitTextW else 1f
-                val scaleUnitH = if (unitFontH > 0f) maxUnitH / unitFontH else 1f
-                val scaleUnit = minOf(scaleUnitW, scaleUnitH, 1.0f)
+                val scaleUnit = minOf(if (unitTextW > 0f) maxUnitW / unitTextW else 1f, 1.0f)
                 unitPaint.textSize = maxUnitH * scaleUnit
 
-                val finalUnitMetrics = unitPaint.fontMetrics
-                val unitCenterY = numberSectionHeight + (unitSectionHeight / 2f) + (config.unitYOffsetDp * density)
-                val unitBaselineY = Math.round(unitCenterY - (finalUnitMetrics.ascent + finalUnitMetrics.descent) / 2f).toFloat()
+                val unitFm = unitPaint.fontMetrics
+                val bottomCenterY = (sizePx * 0.82f) + (config.unitYOffsetDp * density)
+                val unitY = bottomCenterY - ((unitFm.ascent + unitFm.descent) / 2f)
 
                 if (outlinePaint != null) {
                     outlinePaint.textSize = numPaint.textSize
-                    canvas.drawText(display.number, centerX, numBaselineY, outlinePaint)
+                    canvas.drawText(display.number, centerX, numY, outlinePaint)
                     outlinePaint.textSize = unitPaint.textSize
-                    canvas.drawText(display.unit, centerX, unitBaselineY, outlinePaint)
+                    canvas.drawText(display.unit, centerX, unitY, outlinePaint)
                 }
 
-                canvas.drawText(display.number, centerX, numBaselineY, numPaint)
-                canvas.drawText(display.unit, centerX, unitBaselineY, unitPaint)
+                canvas.drawText(display.number, centerX, numY, numPaint)
+                canvas.drawText(display.unit, centerX, unitY, unitPaint)
             }
         }
     }

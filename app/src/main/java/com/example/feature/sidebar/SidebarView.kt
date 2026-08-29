@@ -53,6 +53,7 @@ class SidebarView(
     private val viewScope = CoroutineScope(Dispatchers.Main + Job())
     private val appsManagers = mutableMapOf<String, SidebarAppsManager>()
     private val dimOverlay: View
+    private var pageChangeCallback: ViewPager2.OnPageChangeCallback? = null
     private val isLooping = pageConfigs.size > 2
     private val startingIndex = if (isLooping) {
         val half = Int.MAX_VALUE / 2
@@ -432,7 +433,7 @@ class SidebarView(
 
         viewPager.setCurrentItem(startingIndex, false)
 
-        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+        val callback = object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
                 if (pageConfigs.isNotEmpty()) {
@@ -488,7 +489,9 @@ class SidebarView(
                     }
                 }
             }
-        })
+        }
+        pageChangeCallback = callback
+        viewPager.registerOnPageChangeCallback(callback)
 
         viewPager.post {
             if (pageConfigs.isNotEmpty()) {
@@ -520,7 +523,9 @@ class SidebarView(
             page.width
         } else {
             when (page.type) {
-                "calculator", "compass", "resources_tracker" -> 320
+                "calculator" -> 280
+                "compass" -> 250
+                "resources_tracker" -> 320
                 "scheduler", "notifications", "notification", "app_tracker" -> 330
                 "media_player" -> 300
                 "widgets_grid", "widget" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 260))
@@ -540,8 +545,8 @@ class SidebarView(
             (page.height * density).toInt()
         } else {
             val targetHeightDp = when (page.type) {
-                "calculator" -> 255
-                "compass" -> 200
+                "calculator" -> 260
+                "compass" -> 270
                 "resources_tracker" -> 160
                 "media_player" -> 100
                 "scheduler" -> 200
@@ -715,18 +720,32 @@ class SidebarView(
     fun detach() {
         if (isAttached) {
             com.example.core.LogKeeper.writeLog("Sidebar", "Detached sidebar for containerId: $containerId")
-            // Notify unselected before removing
+            pageChangeCallback?.let {
+                viewPager.unregisterOnPageChangeCallback(it)
+                pageChangeCallback = null
+            }
+            // Release and unselect all children
             val rcv = viewPager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView
             rcv?.let {
                 for (i in 0 until it.childCount) {
                     val child = it.getChildAt(i)
                     val holder = it.getChildViewHolder(child) as? SidebarPageViewHolder
-                    (holder?.pageView as? SidebarPageControllable)?.onPageUnselected()
+                    holder?.release()
                 }
+                it.adapter = null
+                it.recycledViewPool.clear()
             }
+            viewPager.adapter = null
+            container.removeAllViews()
+
             AppWidgetHelper.stopListening()
             appsManagers.values.forEach { it.destroy() }
             appsManagers.clear()
+
+            dots.clear()
+            dotsLayout.removeAllViews()
+            removeAllViews()
+
             windowManager.removeView(this)
             isAttached = false
             viewScope.cancel()
@@ -736,6 +755,13 @@ class SidebarView(
     inner class SidebarPageViewHolder(private val frame: FrameLayout) : RecyclerView.ViewHolder(frame) {
         var pageView: View? = null
         private var currentConfig: SidebarPage? = null
+
+        fun release() {
+            (pageView as? SidebarPageControllable)?.onPageUnselected()
+            frame.removeAllViews()
+            pageView = null
+            currentConfig = null
+        }
 
         fun bind(config: SidebarPage, loadImmediately: Boolean) {
             val configChanged = (currentConfig?.id != config.id) || (currentConfig?.type != config.type)

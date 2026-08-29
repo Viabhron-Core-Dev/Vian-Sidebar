@@ -33,7 +33,7 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
             return instance ?: synchronized(this) {
                 instance ?: CallRecorderManager(
                     context.applicationContext,
-                    context.applicationContext.getSharedPreferences("vian_settings", Context.MODE_PRIVATE)
+                    context.applicationContext.getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
                 ).also { instance = it }
             }
         }
@@ -42,6 +42,7 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
     private val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
     private var mediaRecorder: MediaRecorder? = null
     private var isRecording = false
+    private var isListening = false
     private var currentRecordFile: File? = null
     private var currentRecordPfd: ParcelFileDescriptor? = null
     private var lastPhoneNumber: String? = null
@@ -73,6 +74,7 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
 
     @SuppressLint("MissingPermission", "UnspecifiedRegisterReceiverFlag")
     fun startListening() {
+        stopListening()
         val autoEnabled = prefs.getBoolean("call_recorder_enabled", false)
         val manualEnabled = prefs.getBoolean("call_recorder_manual_enabled", false)
         if (!autoEnabled && !manualEnabled) return
@@ -94,6 +96,7 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
             }
             try {
                 telephonyManager.registerTelephonyCallback(context.mainExecutor, telephonyCallback!!)
+                isListening = true
             } catch (e: Exception) {
                 Log.e("CallRecorder", "Failed to register callback", e)
                 com.example.core.LogKeeper.writeLog("CallRecorder", "Failed to register callback: ${e.message}")
@@ -108,6 +111,7 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
             try {
                 @Suppress("DEPRECATION")
                 telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+                isListening = true
             } catch (e: Exception) {
                 Log.e("CallRecorder", "Failed to register listener", e)
                 com.example.core.LogKeeper.writeLog("CallRecorder", "Failed to register listener: ${e.message}")
@@ -116,19 +120,23 @@ class CallRecorderManager(private val context: Context, private val prefs: Share
     }
 
     fun stopListening() {
+        if (!isListening && telephonyCallback == null && phoneStateListener == null) return
         try {
             context.unregisterReceiver(phoneStateReceiver)
         } catch (e: Exception) {}
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 telephonyCallback?.let { telephonyManager.unregisterTelephonyCallback(it) }
+                telephonyCallback = null
             } else {
                 phoneStateListener?.let { 
                     @Suppress("DEPRECATION")
                     telephonyManager.listen(it, PhoneStateListener.LISTEN_NONE) 
                 }
+                phoneStateListener = null
             }
         } catch (e: Exception) {}
+        isListening = false
         stopRecording()
     }
 

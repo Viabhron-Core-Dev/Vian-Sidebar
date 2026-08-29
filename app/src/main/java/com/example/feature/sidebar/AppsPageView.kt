@@ -566,6 +566,8 @@ class AppsPageView(
                         val intent = android.content.Intent(context, ScreenRecordActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(intent)
+                    } else if (item.action == "audio_record") {
+                        com.example.feature.system_hub.AudioRecordFloatingPanel.toggle(context)
                     } else if (item.action == "camera_measure") {
                         val intent = android.content.Intent(context, com.example.feature.system_hub.CameraMeasureActivity::class.java)
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)

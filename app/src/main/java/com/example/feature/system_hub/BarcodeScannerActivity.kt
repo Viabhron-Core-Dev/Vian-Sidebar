@@ -83,6 +83,8 @@ class BarcodeScannerActivity : ComponentActivity() {
     private var imageCapture: ImageCapture? = null
     private var cameraControl: CameraControl? = null
     private var isTorchEnabled = false
+    private val liveTextRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    private val liveBarcodeScanner by lazy { BarcodeScanning.getClient() }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -345,8 +347,7 @@ class BarcodeScannerActivity : ComponentActivity() {
         if (mediaImage != null) {
             val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
             if (isTextMode) {
-                val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                recognizer.process(image)
+                liveTextRecognizer.process(image)
                     .addOnSuccessListener { visionText ->
                         if (visionText.text.isNotBlank()) {
                             onResult(visionText.text)
@@ -356,8 +357,7 @@ class BarcodeScannerActivity : ComponentActivity() {
                         imageProxy.close()
                     }
             } else {
-                val scanner = BarcodeScanning.getClient()
-                scanner.process(image)
+                liveBarcodeScanner.process(image)
                     .addOnSuccessListener { barcodes ->
                         if (barcodes.isNotEmpty()) {
                             val value = barcodes.first().displayValue ?: ""
@@ -434,6 +434,9 @@ class BarcodeScannerActivity : ComponentActivity() {
                     }
                     Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 }
+                .addOnCompleteListener {
+                    recognizer.close()
+                }
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "Crop OCR failed", Toast.LENGTH_SHORT).show()
@@ -508,6 +511,12 @@ class BarcodeScannerActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            liveTextRecognizer.close()
+        } catch (e: Exception) {}
+        try {
+            liveBarcodeScanner.close()
+        } catch (e: Exception) {}
         cameraExecutor.shutdown()
     }
 }

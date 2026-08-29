@@ -50,6 +50,8 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
     private val languageNames = allLanguages.map { Locale(it).displayLanguage }
     
     private var isTranslating = false
+    private var activeTranslator: com.google.mlkit.nl.translate.Translator? = null
+    private var activeLanguageIdentifier: com.google.mlkit.nl.languageid.LanguageIdentifier? = null
     
     fun show() {
         if (isShowing) return
@@ -204,11 +206,19 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
         val targetLang = allLanguages[targetPos]
         
         if (srcPos == 0) { // Auto Detect
+            activeLanguageIdentifier?.close()
             val languageIdentifier = LanguageIdentification.getClient()
+            activeLanguageIdentifier = languageIdentifier
             languageIdentifier.identifyLanguage(text)
                 .addOnSuccessListener { languageCode ->
                     val srcLang = if (languageCode == "und") TranslateLanguage.ENGLISH else languageCode
                     performTranslation(text, srcLang, targetLang)
+                }
+                .addOnCompleteListener {
+                    languageIdentifier.close()
+                    if (activeLanguageIdentifier == languageIdentifier) {
+                        activeLanguageIdentifier = null
+                    }
                 }
         } else {
             val srcLang = allLanguages[srcPos - 1]
@@ -217,11 +227,13 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
     }
     
     private fun performTranslation(text: String, srcLang: String, targetLang: String) {
+        activeTranslator?.close()
         val options = TranslatorOptions.Builder()
             .setSourceLanguage(srcLang)
             .setTargetLanguage(targetLang)
             .build()
         val translator = Translation.getClient(options)
+        activeTranslator = translator
         
         val conditions = DownloadConditions.Builder().build()
         translator.downloadModelIfNeeded(conditions)
@@ -270,6 +282,10 @@ class TranslationWindowManager(private val context: Context) : TextToSpeech.OnIn
     fun hide() {
         if (!isShowing) return
         isShowing = false
+        activeTranslator?.close()
+        activeTranslator = null
+        activeLanguageIdentifier?.close()
+        activeLanguageIdentifier = null
         floatingView?.let { windowManager.removeView(it) }
         floatingView = null
         tts?.stop()
