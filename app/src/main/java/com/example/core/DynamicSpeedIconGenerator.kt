@@ -20,19 +20,18 @@ object DynamicSpeedIconGenerator {
     data class IconConfig(
         val font: String = "sans-serif-condensed",
         val isFakeBold: Boolean = true,
-        val numScale: Float = 1.0f,
-        val unitScale: Float = 1.0f,
+        val numScale: Float = 0.88f, // Calibrated for Xiaomi/Redmi 24dp (48px) status bar canvas to prevent edge clipping on 3-digit & decimal numbers
+        val unitScale: Float = 0.95f,
         val numYOffsetDp: Float = 0f,
         val unitYOffsetDp: Float = 0f,
-        val bgShape: String = "None", // "None", "Rounded", "Pill", "Square"
+        val bgShape: String = "None",
         val bgRadiusDp: Float = 4f,
-        val bgAlpha: Int = 0, // 0 to 255
-        val layoutMode: String = "Stacked", // "Stacked", "Compact", "NumberOnly"
-        // Blurriness reduction & clarity options
-        val resScale: Float = 2.0f, // Supersampling canvas multiplier (1.0x, 1.5x, 2.0x, 3.0x)
-        val aaMode: String = "Smooth", // "Smooth", "Crisp", "HighContrast"
-        val letterSpacing: Float = 0.0f, // -0.05f to 0.15f
-        val strokeWidthDp: Float = 0f // 0 to 1.5 dp extra stroke sharpness
+        val bgAlpha: Int = 0,
+        val layoutMode: String = "Stacked",
+        val resScale: Float = 2.0f,
+        val aaMode: String = "Smooth",
+        val letterSpacing: Float = -0.02f, // Slight condensation for optimal 3-digit and decimal clarity
+        val strokeWidthDp: Float = 0f
     )
 
     private var activeConfig = IconConfig()
@@ -48,25 +47,9 @@ object DynamicSpeedIconGenerator {
     private var cachedStrokePaint: Paint? = null
 
     fun loadConfig(prefs: SharedPreferences): IconConfig {
-        val config = IconConfig(
-            font = prefs.getString("speed_icon_font", "sans-serif-condensed") ?: "sans-serif-condensed",
-            isFakeBold = prefs.getBoolean("speed_icon_bold", true),
-            numScale = prefs.getFloat("speed_icon_num_scale", 1.0f),
-            unitScale = prefs.getFloat("speed_icon_unit_scale", 1.0f),
-            numYOffsetDp = prefs.getFloat("speed_icon_num_y_offset", 0f),
-            unitYOffsetDp = prefs.getFloat("speed_icon_unit_y_offset", 0f),
-            bgShape = prefs.getString("speed_icon_bg_shape", "None") ?: "None",
-            bgRadiusDp = prefs.getFloat("speed_icon_bg_radius", 4f),
-            bgAlpha = prefs.getInt("speed_icon_bg_alpha", 0),
-            layoutMode = prefs.getString("speed_icon_layout", "Stacked") ?: "Stacked",
-            resScale = prefs.getFloat("speed_icon_res_scale", 2.0f),
-            aaMode = prefs.getString("speed_icon_aa_mode", "Smooth") ?: "Smooth",
-            letterSpacing = prefs.getFloat("speed_icon_letter_spacing", 0.0f),
-            strokeWidthDp = prefs.getFloat("speed_icon_stroke_width", 0f)
-        )
-        activeConfig = config
+        activeConfig = IconConfig()
         invalidatePaints()
-        return config
+        return activeConfig
     }
 
     fun updateActiveConfig(config: IconConfig) {

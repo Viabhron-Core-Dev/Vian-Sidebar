@@ -147,21 +147,21 @@
 * How it was verified: local build only (compile_applet passed).
 * Deviations: None.
 * Known issues: None.
-* Timestamp: 2026-08-29T13:03:00-07:00
-* One-line summary: Built device status bar measurement and calibration engine with direct LogKeeper integration.
+* Timestamp: 2026-08-29T13:32:00-07:00
+* One-line summary: Locked in calibrated dynamic icon parameters for Xiaomi/Redmi 24dp status bar canvas and stripped customization sliders from NetSpeed settings.
 * Exact files touched:
   - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
   - `app/src/main/java/com/example/feature/settings/NetSpeedSettingsScreen.kt`
-  - `app/src/main/java/com/example/core/HandleService.kt`
   - `receipts/RECEIPTS_093.md`
 * What was actually done:
-  - Added `generateDeviceCalibrationReport(context, customConfig)` and `logDeviceCalibration(context, customConfig)` in `DynamicSpeedIconGenerator` to query display metrics (DPI, resolution, physical dimensions, status bar dimensions, font bounds, ascent/descent metrics).
-  - Integrated "Device Hardware & Status Bar Calibration" Card into `NetSpeedSettingsScreen` with live device telemetry badge, "Measure & Log", and "Copy Specs" clipboard action.
-  - Automatically triggered calibration logging on service init and settings launch into `LogKeeper` (under tag `NET_SPEED_DIAGNOSTIC`).
-  - Verified compilation with `compile_applet`.
+  - Calibrated default `IconConfig` to `numScale = 0.88f`, `unitScale = 0.95f`, `letterSpacing = -0.02f`, and `resScale = 2.0f` to prevent edge clipping on 3-digit and decimal numbers on 48px status bar icons.
+  - Stripped all customization sliders, font pickers, background shape options, supersampling/AA controls, test preview cards, and calibration tool UI from `NetSpeedSettingsScreen.kt`.
+  - Retained clean core controls: Master speed monitor toggle, speed units (Auto/KB/s/MB/s), data usage units, and app data usage breakdown with daily/weekly/monthly filter and search.
+  - Verified clean build with `compile_applet`.
 * How it was verified: local build only (compile_applet passed).
 * Deviations: None.
 * Known issues: None.
+
 
 
 
