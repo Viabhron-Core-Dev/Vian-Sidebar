@@ -32,7 +32,7 @@ fun HandlesListSettingsScreen(
     var handles by remember { mutableStateOf(HandleManager.getHandles(prefs)) }
     
     fun save() {
-        HandleManager.saveHandles(prefs, handles)
+        HandleManager.saveHandles(prefs, handles, context)
         handles = handles.toList() // trigger recomposition
     }
 
@@ -100,6 +100,7 @@ fun HandleItem(
     onUpdate: (HandleConfig) -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showAddGestureDialog by remember { mutableStateOf(false) }
@@ -252,11 +253,11 @@ fun HandleItem(
                                         type = pageType,
                                         title = pageTitle
                                     )
-                                    com.example.utils.PageManager.savePages(prefs, containerId, listOf(newPage))
-                                    com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, 0)
+                                    com.example.utils.PageManager.savePages(prefs, containerId, listOf(newPage), context)
+                                    com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, 0, context)
                                 } else {
                                     if (existingIndex != -1) {
-                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingIndex)
+                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingIndex, context)
                                     } else {
                                         val newPage = com.example.utils.SidebarPage.createDefault(
                                             id = UUID.randomUUID().toString(),
@@ -264,13 +265,13 @@ fun HandleItem(
                                             title = pageTitle
                                         )
                                         existingPages.add(newPage)
-                                        com.example.utils.PageManager.savePages(prefs, containerId, existingPages)
-                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingPages.size - 1)
+                                        com.example.utils.PageManager.savePages(prefs, containerId, existingPages, context)
+                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingPages.size - 1, context)
                                     }
                                 }
                             }
                         }
-                        prefs.edit().putString("${prefix}$gesture", action).apply()
+                        com.example.core.OverlaySyncManager.syncString(context, "${prefix}$gesture", action)
                     }
 
                     if (gesturesMap.isEmpty()) {

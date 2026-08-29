@@ -99,11 +99,6 @@ object AppTrackerHelper {
     }
 
     fun startForceStopSequence(context: Context) {
-        if (!isAppTrackerConfigured(context)) {
-            Toast.makeText(context, "Requires App Tracker page added to sidebar", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         if (!checkUsageStatsPermission(context)) {
             Toast.makeText(context, "Grant Usage Access to track active apps", Toast.LENGTH_LONG).show()
             val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {

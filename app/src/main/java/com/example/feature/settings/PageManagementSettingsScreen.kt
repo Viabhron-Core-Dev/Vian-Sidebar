@@ -60,8 +60,8 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
     }
     
     fun savePages() {
-        PageManager.savePages(prefs, handleId, pages)
-        PageManager.saveDefaultPageIndex(prefs, handleId, defaultIndex)
+        PageManager.savePages(prefs, handleId, pages, context)
+        PageManager.saveDefaultPageIndex(prefs, handleId, defaultIndex, context)
     }
     
     Scaffold(

@@ -31,8 +31,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
-import com.example.core.LogKeeper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,10 +42,21 @@ class LogKeeperActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            MaterialTheme(colorScheme = lightColorScheme(
+                primary = Color(0xFF006C50),
+                onPrimary = Color.White,
+                primaryContainer = Color(0xFF8CF5D1),
+                onPrimaryContainer = Color(0xFF002117),
+                background = Color(0xFFFBFDF9),
+                onBackground = Color(0xFF191C1B),
+                surface = Color(0xFFFFFFFF),
+                onSurface = Color(0xFF191C1B),
+                surfaceVariant = Color(0xFFDBE5DF),
+                onSurfaceVariant = Color(0xFF3F4945)
+            )) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF121212)
+                    color = Color(0xFFF8F9FA)
                 ) {
                     LogKeeperScreen(onClose = { finish() })
                 }
@@ -62,10 +71,11 @@ fun LogKeeperScreen(onClose: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Normal Logs, 1 = Crash Logs
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Running Events & System Logs, 1 = Crash Logs
     var normalLogContent by remember { mutableStateOf("") }
     var crashLogContent by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
 
     fun loadLogs() {
         isLoading = true
@@ -88,21 +98,28 @@ fun LogKeeperScreen(onClose: () -> Unit) {
     val currentFileName = if (selectedTab == 0) "LiteReader_Log.txt" else "LiteReader_CrashLog.txt"
 
     Scaffold(
-        containerColor = Color(0xFF121212),
+        containerColor = Color(0xFFF8F9FA),
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Log Keeper", fontWeight = FontWeight.Bold, color = Color.White)
+                    Column {
+                        Text("Log Keeper", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1C1B1F))
+                        Text(
+                            if (selectedTab == 0) "Live Running Events & IPC" else "Crash & Exception Reports",
+                            fontSize = 11.sp,
+                            color = Color(0xFF74777F)
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1C1B1F))
                     }
                 },
                 actions = {
                     // Refresh
                     IconButton(onClick = { loadLogs() }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = Color.White)
+                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = Color(0xFF1C1B1F))
                     }
                     // Copy
                     IconButton(
@@ -117,7 +134,7 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                             }
                         }
                     ) {
-                        Icon(painterResource(R.drawable.ic_content_copy), contentDescription = "Copy", tint = Color.White)
+                        Icon(painterResource(R.drawable.ic_content_copy), contentDescription = "Copy", tint = Color(0xFF1C1B1F))
                     }
                     // Share
                     IconButton(
@@ -134,7 +151,7 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                             }
                         }
                     ) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
+                        Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color(0xFF1C1B1F))
                     }
                     // Clear / Delete
                     IconButton(
@@ -148,10 +165,10 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                             }
                         }
                     ) {
-                        Icon(painterResource(R.drawable.ic_delete_sweep), contentDescription = "Clear", tint = Color(0xFFFF5252))
+                        Icon(painterResource(R.drawable.ic_delete_sweep), contentDescription = "Clear", tint = Color(0xFFBA1A1A))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E1E1E))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFFFFFFF))
             )
         }
     ) { paddingValues ->
@@ -160,20 +177,29 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Tab row
+            // Tab row in Light Theme
             TabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = Color(0xFF1E1E1E),
-                contentColor = Color(0xFF00E676)
+                containerColor = Color.White,
+                contentColor = Color(0xFF006C50)
             ) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(painterResource(R.drawable.ic_description), contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(
+                                painterResource(R.drawable.ic_description),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (selectedTab == 0) Color(0xFF006C50) else Color(0xFF74777F)
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("System Logs")
+                            Text(
+                                "Running Events",
+                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selectedTab == 0) Color(0xFF006C50) else Color(0xFF444746)
+                            )
                         }
                     }
                 )
@@ -182,17 +208,29 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                     onClick = { selectedTab = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(painterResource(R.drawable.ic_bug_report), contentDescription = null, modifier = Modifier.size(16.dp), tint = if (crashLogContent.isNotBlank()) Color(0xFFFF5252) else Color.Gray)
+                            val hasCrashes = crashLogContent.isNotBlank()
+                            Icon(
+                                painterResource(R.drawable.ic_bug_report),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (hasCrashes) Color(0xFFBA1A1A) else if (selectedTab == 1) Color(0xFF006C50) else Color(0xFF74777F)
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Crash Logs", color = if (crashLogContent.isNotBlank()) Color(0xFFFF5252) else Color.White)
+                            Text(
+                                "Crash Logs",
+                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                color = if (hasCrashes) Color(0xFFBA1A1A) else if (selectedTab == 1) Color(0xFF006C50) else Color(0xFF444746)
+                            )
                         }
                     }
                 )
             }
 
+            HorizontalDivider(color = Color(0xFFE0E3E1))
+
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFF00E676))
+                    CircularProgressIndicator(color = Color(0xFF006C50))
                 }
             } else if (currentContent.isBlank()) {
                 Box(
@@ -201,28 +239,45 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (selectedTab == 0) {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = null,
-                                tint = Color.Gray,
-                                modifier = Modifier.size(48.dp)
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (selectedTab == 0) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    tint = Color(0xFF006C50),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_check_circle),
+                                    contentDescription = null,
+                                    tint = Color(0xFF006C50),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = if (selectedTab == 0) "No running logs recorded yet." else "No crashes detected! All components healthy.",
+                                color = Color(0xFF191C1B),
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp
                             )
-                        } else {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_check_circle),
-                                contentDescription = null,
-                                tint = Color(0xFF00E676),
-                                modifier = Modifier.size(48.dp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (selectedTab == 0) "Actions and lifecycle events will appear here." else "Crash traces will be caught and displayed here.",
+                                color = Color(0xFF74777F),
+                                fontSize = 12.sp
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = if (selectedTab == 0) "No activity logs recorded yet." else "No crashes detected! Everything running smoothly.",
-                            color = Color.LightGray,
-                            fontSize = 14.sp
-                        )
                     }
                 }
             } else {
@@ -230,26 +285,52 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF0D0D0D))
+                        .background(Color(0xFFF4F6F4))
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     items(lines) { line ->
+                        val isHeader = line.startsWith("===") || line.startsWith("---")
+                        val isError = line.contains("Exception") || line.contains("Error") || line.contains("FATAL")
+                        val isMeta = line.contains("Timestamp:") || line.contains("Thread:") || line.contains("Action:")
+                        val isStackTrace = line.trim().startsWith("at ")
+
                         val textColor = when {
-                            line.startsWith("===") || line.startsWith("---") -> Color(0xFF00E676)
-                            line.contains("Exception") || line.contains("Error") || line.contains("FATAL") -> Color(0xFFFF5252)
-                            line.contains("Timestamp:") || line.contains("Thread:") -> Color(0xFF81D4FA)
-                            line.trim().startsWith("at ") -> Color(0xFFB0BEC5)
-                            else -> Color(0xFFE0E0E0)
+                            isError -> Color(0xFFBA1A1A)
+                            isHeader -> Color(0xFF006C50)
+                            isMeta -> Color(0xFF004D40)
+                            isStackTrace -> Color(0xFF53635D)
+                            else -> Color(0xFF191C1B)
                         }
 
-                        Text(
-                            text = line,
-                            color = textColor,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.5.sp,
-                            lineHeight = 16.sp,
-                            modifier = Modifier.padding(vertical = 1.dp)
-                        )
+                        val bgColor = when {
+                            isHeader -> Color(0xFFE8F5E9)
+                            isError -> Color(0xFFFFEBEE)
+                            else -> Color.Transparent
+                        }
+
+                        val fontWeight = when {
+                            isHeader || isError -> FontWeight.Bold
+                            isMeta -> FontWeight.SemiBold
+                            else -> FontWeight.Normal
+                        }
+
+                        Surface(
+                            color = bgColor,
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = if (isHeader) 3.dp else 0.5.dp)
+                        ) {
+                            Text(
+                                text = line,
+                                color = textColor,
+                                fontWeight = fontWeight,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.5.sp,
+                                lineHeight = 16.sp,
+                                modifier = Modifier.padding(horizontal = if (isHeader || isError) 6.dp else 2.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
             }

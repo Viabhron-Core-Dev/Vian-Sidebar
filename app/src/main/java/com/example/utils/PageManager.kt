@@ -150,11 +150,15 @@ object PageManager {
         return if (list.isEmpty()) listOf(defaultPage) else list
     }
 
-    fun savePages(prefs: SharedPreferences, rawHandleId: String, pages: List<SidebarPage>) {
+    fun savePages(prefs: SharedPreferences, rawHandleId: String, pages: List<SidebarPage>, context: Context? = null) {
         val arr = JSONArray()
         val seenIds = mutableSetOf<String>()
         pages.filter { seenIds.add(it.id) }.forEach { arr.put(it.toJson()) }
-        prefs.edit().putString("handle_${rawHandleId}_pages", arr.toString()).apply()
+        val json = arr.toString()
+        prefs.edit().putString("handle_${rawHandleId}_pages", json).commit()
+        if (context != null) {
+            com.example.core.OverlaySyncManager.syncString(context, "handle_${rawHandleId}_pages", json)
+        }
     }
 
     fun getDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String): Int {
@@ -162,8 +166,11 @@ object PageManager {
         return prefs.getInt("handle_${rawHandleId}_default_page_index", prefs.getInt("handle_${cleanHandleId}_default_page_index", prefs.getInt("sidebar_default_page_index", 0)))
     }
 
-    fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int) {
-        prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index).apply()
+    fun saveDefaultPageIndex(prefs: SharedPreferences, rawHandleId: String, index: Int, context: Context? = null) {
+        prefs.edit().putInt("handle_${rawHandleId}_default_page_index", index).commit()
+        if (context != null) {
+            com.example.core.OverlaySyncManager.syncInt(context, "handle_${rawHandleId}_default_page_index", index)
+        }
     }
 
     fun isPageTypePresent(prefs: SharedPreferences, pageType: String): Boolean {

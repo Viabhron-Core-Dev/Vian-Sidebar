@@ -56,7 +56,8 @@ fun PageCustomizeScreen(
                 )
                 if (page.type == "widgets_grid") {
                     val p = context.getSharedPreferences("FloatingReaderPrefs", android.content.Context.MODE_PRIVATE)
-                    p.edit().putInt("widgets_grid_cols_${page.id}", gridColumns).apply()
+                    p.edit().putInt("widgets_grid_cols_${page.id}", gridColumns).commit()
+                    com.example.core.OverlaySyncManager.syncInt(context, "widgets_grid_cols_${page.id}", gridColumns)
                 }
                 onSave(updatedPage)
                 onBack()

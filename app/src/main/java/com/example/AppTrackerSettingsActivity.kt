@@ -114,7 +114,8 @@ fun WhitelistTab(context: Context, prefs: android.content.SharedPreferences, typ
     
     fun saveWhitelist(set: Set<String>) {
         whitelist = set
-        prefs.edit().putStringSet(prefKey, set).apply()
+        prefs.edit().putStringSet(prefKey, set).commit()
+        com.example.core.OverlaySyncManager.syncStringSet(context, prefKey, set)
     }
     
     LaunchedEffect(type) {
@@ -309,7 +310,8 @@ fun ExecutePermsTab(context: Context, prefs: android.content.SharedPreferences) 
                 checked = autoForceStop,
                 onCheckedChange = { 
                     autoForceStop = it
-                    prefs.edit().putBoolean("app_tracker_auto_force_stop", it).apply()
+                    prefs.edit().putBoolean("app_tracker_auto_force_stop", it).commit()
+                    com.example.core.OverlaySyncManager.syncBoolean(context, "app_tracker_auto_force_stop", it)
                 }
             )
         }

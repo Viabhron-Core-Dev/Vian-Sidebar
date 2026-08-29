@@ -106,12 +106,20 @@ object DynamicSpeedIconGenerator {
     }
 
     fun getNotificationIconSize(context: Context): Int {
-        val density = context.resources.displayMetrics.density
+        val res = context.resources
+        val resId = res.getIdentifier("status_bar_icon_size", "dimen", "android")
+        if (resId > 0) {
+            try {
+                val size = res.getDimensionPixelSize(resId)
+                if (size in 24..128) return size
+            } catch (e: Exception) {}
+        }
+        val density = res.displayMetrics.density
         return Math.round(24f * density).coerceAtLeast(24)
     }
 
     /**
-     * Generates a crisp, pixel-perfect status bar icon bitmap directly at the 24dp notification small-icon dimension.
+     * Generates a crisp, pixel-perfect status bar icon bitmap directly at the native status bar icon dimension.
      * Snaps coordinates to integer physical pixels with no downsampling blur.
      */
     fun generateStatusBarBitmap(
@@ -128,7 +136,7 @@ object DynamicSpeedIconGenerator {
         val density = displayMetrics.density
         val densityDpi = displayMetrics.densityDpi
 
-        // Determine exact small icon dimension directly from 24dp * device display density
+        // Determine exact small icon dimension directly from system status bar icon dimension
         val sizePx = getNotificationIconSize(context)
 
         val isLive = (overrideConfig == null)

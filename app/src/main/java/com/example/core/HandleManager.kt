@@ -1,5 +1,6 @@
 package com.example.core
 
+import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
@@ -13,9 +14,9 @@ object HandleManager {
         if (jsonStr == null) {
             val defaultHandle = HandleConfig(id = "sidebar", name = "Handle 1 | Right (Bottom)", enabled = true)
             list.add(defaultHandle)
-            prefs.edit().putString("handle_sidebar_swipe_left", "open_page:default_hybrid").apply()
-            prefs.edit().remove("handle_sidebar_tap").apply()
-            prefs.edit().putString("handle_sidebar_color", "#242962ff").apply() // 14% opacity deep blue/purple
+            prefs.edit().putString("handle_sidebar_swipe_left", "open_page:default_hybrid").commit()
+            prefs.edit().remove("handle_sidebar_tap").commit()
+            prefs.edit().putString("handle_sidebar_color", "#242962ff").commit() // 14% opacity deep blue/purple
             saveHandles(prefs, list)
             return list
         }
@@ -34,7 +35,7 @@ object HandleManager {
         return list
     }
 
-    fun saveHandles(prefs: SharedPreferences, handles: List<HandleConfig>) {
+    fun saveHandles(prefs: SharedPreferences, handles: List<HandleConfig>, context: Context? = null) {
         val arr = JSONArray()
         for (h in handles) {
             val obj = JSONObject()
@@ -43,6 +44,11 @@ object HandleManager {
             obj.put("enabled", h.enabled)
             arr.put(obj)
         }
-        prefs.edit().putString("handles_list", arr.toString()).apply()
+        val json = arr.toString()
+        prefs.edit().putString("handles_list", json).commit()
+        if (context != null) {
+            OverlaySyncManager.syncString(context, "handles_list", json)
+        }
     }
 }
+

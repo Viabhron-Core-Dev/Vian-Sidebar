@@ -202,6 +202,7 @@ fun HybridGridEditor(
     onClose: () -> Unit,
     onAddWidget: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var cols by remember { mutableIntStateOf(prefs.getInt("hybrid_grid_cols_$pageId", 4)) }
     var items by remember { mutableStateOf(loadHybridLocalItems(prefs, pageId)) }
     var isUserInteracting by remember { mutableStateOf(false) }
@@ -210,8 +211,9 @@ fun HybridGridEditor(
 
     // Auto-save when cols change
     LaunchedEffect(cols) {
-        prefs.edit().putInt("hybrid_grid_cols_$pageId", cols).apply()
-        saveHybridItems(prefs, pageId, items)
+        prefs.edit().putInt("hybrid_grid_cols_$pageId", cols).commit()
+        com.example.core.OverlaySyncManager.syncInt(context, "hybrid_grid_cols_$pageId", cols)
+        saveHybridItems(prefs, pageId, items, context)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -222,7 +224,7 @@ fun HybridGridEditor(
         ) {
             Text("Edit Hybrid Grid", fontSize = 20.sp, color = Color.White)
             Button(onClick = {
-                saveHybridItems(prefs, pageId, items)
+                saveHybridItems(prefs, pageId, items, context)
                 onClose()
             }) {
                 Text("Done")
@@ -267,7 +269,7 @@ fun HybridGridEditor(
                 onInteractionStateChange = { isInteracting -> isUserInteracting = isInteracting },
                 onUpdateItems = { newItems ->
                     items = newItems
-                    saveHybridItems(prefs, pageId, newItems)
+                    saveHybridItems(prefs, pageId, newItems, context)
                 }
             )
         }
@@ -561,7 +563,7 @@ fun parseHybridItems(jsonStr: String): List<GridWidgetItem> {
     return list
 }
 
-fun saveHybridItems(prefs: android.content.SharedPreferences, pageId: String, items: List<GridWidgetItem>) {
+fun saveHybridItems(prefs: android.content.SharedPreferences, pageId: String, items: List<GridWidgetItem>, context: Context? = null) {
     val arr = JSONArray()
     items.forEach { 
         val obj = JSONObject()
@@ -572,8 +574,20 @@ fun saveHybridItems(prefs: android.content.SharedPreferences, pageId: String, it
         obj.put("y", it.y)
         arr.put(obj)
     }
-    prefs.edit().putString("hybrid_grid_$pageId", arr.toString())
+    val json = arr.toString()
+    prefs.edit().putString("hybrid_grid_$pageId", json)
         .putBoolean("hybrid_grid_modified_$pageId", true)
-        .apply()
+        .commit()
+    if (context != null) {
+        com.example.core.OverlaySyncManager.syncString(context, "hybrid_grid_$pageId", json)
+        com.example.core.OverlaySyncManager.syncBoolean(context, "hybrid_grid_modified_$pageId", true)
+        try {
+            val intent = Intent("UPDATE_GRID").apply {
+                putExtra("PAGE_ID", pageId)
+                setPackage(context.packageName)
+            }
+            context.sendBroadcast(intent)
+        } catch (e: Exception) {}
+    }
     LogKeeper.writeLog("HybridGridEdit", "Saved ${items.size} items to prefs for page: $pageId")
 }

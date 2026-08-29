@@ -170,6 +170,7 @@ fun WidgetGridEditor(
     onClose: () -> Unit,
     onAddWidget: () -> Unit
 ) {
+    val context = LocalContext.current
     var cols by remember { mutableIntStateOf(prefs.getInt("widgets_grid_cols_$pageId", 4)) }
     var items by remember { mutableStateOf(loadLocalItems(prefs, pageId)) }
     var isUserInteracting by remember { mutableStateOf(false) }
@@ -177,8 +178,9 @@ fun WidgetGridEditor(
     
     // Auto-save when cols change
     LaunchedEffect(cols) {
-        prefs.edit().putInt("widgets_grid_cols_$pageId", cols).apply()
-        saveItems(prefs, pageId, items)
+        prefs.edit().putInt("widgets_grid_cols_$pageId", cols).commit()
+        com.example.core.OverlaySyncManager.syncInt(context, "widgets_grid_cols_$pageId", cols)
+        saveItems(prefs, pageId, items, context)
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -189,7 +191,7 @@ fun WidgetGridEditor(
         ) {
             Text("Edit Widgets Grid", fontSize = 20.sp, color = Color.White)
             Button(onClick = {
-                saveItems(prefs, pageId, items)
+                saveItems(prefs, pageId, items, context)
                 onClose()
             }) {
                 Text("Done")
@@ -465,7 +467,7 @@ fun loadLocalItems(prefs: android.content.SharedPreferences, pageId: String): Li
     return list
 }
 
-fun saveItems(prefs: android.content.SharedPreferences, pageId: String, items: List<GridWidgetItem>) {
+fun saveItems(prefs: android.content.SharedPreferences, pageId: String, items: List<GridWidgetItem>, context: Context? = null) {
     val arr = JSONArray()
     items.forEach { 
         val obj = JSONObject()
@@ -476,6 +478,10 @@ fun saveItems(prefs: android.content.SharedPreferences, pageId: String, items: L
         obj.put("y", it.y)
         arr.put(obj)
     }
-    prefs.edit().putString("widgets_grid_$pageId", arr.toString()).apply()
+    val jsonStr = arr.toString()
+    prefs.edit().putString("widgets_grid_$pageId", jsonStr).commit()
+    if (context != null) {
+        com.example.core.OverlaySyncManager.syncString(context, "widgets_grid_$pageId", jsonStr)
+    }
     LogKeeper.writeLog("WidgetsGridEdit", "Saved ${items.size} items to prefs for page: $pageId")
 }

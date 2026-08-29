@@ -37,9 +37,38 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
 
     private val reloadReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_RELOAD_HANDLES) {
+            val action = intent?.action
+            if (action == ACTION_RELOAD_HANDLES) {
                 reloadHandles()
+            } else if (action == OverlaySyncManager.ACTION_SYNC_PREF) {
+                processSyncIntent(intent)
             }
+        }
+    }
+
+    private fun processSyncIntent(intent: Intent?) {
+        if (intent == null) return
+        val key = intent.getStringExtra(OverlaySyncManager.EXTRA_KEY)
+        val value = intent.getStringExtra(OverlaySyncManager.EXTRA_VALUE)
+        val type = intent.getStringExtra(OverlaySyncManager.EXTRA_TYPE)
+
+        val editor = prefs.edit()
+        when (type) {
+            "STRING" -> if (!key.isNullOrEmpty() && value != null) editor.putString(key, value)
+            "INT" -> if (!key.isNullOrEmpty() && value != null) editor.putInt(key, value.toIntOrNull() ?: 0)
+            "BOOLEAN" -> if (!key.isNullOrEmpty() && value != null) editor.putBoolean(key, value.toBoolean())
+            "FLOAT" -> if (!key.isNullOrEmpty() && value != null) editor.putFloat(key, value.toFloatOrNull() ?: 0f)
+            "STRING_SET" -> if (!key.isNullOrEmpty() && value != null) {
+                val set = if (value.isEmpty()) emptySet() else value.split("|||").toSet()
+                editor.putStringSet(key, set)
+            }
+            "REMOVE" -> if (!key.isNullOrEmpty()) editor.remove(key)
+            "RELOAD_ALL" -> {}
+        }
+        editor.commit()
+
+        if (key == "handles_list" || key?.startsWith("handle_") == true || key == null || type == "RELOAD_ALL") {
+            reloadHandles()
         }
     }
 
@@ -55,10 +84,14 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
         dailyWifiBytes = prefs.getLong("daily_wifi_rx", 0) + prefs.getLong("daily_wifi_tx", 0)
 
         startForegroundService()
+        val reloadFilter = IntentFilter().apply {
+            addAction(ACTION_RELOAD_HANDLES)
+            addAction(OverlaySyncManager.ACTION_SYNC_PREF)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(reloadReceiver, IntentFilter(ACTION_RELOAD_HANDLES), Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(reloadReceiver, reloadFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(reloadReceiver, IntentFilter(ACTION_RELOAD_HANDLES))
+            registerReceiver(reloadReceiver, reloadFilter)
         }
         
         readerHandleView = ReaderHandleView(this, prefs, windowManager)
@@ -250,7 +283,13 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        AppLogger.d("HandleService", "onStartCommand")
+        AppLogger.d("HandleService", "onStartCommand action=${intent?.action}")
+        val action = intent?.action
+        if (action == ACTION_RELOAD_HANDLES) {
+            reloadHandles()
+        } else if (action == OverlaySyncManager.ACTION_SYNC_PREF) {
+            processSyncIntent(intent)
+        }
         return START_STICKY
     }
 

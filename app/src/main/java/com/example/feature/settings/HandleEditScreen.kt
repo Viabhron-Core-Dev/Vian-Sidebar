@@ -61,7 +61,8 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
                         selected = edge == s,
                         onClick = { 
                             edge = s
-                            prefs.edit().putString("${prefix}edge", s).apply()
+                            prefs.edit().putString("${prefix}edge", s).commit()
+                            com.example.core.OverlaySyncManager.syncString(context, "${prefix}edge", s)
                         },
                         label = { Text(s.replaceFirstChar { it.uppercase() }) }
                     )
@@ -72,19 +73,22 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
             Text("Y Position: ${yPos.toInt()}")
             Slider(value = yPos, onValueChange = { 
                 yPos = it
-                prefs.edit().putInt("${prefix}y", it.toInt()).apply() 
+                prefs.edit().putInt("${prefix}y", it.toInt()).commit()
+                com.example.core.OverlaySyncManager.syncInt(context, "${prefix}y", it.toInt())
             }, valueRange = 0f..100f)
             
             Text("Width (Thickness): ${sizeWidth.toInt()}dp")
             Slider(value = sizeWidth, onValueChange = { 
                 sizeWidth = it
-                prefs.edit().putInt("${prefix}width", it.toInt()).apply()
+                prefs.edit().putInt("${prefix}width", it.toInt()).commit()
+                com.example.core.OverlaySyncManager.syncInt(context, "${prefix}width", it.toInt())
             }, valueRange = 2f..50f)
             
             Text("Height (Length): ${sizeHeight.toInt()}dp")
             Slider(value = sizeHeight, onValueChange = { 
                 sizeHeight = it
-                prefs.edit().putInt("${prefix}height", it.toInt()).apply()
+                prefs.edit().putInt("${prefix}height", it.toInt()).commit()
+                com.example.core.OverlaySyncManager.syncInt(context, "${prefix}height", it.toInt())
             }, valueRange = 20f..300f)
             
             Text("Handle Color:")
@@ -122,7 +126,8 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
                                 val newBase = if (colorString.length >= 7) colorString.substring(colorString.length - 6) else colorString
                                 val newColorHex = "#$currentAlpha$newBase"
                                 colorHex = newColorHex
-                                prefs.edit().putString("${prefix}color", newColorHex).apply()
+                                prefs.edit().putString("${prefix}color", newColorHex).commit()
+                                com.example.core.OverlaySyncManager.syncString(context, "${prefix}color", newColorHex)
                             }
                     )
                 }
@@ -157,7 +162,8 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
                         colorHex
                     }
                     colorHex = newColorHex
-                    prefs.edit().putString("${prefix}color", newColorHex).apply()
+                    prefs.edit().putString("${prefix}color", newColorHex).commit()
+                    com.example.core.OverlaySyncManager.syncString(context, "${prefix}color", newColorHex)
                 },
                 valueRange = 0f..1f
             )
@@ -170,7 +176,8 @@ fun HandleEditScreen(handleId: String, onBack: () -> Unit) {
                         selected = shape == s,
                         onClick = { 
                             shape = s
-                            prefs.edit().putString("${prefix}shape", s).apply()
+                            prefs.edit().putString("${prefix}shape", s).commit()
+                            com.example.core.OverlaySyncManager.syncString(context, "${prefix}shape", s)
                         },
                         label = { Text(s.replace("_", " ").capitalize()) }
                     )

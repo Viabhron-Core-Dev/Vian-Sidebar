@@ -147,20 +147,48 @@
 * How it was verified: local build only (compile_applet passed).
 * Deviations: None.
 * Known issues: None.
-* Timestamp: 2026-08-29T13:32:00-07:00
-* One-line summary: Locked in calibrated dynamic icon parameters for Xiaomi/Redmi 24dp status bar canvas and stripped customization sliders from NetSpeed settings.
+* Timestamp: 2026-08-29T14:15:00-07:00
+* One-line summary: Implemented cross-process OverlaySyncManager IPC and status bar native dimen icon rendering for isolated overlay process.
 * Exact files touched:
-  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+  - `app/src/main/AndroidManifest.xml`
+  - `app/src/main/java/com/example/core/OverlaySyncManager.kt`
+  - `app/src/main/java/com/example/core/HandleService.kt`
+  - `app/src/main/java/com/example/core/HandleManager.kt`
+  - `app/src/main/java/com/example/utils/PageManager.kt`
+  - `app/src/main/java/com/example/feature/settings/HandlesListSettingsScreen.kt`
+  - `app/src/main/java/com/example/feature/settings/HandleEditScreen.kt`
+  - `app/src/main/java/com/example/feature/settings/PageManagementSettingsScreen.kt`
   - `app/src/main/java/com/example/feature/settings/NetSpeedSettingsScreen.kt`
-  - `receipts/RECEIPTS_093.md`
+  - `app/src/main/java/com/example/HybridGridEditActivity.kt`
+  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
 * What was actually done:
-  - Calibrated default `IconConfig` to `numScale = 0.88f`, `unitScale = 0.95f`, `letterSpacing = -0.02f`, and `resScale = 2.0f` to prevent edge clipping on 3-digit and decimal numbers on 48px status bar icons.
-  - Stripped all customization sliders, font pickers, background shape options, supersampling/AA controls, test preview cards, and calibration tool UI from `NetSpeedSettingsScreen.kt`.
-  - Retained clean core controls: Master speed monitor toggle, speed units (Auto/KB/s/MB/s), data usage units, and app data usage breakdown with daily/weekly/monthly filter and search.
-  - Verified clean build with `compile_applet`.
+  - Assigned `android:process=":overlay"` to `HandleService` and `SidebarService` in `AndroidManifest.xml` to keep background RAM at ~15-20MB instead of ~190MB.
+  - Implemented `OverlaySyncManager` IPC with broadcast action `com.example.ACTION_SYNC_PREF` to immediately propagate SharedPreferences writes from the main UI process to the `:overlay` process.
+  - Integrated `OverlaySyncManager` into `HandleManager`, `PageManager`, `HandlesListSettingsScreen`, `HandleEditScreen`, `PageManagementSettingsScreen`, `NetSpeedSettingsScreen`, and `HybridGridEditActivity`.
+  - Updated `DynamicSpeedIconGenerator` to query system `status_bar_icon_size` (44px on device) directly instead of hardcoding 48px, preventing bilinear downsampling blur in the status bar.
 * How it was verified: local build only (compile_applet passed).
 * Deviations: None.
 * Known issues: None.
+* Timestamp: 2026-08-29T14:45:00-07:00
+* One-line summary: Decoupled Force Stop Apps logic, overhauled Log Keeper to Light Theme with dedicated Crash Log tab, and synced all edit/grid/tracker preferences across processes.
+* Exact files touched:
+  - `app/src/main/java/com/example/core/OverlaySyncManager.kt`
+  - `app/src/main/java/com/example/core/HandleService.kt`
+  - `app/src/main/java/com/example/utils/AppTrackerHelper.kt`
+  - `app/src/main/java/com/example/AppTrackerSettingsActivity.kt`
+  - `app/src/main/java/com/example/feature/settings/PageCustomizeScreen.kt`
+  - `app/src/main/java/com/example/WidgetsGridEditActivity.kt`
+  - `app/src/main/java/com/example/SidebarEditActivity.kt`
+  - `app/src/main/java/com/example/feature/settings/LogKeeperActivity.kt`
+* What was actually done:
+  - Decoupled `AppTrackerHelper.startForceStopSequence` from requiring `AppTrackerPageView` to be open or present on the sidebar, allowing one-tap Force Stop execution directly from widgets, quick toggles, or handle gestures.
+  - Added `syncStringSet` and `STRING_SET` handling in `OverlaySyncManager` and `HandleService` so app tracker whitelist changes immediately synchronize across `:overlay` and main process.
+  - Synchronized `AppTrackerSettingsActivity`, `PageCustomizeScreen`, `WidgetsGridEditActivity`, and `SidebarEditActivity` saves directly into `OverlaySyncManager`.
+  - Redesigned `LogKeeperActivity` with a crisp, clean Light Theme, strictly on-demand asynchronous file loading, and two distinct tabs ("Running Events & IPC Logs" and "Crash & Exception Reports") with copy, share, and clear utilities.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+
 
 
 

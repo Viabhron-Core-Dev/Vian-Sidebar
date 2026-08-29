@@ -118,7 +118,9 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                                 prefs.edit()
                                     .putBoolean("netspeed_enabled", enabled)
                                     .putBoolean("speed_indicator_enabled", enabled)
-                                    .apply()
+                                    .commit()
+                                com.example.core.OverlaySyncManager.syncBoolean(context, "netspeed_enabled", enabled)
+                                com.example.core.OverlaySyncManager.syncBoolean(context, "speed_indicator_enabled", enabled)
                                 if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                                         notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -141,7 +143,8 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                             "MB/s" -> "Auto"
                             else -> "Auto"
                         }
-                        prefs.edit().putString("speed_units", speedUnits).apply()
+                        prefs.edit().putString("speed_units", speedUnits).commit()
+                        com.example.core.OverlaySyncManager.syncString(context, "speed_units", speedUnits)
                     }
                 )
                 Divider()
@@ -158,7 +161,8 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                             "GiB" -> "Auto"
                             else -> "Auto"
                         }
-                        prefs.edit().putString("data_units", dataUnits).apply()
+                        prefs.edit().putString("data_units", dataUnits).commit()
+                        com.example.core.OverlaySyncManager.syncString(context, "data_units", dataUnits)
                     }
                 )
                 Divider()

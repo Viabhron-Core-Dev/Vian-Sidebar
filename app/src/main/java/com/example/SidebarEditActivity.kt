@@ -272,12 +272,17 @@ class SidebarEditActivity : ComponentActivity() {
             // Removed direct save to prefs; parent grid will save
         } else {
             val handleId = intent.getStringExtra("HANDLE_ID") ?: intent.getStringExtra("CONTAINER_ID") ?: "sidebar"
+            val appsJson = arr.toString()
             prefs.edit()
-                .putString(myPrefKey, arr.toString())
-                .putString("sidebar_apps_$pageId", arr.toString())
+                .putString(myPrefKey, appsJson)
+                .putString("sidebar_apps_$pageId", appsJson)
                 .putInt("handle_${handleId}_page_${pageId}_columns", totalCols)
                 .putInt("handle_${handleId}_page_${pageId}_rows", totalRows)
-                .apply()
+                .commit()
+            com.example.core.OverlaySyncManager.syncString(this, myPrefKey, appsJson)
+            com.example.core.OverlaySyncManager.syncString(this, "sidebar_apps_$pageId", appsJson)
+            com.example.core.OverlaySyncManager.syncInt(this, "handle_${handleId}_page_${pageId}_columns", totalCols)
+            com.example.core.OverlaySyncManager.syncInt(this, "handle_${handleId}_page_${pageId}_rows", totalRows)
             com.example.util.AppLogger.d("SidebarEdit", "Saved ${localIds.size} items to apps grid.")
         }
         
