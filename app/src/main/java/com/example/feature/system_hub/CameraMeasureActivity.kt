@@ -35,9 +35,10 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -298,7 +299,7 @@ fun CameraMeasureScreen(
                                     onToggleTorch(isFlashOn)
                                 }) {
                                     Icon(
-                                        imageVector = if (isFlashOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                        painter = painterResource(if (isFlashOn) R.drawable.ic_flash_on else R.drawable.ic_flash_off),
                                         contentDescription = "Flash",
                                         tint = if (isFlashOn) Color.Yellow else Color.White
                                     )
@@ -343,19 +344,19 @@ fun CameraMeasureScreen(
                             selected = currentMode == MeasureMode.REFERENCE_CARD,
                             onClick = { currentMode = MeasureMode.REFERENCE_CARD },
                             label = { Text("Reference Scale") },
-                            leadingIcon = { Icon(Icons.Filled.CreditCard, null, modifier = Modifier.size(16.dp)) }
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_credit_card), null, modifier = Modifier.size(16.dp)) }
                         )
                         FilterChip(
                             selected = currentMode == MeasureMode.DISTANCE_HEIGHT,
                             onClick = { currentMode = MeasureMode.DISTANCE_HEIGHT },
                             label = { Text("Distance & Height") },
-                            leadingIcon = { Icon(Icons.Filled.Height, null, modifier = Modifier.size(16.dp)) }
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_height), null, modifier = Modifier.size(16.dp)) }
                         )
                         FilterChip(
                             selected = currentMode == MeasureMode.SCREEN_RULER,
                             onClick = { currentMode = MeasureMode.SCREEN_RULER },
                             label = { Text("Screen Ruler") },
-                            leadingIcon = { Icon(Icons.Filled.Straighten, null, modifier = Modifier.size(16.dp)) }
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_straighten), null, modifier = Modifier.size(16.dp)) }
                         )
                     }
                 }
@@ -483,7 +484,7 @@ fun CameraMeasureScreen(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
-                                Icon(Icons.Filled.Camera, contentDescription = "Freeze", modifier = Modifier.size(18.dp))
+                                Icon(painterResource(R.drawable.ic_camera), contentDescription = "Freeze", modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Freeze Photo")
                             }
@@ -499,7 +500,7 @@ fun CameraMeasureScreen(
                                     measureP2 = Offset(420f, 500f)
                                 }
                             ) {
-                                Icon(Icons.Filled.RestartAlt, "Reset Calipers", tint = Color.White)
+                                Icon(painterResource(R.drawable.ic_restart_alt), "Reset Calipers", tint = Color.White)
                             }
                         }
                     }
@@ -646,7 +647,7 @@ fun ReferenceCardMeasureOverlay(
                         },
                         modifier = Modifier.size(28.dp)
                     ) {
-                        Icon(Icons.Filled.ContentCopy, "Copy", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(painterResource(R.drawable.ic_content_copy), "Copy", tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                 }
 
@@ -773,7 +774,7 @@ fun DistanceHeightOverlay(
                 ) {
                     Text("Phone Height: ${cameraHeightCm.toInt()} cm", color = Color.LightGray, fontSize = 12.sp)
                     IconButton(onClick = { onAdjustHeight(-5f) }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Filled.Remove, "-", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(painterResource(R.drawable.ic_remove), "-", tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                     IconButton(onClick = { onAdjustHeight(5f) }, modifier = Modifier.size(24.dp)) {
                         Icon(Icons.Filled.Add, "+", tint = Color.White, modifier = Modifier.size(16.dp))
@@ -809,7 +810,7 @@ fun DistanceHeightOverlay(
                     onClick = onReset,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Icon(Icons.Filled.RestartAlt, null, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(R.drawable.ic_restart_alt), null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Measure Another Object")
                 }
@@ -987,7 +988,7 @@ fun ScreenRulerOverlay(
                     },
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(Icons.Filled.ContentCopy, "Copy", tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(R.drawable.ic_content_copy), "Copy", tint = Color.White, modifier = Modifier.size(18.dp))
                 }
             }
         }

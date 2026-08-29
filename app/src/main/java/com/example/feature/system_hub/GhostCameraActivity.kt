@@ -35,6 +35,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -394,7 +396,7 @@ fun GhostCameraScreen(
                                 onToggleTorch(isFlashOn)
                             }) {
                                 Icon(
-                                    imageVector = if (isFlashOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                    painter = painterResource(if (isFlashOn) R.drawable.ic_flash_on else R.drawable.ic_flash_off),
                                     contentDescription = "Flash",
                                     tint = if (isFlashOn) Color.Yellow else Color.White
                                 )
@@ -413,7 +415,7 @@ fun GhostCameraScreen(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Icon(
-                                            Icons.Filled.Visibility,
+                                            painter = painterResource(R.drawable.ic_visibility),
                                             contentDescription = "Blink",
                                             tint = if (isBlinkActive) Color.Black else Color.White,
                                             modifier = Modifier.size(16.dp)
@@ -445,7 +447,7 @@ fun GhostCameraScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = if (isAngleMatched) Icons.Filled.CheckCircle else Icons.Filled.ScreenRotation,
+                                painter = painterResource(if (isAngleMatched) R.drawable.ic_check_circle else R.drawable.ic_screen_rotation),
                                 contentDescription = null,
                                 tint = if (isAngleMatched) Color(0xFF00E676) else Color(0xFFFFCA28),
                                 modifier = Modifier.size(18.dp)
@@ -622,7 +624,7 @@ fun GhostCameraScreen(
                                     )
                                 } else {
                                     Icon(
-                                        imageVector = Icons.Filled.AddAPhoto,
+                                        painter = painterResource(R.drawable.ic_add_a_photo),
                                         contentDescription = "Snap Reference",
                                         tint = Color(0xFF00E676),
                                         modifier = Modifier.size(28.dp)
@@ -679,7 +681,7 @@ fun GhostCameraScreen(
                                             .background(Color(0xFF2A2A2A)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(Icons.Filled.Image, null, tint = Color.Gray)
+                                        Icon(painterResource(R.drawable.ic_image), null, tint = Color.Gray)
                                     }
                                 }
 

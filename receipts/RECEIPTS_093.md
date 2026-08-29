@@ -124,20 +124,47 @@
 * How it was verified: local build only (compile_applet passed).
 * Deviations: None.
 * Known issues: None.
-* Timestamp: 2026-08-29T10:23:45-07:00
-* One-line summary: Phase 5: Multi-Handle & Multi-Gesture integration verified across codebase.
+* Timestamp: 2026-08-29T11:51:30-07:00
+* One-line summary: Upgraded dynamic icon text rendering sharpness and high-density bitmap scaling.
 * Exact files touched:
-  - `ON_DEMAND_PLAN.md`
-  - `receipts/RECEIPTS_093.md`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarAppsManager.kt`
 * What was actually done:
-  - Conducted full multi-handle and multi-gesture architectural audit.
-  - Verified `HandleManager` loops and handles dynamic list of handles without hardcoded bounds.
-  - Verified `TriggerHandleView` passes container IDs (`${handleId}_${gesture}`) cleanly to `SidebarManager` and `PageManager`.
-  - Verified edge snapping, lazy loading, and widget lifecycle compatibility across multiple simultaneous handles.
-  - Completed successful clean build with `compile_applet`.
+  - Updated short text / dynamic icon generation with `SUBPIXEL_TEXT_FLAG`, `Typeface.BOLD`, centered alignment, and font metric vertical centering on a high-density $56\text{dp} \times \text{density}$ canvas.
+  - Upgraded target icon bitmap cache resolution to scale up to $192\text{px}$ on high-density displays (xxxhdpi/xxhdpi), preventing bilinear upscaling blur.
+  - Verified with `compile_applet`.
 * How it was verified: local build only (compile_applet passed).
 * Deviations: None.
 * Known issues: None.
+* Timestamp: 2026-08-29T12:21:40-07:00
+* One-line summary: Implemented multi-process overlay isolation and proactive memory trimming for background services.
+* Exact files touched:
+  - `app/src/main/AndroidManifest.xml`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarAppsManager.kt`
+* What was actually done:
+  - Configured `android:process=":overlay"` for both `HandleService` and `SidebarService` in `AndroidManifest.xml` to isolate the background overlay service from the main Compose/Settings process memory space.
+  - Added `trimMemory(level)` in `SidebarAppsManager` to evict cached icon bitmaps when system trim memory events occur.
+  - Verified clean build and full runtime compilation with `compile_applet`.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+* Timestamp: 2026-08-29T13:03:00-07:00
+* One-line summary: Built device status bar measurement and calibration engine with direct LogKeeper integration.
+* Exact files touched:
+  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+  - `app/src/main/java/com/example/feature/settings/NetSpeedSettingsScreen.kt`
+  - `app/src/main/java/com/example/core/HandleService.kt`
+  - `receipts/RECEIPTS_093.md`
+* What was actually done:
+  - Added `generateDeviceCalibrationReport(context, customConfig)` and `logDeviceCalibration(context, customConfig)` in `DynamicSpeedIconGenerator` to query display metrics (DPI, resolution, physical dimensions, status bar dimensions, font bounds, ascent/descent metrics).
+  - Integrated "Device Hardware & Status Bar Calibration" Card into `NetSpeedSettingsScreen` with live device telemetry badge, "Measure & Log", and "Copy Specs" clipboard action.
+  - Automatically triggered calibration logging on service init and settings launch into `LogKeeper` (under tag `NET_SPEED_DIAGNOSTIC`).
+  - Verified compilation with `compile_applet`.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+
+
+
 
 
 

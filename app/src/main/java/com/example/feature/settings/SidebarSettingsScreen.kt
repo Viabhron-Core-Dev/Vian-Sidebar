@@ -30,6 +30,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import com.example.utils.PageManager
 import com.example.utils.SidebarPage
 import java.util.UUID
@@ -361,7 +363,7 @@ fun SidebarSettingsScreen(
                                     }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.DragHandle,
+                                    painter = painterResource(R.drawable.ic_drag_handle),
                                     contentDescription = "Drag to reorder",
                                     tint = if (index == 0) MaterialTheme.colorScheme.primary else Color.Gray,
                                     modifier = Modifier.size(28.dp)
@@ -413,7 +415,7 @@ fun SidebarSettingsScreen(
                                     enabled = index > 0,
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.Default.ArrowUpward, "Move Up", modifier = Modifier.size(20.dp))
+                                    Icon(painterResource(R.drawable.ic_arrow_upward), "Move Up", modifier = Modifier.size(20.dp))
                                 }
                                 IconButton(
                                     onClick = {
@@ -428,7 +430,7 @@ fun SidebarSettingsScreen(
                                     enabled = index < pages.size - 1,
                                     modifier = Modifier.size(36.dp)
                                 ) {
-                                    Icon(Icons.Default.ArrowDownward, "Move Down", modifier = Modifier.size(20.dp))
+                                    Icon(painterResource(R.drawable.ic_arrow_downward), "Move Down", modifier = Modifier.size(20.dp))
                                 }
                                 IconButton(
                                     onClick = {
@@ -462,7 +464,7 @@ fun SidebarSettingsScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("Customize Settings") },
-                            leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_tune), contentDescription = null) },
                             onClick = {
                                 customisingPage = selectedActionPage ?: page
                                 selectedActionPage = null

@@ -33,10 +33,11 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -133,7 +134,7 @@ class BarcodeScannerActivity : ComponentActivity() {
                                         cameraControl?.enableTorch(isFlashOn)
                                     }) {
                                         Icon(
-                                            if (isFlashOn) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                                            painter = painterResource(if (isFlashOn) R.drawable.ic_flash_on else R.drawable.ic_flash_off),
                                             contentDescription = "Flash"
                                         )
                                     }
@@ -189,7 +190,7 @@ class BarcodeScannerActivity : ComponentActivity() {
                                 containerColor = MaterialTheme.colorScheme.primary
                             ) {
                                 Icon(
-                                    Icons.Filled.CameraAlt,
+                                    painter = painterResource(R.drawable.ic_camera),
                                     contentDescription = "Capture for Tap-to-Tap OCR",
                                     modifier = Modifier.size(36.dp)
                                 )
@@ -829,7 +830,7 @@ fun CameraPhotoCropScreen(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            painter = painterResource(R.drawable.ic_undo),
                             contentDescription = "Undo Point",
                             tint = if (polygonPoints.isNotEmpty()) Color.White else Color.Gray,
                             modifier = Modifier.size(18.dp)
@@ -847,7 +848,7 @@ fun CameraPhotoCropScreen(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.RestartAlt,
+                            painter = painterResource(R.drawable.ic_restart_alt),
                             contentDescription = "Reset Points",
                             tint = if (polygonPoints.isNotEmpty()) Color(0xFFFF5252) else Color.Gray,
                             modifier = Modifier.size(18.dp)
@@ -868,7 +869,7 @@ fun CameraPhotoCropScreen(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = if (isMoveMode) Icons.Filled.OpenWith else Icons.Filled.PanTool,
+                                painter = painterResource(if (isMoveMode) R.drawable.ic_open_with else R.drawable.ic_pan_tool),
                                 contentDescription = "Toggle Move",
                                 tint = if (isMoveMode) Color.Black else Color.White,
                                 modifier = Modifier.size(15.dp)

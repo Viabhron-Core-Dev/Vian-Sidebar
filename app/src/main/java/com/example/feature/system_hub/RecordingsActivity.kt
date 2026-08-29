@@ -14,12 +14,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -213,10 +214,17 @@ fun RecordingsScreen(onBack: () -> Unit) {
                                         if (it) selectedIds.add(item.id) else selectedIds.remove(item.id)
                                     })
                                 } else {
+                                if (isPlaying) {
                                     Icon(
-                                        if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                        painter = painterResource(R.drawable.ic_stop),
+                                        contentDescription = "Stop"
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
                                         contentDescription = "Play"
                                     )
+                                }
                                 }
                             },
                             trailingContent = {

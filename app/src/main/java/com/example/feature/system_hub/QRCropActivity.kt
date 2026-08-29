@@ -25,15 +25,10 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.CropSquare
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.OpenWith
-import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.RestartAlt
-import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.google.mlkit.vision.common.InputImage
@@ -673,7 +668,7 @@ fun QRCropScreen(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            painter = painterResource(R.drawable.ic_undo),
                             contentDescription = "Undo Point",
                             tint = if (polygonPoints.isNotEmpty()) Color.White else Color.Gray,
                             modifier = Modifier.size(18.dp)
@@ -691,7 +686,7 @@ fun QRCropScreen(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.RestartAlt,
+                            painter = painterResource(R.drawable.ic_restart_alt),
                             contentDescription = "Reset Points",
                             tint = if (polygonPoints.isNotEmpty()) Color(0xFFFF5252) else Color.Gray,
                             modifier = Modifier.size(18.dp)
@@ -712,7 +707,7 @@ fun QRCropScreen(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = if (isMoveMode) Icons.Filled.OpenWith else Icons.Filled.PanTool,
+                                painter = painterResource(if (isMoveMode) R.drawable.ic_open_with else R.drawable.ic_pan_tool),
                                 contentDescription = "Toggle Move",
                                 tint = if (isMoveMode) Color.Black else Color.White,
                                 modifier = Modifier.size(15.dp)

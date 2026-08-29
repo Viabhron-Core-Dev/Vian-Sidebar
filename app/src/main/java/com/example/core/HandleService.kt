@@ -74,6 +74,7 @@ class HandleService : Service(), SharedPreferences.OnSharedPreferenceChangeListe
 
     private fun setupNetSpeed() {
         if (prefs.getBoolean("netspeed_enabled", true) || prefs.getBoolean("speed_indicator_enabled", true)) {
+            DynamicSpeedIconGenerator.logDeviceCalibration(this)
             if (netSpeedManager == null) {
                 netSpeedManager = NetSpeedManager(this, prefs, 
                     onSpeedUpdate = { down, up ->

@@ -8,7 +8,9 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.os.Build
 import androidx.core.graphics.drawable.IconCompat
+import com.example.util.AppLogger
 import java.util.Locale
 
 object DynamicSpeedIconGenerator {
@@ -366,6 +368,122 @@ object DynamicSpeedIconGenerator {
     fun generateIconCompat(context: Context, bytesPerSec: Long, forcedUnit: String? = null): IconCompat {
         val bitmap = generateStatusBarBitmap(context, bytesPerSec, forcedUnit)
         return IconCompat.createWithBitmap(bitmap)
+    }
+
+    /**
+     * Measures the host device display characteristics, status bar metrics,
+     * exact font bounds, and renders baseline calibration diagnostics.
+     */
+    fun generateDeviceCalibrationReport(context: Context, customConfig: IconConfig? = null): String {
+        val config = customConfig ?: activeConfig
+        val dm = context.resources.displayMetrics
+        val density = dm.density
+        val densityDpi = dm.densityDpi
+        val scaledDensity = dm.scaledDensity
+        val widthPx = dm.widthPixels
+        val heightPx = dm.heightPixels
+        val xdpi = dm.xdpi
+        val ydpi = dm.ydpi
+
+        val smallIconPx = getNotificationIconSize(context)
+        
+        // System status bar dimensions
+        val res = context.resources
+        val statusBarHeightId = res.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeightPx = if (statusBarHeightId > 0) res.getDimensionPixelSize(statusBarHeightId) else -1
+        val statusBarHeightDp = if (statusBarHeightPx > 0) statusBarHeightPx / density else -1f
+
+        val statusBarIconSizeId = res.getIdentifier("status_bar_icon_size", "dimen", "android")
+        val statusBarIconSizePx = if (statusBarIconSizeId > 0) res.getDimensionPixelSize(statusBarIconSizeId) else -1
+
+        // Font metric measurements on test strings
+        val tf = try {
+            if (config.font.isNotEmpty()) {
+                Typeface.create(config.font, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
+            } else {
+                Typeface.create("sans-serif-condensed", if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
+            }
+        } catch (e: Exception) {
+            Typeface.DEFAULT_BOLD
+        }
+
+        val testPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+            typeface = tf
+            isFakeBoldText = config.isFakeBold
+            letterSpacing = config.letterSpacing
+        }
+
+        val sampleSizes = listOf(8f, 10f, 12f, 14f, 16f, 18f, 20f, 24f)
+        val fontMetricsSummary = StringBuilder()
+        for (sp in sampleSizes) {
+            testPaint.textSize = sp * scaledDensity
+            val fm = testPaint.fontMetrics
+            val bounds = Rect()
+            testPaint.getTextBounds("99.9", 0, 4, bounds)
+            fontMetricsSummary.appendLine("  - Size ${sp}sp (${testPaint.textSize.toInt()}px): Ascent=${fm.ascent.toInt()}px, Descent=${fm.descent.toInt()}px, Top=${fm.top.toInt()}px, Bottom=${fm.bottom.toInt()}px, Bounds[99.9]=${bounds.width()}x${bounds.height()}px")
+        }
+
+        // Test specific sample strings at current config scale
+        val maxNumH = smallIconPx * 0.58f * config.numScale
+        testPaint.textSize = maxNumH
+        val b0 = Rect(); testPaint.getTextBounds("0", 0, 1, b0)
+        val b450 = Rect(); testPaint.getTextBounds("450", 0, 3, b450)
+        val b148 = Rect(); testPaint.getTextBounds("14.8", 0, 4, b148)
+
+        val maxUnitH = smallIconPx * 0.28f * config.unitScale
+        val unitPaint = Paint(testPaint).apply { textSize = maxUnitH }
+        val bKb = Rect(); unitPaint.getTextBounds("KB/s", 0, 4, bKb)
+        val bMb = Rect(); unitPaint.getTextBounds("MB/s", 0, 4, bMb)
+
+        val sb = StringBuilder()
+        sb.appendLine("==================================================")
+        sb.appendLine("[NET_SPEED_DIAGNOSTIC] DEVICE STATUS BAR CALIBRATION")
+        sb.appendLine("==================================================")
+        sb.appendLine("HARDWARE & OS:")
+        sb.appendLine("  - Device: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
+        sb.appendLine("  - Brand / Product: ${Build.BRAND} / ${Build.PRODUCT}")
+        sb.appendLine("  - Android OS: Version ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}, Build ${Build.DISPLAY})")
+        sb.appendLine("")
+        sb.appendLine("DISPLAY METRICS:")
+        sb.appendLine("  - Resolution: ${widthPx} x ${heightPx} px")
+        sb.appendLine("  - Density: ${density}x (DensityDpi: ${densityDpi} dpi, ScaledDensity: ${scaledDensity})")
+        sb.appendLine("  - Exact Physical DPI: xdpi=${String.format(Locale.US, "%.1f", xdpi)}, ydpi=${String.format(Locale.US, "%.1f", ydpi)}")
+        sb.appendLine("  - System Status Bar Height: ${statusBarHeightPx}px (${String.format(Locale.US, "%.1f", statusBarHeightDp)}dp)")
+        sb.appendLine("  - System Status Bar Icon Dimen: ${statusBarIconSizePx}px")
+        sb.appendLine("  - Computed SmallIcon Size (24dp native): ${smallIconPx} x ${smallIconPx} px")
+        sb.appendLine("")
+        sb.appendLine("ACTIVE ICON CONFIGURATION:")
+        sb.appendLine("  - Layout Mode: ${config.layoutMode}")
+        sb.appendLine("  - Font: ${config.font} (Bold: ${config.isFakeBold})")
+        sb.appendLine("  - Number Scale: ${config.numScale}x | Unit Scale: ${config.unitScale}x")
+        sb.appendLine("  - Y-Offsets: Number=${config.numYOffsetDp}dp, Unit=${config.unitYOffsetDp}dp")
+        sb.appendLine("  - Supersampling Multiplier: ${config.resScale}x | AA Mode: ${config.aaMode}")
+        sb.appendLine("  - Letter Spacing: ${config.letterSpacing} | Extra Stroke: ${config.strokeWidthDp}dp")
+        sb.appendLine("  - Background: Shape=${config.bgShape}, Radius=${config.bgRadiusDp}dp, Opacity=${config.bgAlpha}/255")
+        sb.appendLine("")
+        sb.appendLine("TEXT BOUNDS & RENDER MEASUREMENTS:")
+        sb.appendLine("  - Target Number TextSize: ${maxNumH.toInt()}px (Top 70% slot)")
+        sb.appendLine("    * '0' bounds: ${b0.width()}x${b0.height()}px (W/Icon=${String.format(Locale.US, "%.1f", (b0.width().toFloat()/smallIconPx)*100)}%)")
+        sb.appendLine("    * '450' bounds: ${b450.width()}x${b450.height()}px (W/Icon=${String.format(Locale.US, "%.1f", (b450.width().toFloat()/smallIconPx)*100)}%)")
+        sb.appendLine("    * '14.8' bounds: ${b148.width()}x${b148.height()}px (W/Icon=${String.format(Locale.US, "%.1f", (b148.width().toFloat()/smallIconPx)*100)}%)")
+        sb.appendLine("  - Target Unit TextSize: ${maxUnitH.toInt()}px (Bottom 30% slot)")
+        sb.appendLine("    * 'KB/s' bounds: ${bKb.width()}x${bKb.height()}px (W/Icon=${String.format(Locale.US, "%.1f", (bKb.width().toFloat()/smallIconPx)*100)}%)")
+        sb.appendLine("    * 'MB/s' bounds: ${bMb.width()}x${bMb.height()}px (W/Icon=${String.format(Locale.US, "%.1f", (bMb.width().toFloat()/smallIconPx)*100)}%)")
+        sb.appendLine("")
+        sb.appendLine("FONT SCALE METRICS REFERENCE:")
+        sb.append(fontMetricsSummary.toString())
+        sb.appendLine("==================================================")
+        return sb.toString()
+    }
+
+    /**
+     * Logs the device status bar calibration data to LogKeeper and system log.
+     */
+    fun logDeviceCalibration(context: Context, customConfig: IconConfig? = null): String {
+        val report = generateDeviceCalibrationReport(context, customConfig)
+        LogKeeper.writeLog("NET_SPEED_DIAGNOSTIC", report)
+        AppLogger.d("NetSpeedDiagnostic", "Status bar calibration report written to LogKeeper")
+        return report
     }
 }
 

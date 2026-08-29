@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.NotificationHistory
 import kotlinx.coroutines.Dispatchers
@@ -145,10 +147,10 @@ fun NotificationHistoryScreen(onBack: () -> Unit, onExport: (List<NotificationHi
                             Icon(Icons.Default.Search, "Search")
                         }
                         IconButton(onClick = { showSidebarFilterDialog = true }) {
-                            Icon(Icons.Default.ViewSidebar, "Sidebar Page Filter")
+                            Icon(painterResource(R.drawable.ic_view_sidebar), "Sidebar Page Filter")
                         }
                         IconButton(onClick = { showFilterDialog = true }) {
-                            Icon(Icons.Default.FilterList, "History Filter")
+                            Icon(painterResource(R.drawable.ic_filter_list), "History Filter")
                         }
                         IconButton(onClick = { onExport(history) }) {
                             Icon(Icons.Default.Share, "Export")

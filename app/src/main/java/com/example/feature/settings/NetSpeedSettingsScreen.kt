@@ -45,7 +45,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import android.widget.Toast
+import android.content.ClipboardManager
+import android.content.ClipData
+import com.example.R
 import com.example.core.DynamicSpeedIconGenerator
+import com.example.core.LogKeeper
 import java.util.Locale
 
 data class AppUsageInfo(
@@ -177,6 +183,23 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
     var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
     var isLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    var calibrationReport by remember { mutableStateOf("") }
+    var calibrationLoggedTime by remember { mutableStateOf<String?>(null) }
+
+    val runCalibrationAndLog: (Boolean) -> Unit = { showToast ->
+        val report = DynamicSpeedIconGenerator.logDeviceCalibration(context, currentIconConfig)
+        calibrationReport = report
+        val timeStr = java.text.SimpleDateFormat("HH:mm:ss", Locale.US).format(java.util.Date())
+        calibrationLoggedTime = timeStr
+        if (showToast) {
+            Toast.makeText(context, "Hardware calibration logged to Log Keeper ($timeStr)", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        runCalibrationAndLog(false)
+    }
 
     val loadData = {
         if (hasPermission) {
@@ -346,6 +369,92 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text("Fast", style = MaterialTheme.typography.labelSmall, color = Color(0xFFAAAAAA))
+                            }
+                        }
+                    }
+                }
+
+                // Device Display & Calibration Tool Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    val dm = context.resources.displayMetrics
+                    val smallIconPx = DynamicSpeedIconGenerator.getNotificationIconSize(context)
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_speed),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Device Hardware & Status Bar Calibration",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Specs: ${dm.widthPixels}x${dm.heightPixels} @ ${dm.densityDpi}dpi (${dm.density}x) | 24dp Canvas: ${smallIconPx}px",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (calibrationLoggedTime != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "✓ Active calibration profile captured & stored in Log Keeper ($calibrationLoggedTime)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { runCalibrationAndLog(true) },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                            ) {
+                                Text("Measure & Log", fontSize = 12.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    val reportToCopy = if (calibrationReport.isNotEmpty()) calibrationReport else DynamicSpeedIconGenerator.generateDeviceCalibrationReport(context, currentIconConfig)
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("NetSpeed Device Calibration", reportToCopy)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Calibration report copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_content_copy),
+                                    contentDescription = "Copy",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Copy Specs", fontSize = 12.sp)
                             }
                         }
                     }

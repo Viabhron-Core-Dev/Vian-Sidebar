@@ -30,9 +30,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -411,7 +411,7 @@ fun RedactScreenshotScreen(
                         enabled = items.isNotEmpty()
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.Undo,
+                            painter = painterResource(R.drawable.ic_undo),
                             contentDescription = "Undo",
                             tint = if (items.isNotEmpty()) Color.White else Color.Gray
                         )
@@ -427,7 +427,7 @@ fun RedactScreenshotScreen(
                         enabled = redoStack.isNotEmpty()
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.Redo,
+                            painter = painterResource(R.drawable.ic_redo),
                             contentDescription = "Redo",
                             tint = if (redoStack.isNotEmpty()) Color.White else Color.Gray
                         )
@@ -511,7 +511,7 @@ fun RedactScreenshotScreen(
                             label = { Text("Mosaic", fontSize = 12.sp) },
                             leadingIcon = {
                                 Icon(
-                                    Icons.Default.Grain,
+                                    painter = painterResource(R.drawable.ic_grain),
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
                                     tint = Color.Cyan
@@ -576,7 +576,7 @@ fun RedactScreenshotScreen(
                                 )
                         ) {
                             Icon(
-                                Icons.Default.CropSquare,
+                                painter = painterResource(R.drawable.ic_crop_square),
                                 contentDescription = "Box Tool",
                                 tint = if (selectedTool == RedactTool.BOX) Color.Black else Color.White
                             )
@@ -609,7 +609,7 @@ fun RedactScreenshotScreen(
                             },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
+                            Icon(painterResource(R.drawable.ic_content_copy), contentDescription = "Copy", modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("Copy", fontSize = 13.sp)
                         }

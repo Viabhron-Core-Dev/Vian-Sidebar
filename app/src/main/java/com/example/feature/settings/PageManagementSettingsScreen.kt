@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import com.example.utils.PageManager
 import com.example.utils.SidebarPage
 import java.util.UUID
@@ -126,7 +128,7 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
                                 enabled = index > 1,
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(Icons.Default.ArrowUpward, "Move Up", modifier = Modifier.size(18.dp))
+                                Icon(painterResource(R.drawable.ic_arrow_upward), "Move Up", modifier = Modifier.size(18.dp))
                             }
                             IconButton(
                                 onClick = {
@@ -144,7 +146,7 @@ fun PageManagementSettingsScreen(handleId: String = "sidebar", onBack: () -> Uni
                                 enabled = index > 0 && index < pages.size - 1,
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(Icons.Default.ArrowDownward, "Move Down", modifier = Modifier.size(18.dp))
+                                Icon(painterResource(R.drawable.ic_arrow_downward), "Move Down", modifier = Modifier.size(18.dp))
                             }
                             IconButton(
                                 onClick = {

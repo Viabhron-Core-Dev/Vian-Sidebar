@@ -9,10 +9,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
 import java.util.Locale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -121,7 +122,7 @@ class TranslationManagementActivity : ComponentActivity() {
                                                 Toast.makeText(this@TranslationManagementActivity, "Failed to download $langCode", Toast.LENGTH_SHORT).show()
                                             }
                                     }) {
-                                        Icon(Icons.Filled.Download, "Download")
+                                        Icon(painterResource(R.drawable.ic_download), "Download")
                                     }
                                 }
                             }

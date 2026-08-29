@@ -346,6 +346,10 @@ class SidebarAppsManager(
         hasLoadedOnce = false
     }
 
+    fun trimMemory(level: Int) {
+        iconCache.evictAll()
+    }
+
     fun ensureLoaded() {
         if (!hasLoadedOnce) {
             coroutineScope.launch {
@@ -388,7 +392,7 @@ class SidebarAppsManager(
                     val rawBmp = android.graphics.BitmapFactory.decodeFile(customIconFile.absolutePath)
                     customCached = if (rawBmp != null) {
                         val density = context.resources.displayMetrics.density
-                        val targetSize = Math.round(48f * density).coerceIn(48, 144)
+                        val targetSize = Math.round(56f * density).coerceIn(48, 192)
                         if (rawBmp.width > targetSize || rawBmp.height > targetSize) {
                             Bitmap.createScaledBitmap(rawBmp, targetSize, targetSize, true)
                         } else {
@@ -412,16 +416,20 @@ class SidebarAppsManager(
             icon.clearColorFilter()
             icon.setBackgroundColor(android.graphics.Color.TRANSPARENT)
             if (customIconStr.length <= 4 && !customIconStr.contains(".")) {
-                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-                paint.textSize = 28f * context.resources.displayMetrics.density
-                paint.color = android.graphics.Color.WHITE
-                paint.textAlign = android.graphics.Paint.Align.LEFT
-                val baseline = -paint.ascent()
-                val width = (paint.measureText(customIconStr) + 0.5f).toInt().coerceAtLeast(1)
-                val height = (baseline + paint.descent() + 0.5f).toInt().coerceAtLeast(1)
-                val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+                val density = context.resources.displayMetrics.density
+                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.SUBPIXEL_TEXT_FLAG).apply {
+                    textSize = 28f * density
+                    color = android.graphics.Color.WHITE
+                    typeface = android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.BOLD)
+                    isDither = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+                val iconBoxSize = Math.round(56f * density).coerceAtLeast(64)
+                val bitmap = android.graphics.Bitmap.createBitmap(iconBoxSize, iconBoxSize, android.graphics.Bitmap.Config.ARGB_8888)
                 val canvas = android.graphics.Canvas(bitmap)
-                canvas.drawText(customIconStr, 0f, baseline, paint)
+                val fontMetrics = paint.fontMetrics
+                val baseline = (iconBoxSize - (fontMetrics.descent + fontMetrics.ascent)) / 2f
+                canvas.drawText(customIconStr, iconBoxSize / 2f, baseline, paint)
                 icon.setImageBitmap(bitmap)
             } else {
                 val cached = iconCache.get(customIconStr)
@@ -589,7 +597,7 @@ class SidebarAppsManager(
                     val rawBmp = android.graphics.BitmapFactory.decodeFile(customIconFile.absolutePath)
                     b = if (rawBmp != null) {
                         val density = context.resources.displayMetrics.density
-                        val targetSize = Math.round(48f * density).coerceIn(48, 144)
+                        val targetSize = Math.round(56f * density).coerceIn(48, 192)
                         if (rawBmp.width > targetSize || rawBmp.height > targetSize) {
                             Bitmap.createScaledBitmap(rawBmp, targetSize, targetSize, true)
                         } else {
@@ -1008,7 +1016,7 @@ class SidebarAppsManager(
 
     fun getBitmapFromDrawable(drawable: Drawable): Bitmap? {
         val density = context.resources.displayMetrics.density
-        val targetSize = Math.round(48f * density).coerceIn(48, 144)
+        val targetSize = Math.round(56f * density).coerceIn(48, 192)
         if (drawable is BitmapDrawable && drawable.bitmap != null) {
             val bmp = drawable.bitmap
             if (bmp.width <= targetSize && bmp.height <= targetSize) {

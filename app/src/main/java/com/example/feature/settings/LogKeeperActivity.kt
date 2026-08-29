@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -115,7 +117,7 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                             }
                         }
                     ) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", tint = Color.White)
+                        Icon(painterResource(R.drawable.ic_content_copy), contentDescription = "Copy", tint = Color.White)
                     }
                     // Share
                     IconButton(
@@ -146,7 +148,7 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                             }
                         }
                     ) {
-                        Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear", tint = Color(0xFFFF5252))
+                        Icon(painterResource(R.drawable.ic_delete_sweep), contentDescription = "Clear", tint = Color(0xFFFF5252))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E1E1E))
@@ -169,7 +171,7 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                     onClick = { selectedTab = 0 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Description, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(painterResource(R.drawable.ic_description), contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("System Logs")
                         }
@@ -180,7 +182,7 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                     onClick = { selectedTab = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.BugReport, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (crashLogContent.isNotBlank()) Color(0xFFFF5252) else Color.Gray)
+                            Icon(painterResource(R.drawable.ic_bug_report), contentDescription = null, modifier = Modifier.size(16.dp), tint = if (crashLogContent.isNotBlank()) Color(0xFFFF5252) else Color.Gray)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Crash Logs", color = if (crashLogContent.isNotBlank()) Color(0xFFFF5252) else Color.White)
                         }
@@ -200,12 +202,21 @@ fun LogKeeperScreen(onClose: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = if (selectedTab == 0) Icons.Filled.Info else Icons.Filled.CheckCircle,
-                            contentDescription = null,
-                            tint = if (selectedTab == 0) Color.Gray else Color(0xFF00E676),
-                            modifier = Modifier.size(48.dp)
-                        )
+                        if (selectedTab == 0) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = null,
+                                tint = Color.Gray,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_check_circle),
+                                contentDescription = null,
+                                tint = Color(0xFF00E676),
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = if (selectedTab == 0) "No activity logs recorded yet." else "No crashes detected! Everything running smoothly.",
