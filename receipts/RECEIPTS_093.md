@@ -188,6 +188,36 @@
 * How it was verified: local build only (compile_applet passed).
 * Deviations: None.
 * Known issues: None.
+* Timestamp: 2026-08-29T15:24:00-07:00
+* One-line summary: Refined 3-column sidebar grid width calibration and fortified dynamic status bar speed icon text sharpness.
+* Exact files touched:
+  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+  - `app/src/main/res/layout/item_sidebar_app.xml`
+* What was actually done:
+  - Updated `DynamicSpeedIconGenerator.kt` with `Paint.HINTING_ON`, subpixel text flags, dither disabling, safe horizontal boundary padding (`safePadX = (2.5f * density).coerceAtLeast(3f)`), and calibrated default scales (`numScale = 0.82f`, `letterSpacing = -0.03f`) to ensure 3-digit and decimal speed values never bleed or clip against the status bar icon boundaries, eliminating bilinear blur.
+  - Calibrated default 3-column sidebar grid width in `SidebarView.kt` from 216/240dp down to 198dp (66dp/col) for a sleeker, snug layout that is visibly thinner without being cramped or too thin.
+  - Adjusted `item_sidebar_app.xml` padding to 6dp with max 52dp icon bounds for clean proportions in 3-column slots.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
+
+* Timestamp: 2026-08-30T00:40:00-07:00
+* One-line summary: Resolved multi-page sidebar gesture navigation and connected Log Keeper UI to internal storage logging.
+* Exact files touched:
+  - `app/src/main/java/com/example/core/LogKeeper.kt`
+  - `app/src/main/java/com/example/feature/settings/LogKeeperActivity.kt`
+  - `app/src/main/java/com/example/feature/settings/SettingsActivity.kt`
+  - `app/src/main/java/com/example/feature/settings/HandlesListSettingsScreen.kt`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarManager.kt`
+  - `app/src/main/java/com/example/utils/PageManager.kt`
+* What was actually done:
+  - Updated `LogKeeper.kt` and `LogKeeperActivity.kt` to target internal `filesDir` for direct, permission-free multi-process log recording (`LiteReader_Log.txt` and `LiteReader_CrashLog.txt`), with automatic fallback migration from external app directories and global uncaught exception trapping across all processes.
+  - Linked the "Log Keeper" entry in `SettingsActivity.kt` directly to `LogKeeperActivity`.
+  - Fixed gesture page handling in `PageManager.kt`, `SidebarManager.kt`, and `HandlesListSettingsScreen.kt` so opening the sidebar via any gesture loads the complete handle page configuration (rather than single-item fragments) while focusing directly on the gesture's targeted page index in `ViewPager2`, enabling full multi-page swiping.
+* How it was verified: local build only (compile_applet passed).
+* Deviations: None.
+* Known issues: None.
 
 
 

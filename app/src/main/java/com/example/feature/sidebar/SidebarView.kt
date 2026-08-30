@@ -97,9 +97,27 @@ class SidebarView(
                 "calculator", "compass", "resources_tracker" -> 320
                 "scheduler", "notifications", "notification", "app_tracker" -> 330
                 "media_player" -> 300
-                "widgets_grid", "widget" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 260))
-                "hybrid_grid", "default_hybrid" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
-                else -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 216))
+                "widgets_grid", "widget" -> {
+                    val cols = prefs.getInt("widgets_grid_cols_${initialPage?.id}", 4)
+                    if (cols == 3) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
+                    else if (cols <= 2) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 140))
+                    else prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                }
+                "hybrid_grid", "default_hybrid" -> {
+                    val cols = prefs.getInt("hybrid_grid_cols_${initialPage?.id}", 4)
+                    if (cols == 3) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
+                    else if (cols <= 2) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 140))
+                    else prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                }
+                "apps" -> {
+                    val c = prefs.getInt("handle_${physicalHandleId}_page_${initialPage?.id}_columns", -1)
+                    val defaultCols = prefs.getInt("handle_${physicalHandleId}_columns", prefs.getInt("sidebar_columns", 3))
+                    val cols = if (initialPage?.useCustomSettings == true) initialPage.gridColumns else (if (c != -1) c else defaultCols)
+                    if (cols == 3) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
+                    else if (cols <= 2) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 140))
+                    else prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                }
+                else -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
             }
         }
         val widthPx = (targetWidthDp * density).toInt()
@@ -532,9 +550,27 @@ class SidebarView(
                 "resources_tracker" -> 320
                 "scheduler", "notifications", "notification", "app_tracker" -> 330
                 "media_player" -> 300
-                "widgets_grid", "widget" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 260))
-                "hybrid_grid", "default_hybrid" -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
-                else -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 216))
+                "widgets_grid", "widget" -> {
+                    val cols = prefs.getInt("widgets_grid_cols_${page.id}", 4)
+                    if (cols == 3) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
+                    else if (cols <= 2) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 140))
+                    else prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                }
+                "hybrid_grid", "default_hybrid" -> {
+                    val cols = prefs.getInt("hybrid_grid_cols_${page.id}", 4)
+                    if (cols == 3) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
+                    else if (cols <= 2) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 140))
+                    else prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                }
+                "apps" -> {
+                    val c = prefs.getInt("handle_${physicalHandleId}_page_${page.id}_columns", -1)
+                    val defaultCols = prefs.getInt("handle_${physicalHandleId}_columns", prefs.getInt("sidebar_columns", 3))
+                    val cols = if (page.useCustomSettings) page.gridColumns else (if (c != -1) c else defaultCols)
+                    if (cols == 3) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
+                    else if (cols <= 2) prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 140))
+                    else prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 240))
+                }
+                else -> prefs.getInt("handle_${containerId}_sidebar_width", prefs.getInt("sidebar_width", 198))
             }
         }
         val targetWidthPx = (targetWidthDp * density).toInt()

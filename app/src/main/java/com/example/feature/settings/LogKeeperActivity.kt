@@ -339,26 +339,25 @@ fun LogKeeperScreen(onClose: () -> Unit) {
 }
 
 private fun getTargetLogDirectory(context: Context): File? {
-    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    if (downloadsDir != null && downloadsDir.exists()) {
-        return downloadsDir
-    }
-    val fallbackDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-    if (fallbackDir != null && fallbackDir.exists()) {
-        return fallbackDir
-    }
     return context.filesDir
 }
 
 private fun readLogFile(context: Context, fileName: String): String {
     return try {
-        val dir = getTargetLogDirectory(context) ?: return ""
-        val file = File(dir, fileName)
-        if (file.exists()) {
-            file.readText()
-        } else {
-            ""
+        val primaryFile = File(context.filesDir, fileName)
+        if (primaryFile.exists() && primaryFile.length() > 0) {
+            return primaryFile.readText()
         }
+        val fallbackDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        if (fallbackDir != null) {
+            val fallbackFile = File(fallbackDir, fileName)
+            if (fallbackFile.exists() && fallbackFile.length() > 0) {
+                val text = fallbackFile.readText()
+                primaryFile.writeText(text)
+                return text
+            }
+        }
+        if (primaryFile.exists()) primaryFile.readText() else ""
     } catch (e: Exception) {
         ""
     }
@@ -366,10 +365,16 @@ private fun readLogFile(context: Context, fileName: String): String {
 
 private fun clearLogFile(context: Context, fileName: String) {
     try {
-        val dir = getTargetLogDirectory(context) ?: return
-        val file = File(dir, fileName)
+        val file = File(context.filesDir, fileName)
         if (file.exists()) {
             file.delete()
+        }
+        val fallbackDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        if (fallbackDir != null) {
+            val fallbackFile = File(fallbackDir, fileName)
+            if (fallbackFile.exists()) {
+                fallbackFile.delete()
+            }
         }
     } catch (e: Exception) {
         e.printStackTrace()

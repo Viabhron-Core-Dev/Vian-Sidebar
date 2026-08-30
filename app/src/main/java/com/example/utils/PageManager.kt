@@ -101,11 +101,12 @@ object PageManager {
 
     fun getPages(prefs: SharedPreferences, rawHandleId: String): List<SidebarPage> {
         val cleanHandleId = getCleanHandleId(rawHandleId)
-        val containerSpecificJson = prefs.getString("handle_${rawHandleId}_pages", null)
-        val legacy = if (rawHandleId == "sidebar" || cleanHandleId == "sidebar") prefs.getString("sidebar_pages", null) else null
-        val pagesJson = containerSpecificJson ?: prefs.getString("handle_${cleanHandleId}_pages", legacy)
+        val handlePagesJson = prefs.getString("handle_${cleanHandleId}_pages", null)
+            ?: if (cleanHandleId == "sidebar") prefs.getString("sidebar_pages", null) else null
+        val containerSpecificJson = if (rawHandleId != cleanHandleId) prefs.getString("handle_${rawHandleId}_pages", null) else null
+        val pagesJson = handlePagesJson ?: containerSpecificJson
         
-        val defaultPageId = if (rawHandleId == "sidebar") "default_hybrid" else "default_hybrid_$rawHandleId"
+        val defaultPageId = if (cleanHandleId == "sidebar") "default_hybrid" else "default_hybrid_$cleanHandleId"
         val defaultPage = SidebarPage(id = defaultPageId, type = "hybrid_grid", title = "Home Grid")
         if (!prefs.contains("hybrid_grid_" + defaultPageId)) {
             val jsonStr = "[{\"id\": \"system:ebook_reader\", \"cols\": 1, \"rows\": 1, \"x\": 0, \"y\": 0}, {\"id\": \"system:log_keeper\", \"cols\": 1, \"rows\": 1, \"x\": 1, \"y\": 0}]"

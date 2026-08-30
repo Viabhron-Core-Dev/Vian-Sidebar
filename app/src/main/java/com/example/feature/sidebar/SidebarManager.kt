@@ -93,19 +93,42 @@ class SidebarManager(
         sidebarView?.detach()
         sidebarView = null
         
-        // Load pages specifically for this container (handle + gesture)
-        val pages = PageManager.getPages(prefs, containerId)
+        val cleanHandleId = if (physicalHandleId.isNotBlank()) physicalHandleId else PageManager.getCleanHandleId(containerId)
+        val pages = PageManager.getPages(prefs, cleanHandleId).toMutableList()
         val cleanTargetId = targetPageId?.removePrefix("open_page:")
         
-        // Find target index based on targetPageId or fallback to default (first page / 0)
-        val targetIndex = if (cleanTargetId != null) {
+        var targetIndex = 0
+        if (cleanTargetId != null) {
             val effectiveTarget = if (cleanTargetId.startsWith("default_hybrid")) "hybrid_grid" else cleanTargetId
             val idx = pages.indexOfFirst { 
                 it.id == cleanTargetId || it.type == cleanTargetId || it.type == effectiveTarget || (effectiveTarget == "hybrid_grid" && (it.id.startsWith("default_hybrid") || it.type == "hybrid_grid"))
             }
-            if (idx != -1) idx else PageManager.getDefaultPageIndex(prefs, containerId)
+            if (idx != -1) {
+                targetIndex = idx
+            } else {
+                val pageTitle = when(effectiveTarget) {
+                    "apps" -> "Apps Grid"
+                    "widgets_grid" -> "Widgets Grid"
+                    "hybrid_grid" -> "Home Grid"
+                    "app_tracker" -> "App Tracker"
+                    "resources_tracker" -> "Resources Tracker"
+                    "media_player" -> "Media Player"
+                    "calculator" -> "Calculator"
+                    "scheduler" -> "Short Reminders"
+                    "compass" -> "Compass"
+                    "notifications", "notification" -> "Notifications"
+                    else -> effectiveTarget.replace("_", " ").replaceFirstChar { it.uppercase() }
+                }
+                val newPage = com.example.utils.SidebarPage.createDefault(
+                    id = if (effectiveTarget == "hybrid_grid") "default_hybrid_$cleanHandleId" else java.util.UUID.randomUUID().toString(),
+                    type = effectiveTarget,
+                    title = pageTitle
+                )
+                pages.add(newPage)
+                targetIndex = pages.size - 1
+            }
         } else {
-            PageManager.getDefaultPageIndex(prefs, containerId)
+            targetIndex = PageManager.getDefaultPageIndex(prefs, cleanHandleId).coerceIn(0, (pages.size - 1).coerceAtLeast(0))
         }
         
         sidebarView = SidebarView(context, prefs, windowManager, physicalHandleId, containerId, pages, targetIndex) {

@@ -227,7 +227,6 @@ fun HandleItem(
                             gesturesMap[gesture] = action
                             if (action.startsWith("open_page:")) {
                                 val target = action.removePrefix("open_page:")
-                                val containerId = "${handle.id}_$gesture"
                                 val pageType = if (target.startsWith("default_hybrid")) "hybrid_grid" else target
                                 val pageTitle = when(pageType) {
                                     "apps" -> "Apps Grid"
@@ -240,37 +239,24 @@ fun HandleItem(
                                     "scheduler" -> "Short Reminders"
                                     "compass" -> "Compass"
                                     "notifications", "notification" -> "Notifications"
-                                    else -> "Page"
+                                    else -> pageType.replace("_", " ").replaceFirstChar { it.uppercase() }
                                 }
-                                val existingPages = com.example.utils.PageManager.getPages(prefs, containerId).toMutableList()
-                                val existingIndex = existingPages.indexOfFirst { 
+                                val handlePages = com.example.utils.PageManager.getPages(prefs, handle.id).toMutableList()
+                                val existingIndex = handlePages.indexOfFirst { 
                                     it.id == target || it.type == pageType || (pageType == "hybrid_grid" && (it.id.startsWith("default_hybrid") || it.type == "hybrid_grid"))
                                 }
-                                
-                                if (existingPages.size <= 1) {
+                                if (existingIndex == -1) {
                                     val newPage = com.example.utils.SidebarPage.createDefault(
-                                        id = if (pageType == "hybrid_grid") "default_hybrid_$containerId" else UUID.randomUUID().toString(),
+                                        id = if (pageType == "hybrid_grid") "default_hybrid_${handle.id}" else UUID.randomUUID().toString(),
                                         type = pageType,
                                         title = pageTitle
                                     )
-                                    com.example.utils.PageManager.savePages(prefs, containerId, listOf(newPage), context)
-                                    com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, 0, context)
-                                } else {
-                                    if (existingIndex != -1) {
-                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingIndex, context)
-                                    } else {
-                                        val newPage = com.example.utils.SidebarPage.createDefault(
-                                            id = UUID.randomUUID().toString(),
-                                            type = pageType,
-                                            title = pageTitle
-                                        )
-                                        existingPages.add(newPage)
-                                        com.example.utils.PageManager.savePages(prefs, containerId, existingPages, context)
-                                        com.example.utils.PageManager.saveDefaultPageIndex(prefs, containerId, existingPages.size - 1, context)
-                                    }
+                                    handlePages.add(newPage)
+                                    com.example.utils.PageManager.savePages(prefs, handle.id, handlePages, context)
                                 }
                             }
                         }
+                        prefs.edit().putString("${prefix}$gesture", action).commit()
                         com.example.core.OverlaySyncManager.syncString(context, "${prefix}$gesture", action)
                     }
 

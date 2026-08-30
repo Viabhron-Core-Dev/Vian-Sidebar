@@ -20,8 +20,8 @@ object DynamicSpeedIconGenerator {
     data class IconConfig(
         val font: String = "sans-serif-condensed",
         val isFakeBold: Boolean = true,
-        val numScale: Float = 0.88f, // Calibrated for Xiaomi/Redmi 24dp (48px) status bar canvas to prevent edge clipping on 3-digit & decimal numbers
-        val unitScale: Float = 0.95f,
+        val numScale: Float = 0.82f, // Calibrated for Xiaomi/Redmi 24dp (44px) status bar slot to ensure clear margin boundaries
+        val unitScale: Float = 0.90f,
         val numYOffsetDp: Float = 0f,
         val unitYOffsetDp: Float = 0f,
         val bgShape: String = "None",
@@ -30,7 +30,7 @@ object DynamicSpeedIconGenerator {
         val layoutMode: String = "Stacked",
         val resScale: Float = 2.0f,
         val aaMode: String = "Smooth",
-        val letterSpacing: Float = -0.02f, // Slight condensation for optimal 3-digit and decimal clarity
+        val letterSpacing: Float = -0.03f, // Tight condensed tracking for crisp 3-digit and decimal rendering
         val strokeWidthDp: Float = 0f
     )
 
@@ -217,6 +217,8 @@ object DynamicSpeedIconGenerator {
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             isFilterBitmap = false
+            isDither = false
+            hinting = Paint.HINTING_ON
             letterSpacing = config.letterSpacing
             if (config.strokeWidthDp > 0f) {
                 style = Paint.Style.FILL_AND_STROKE
@@ -229,6 +231,8 @@ object DynamicSpeedIconGenerator {
         // Update dynamic mutable paint properties
         numPaint.letterSpacing = config.letterSpacing
         numPaint.isFilterBitmap = false
+        numPaint.isDither = false
+        numPaint.hinting = Paint.HINTING_ON
         if (config.strokeWidthDp > 0f) {
             numPaint.style = Paint.Style.FILL_AND_STROKE
             numPaint.strokeWidth = config.strokeWidthDp * density
@@ -242,6 +246,8 @@ object DynamicSpeedIconGenerator {
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             isFilterBitmap = false
+            isDither = false
+            hinting = Paint.HINTING_ON
             letterSpacing = config.letterSpacing
             if (config.strokeWidthDp > 0f) {
                 style = Paint.Style.FILL_AND_STROKE
@@ -253,6 +259,8 @@ object DynamicSpeedIconGenerator {
 
         unitPaint.letterSpacing = config.letterSpacing
         unitPaint.isFilterBitmap = false
+        unitPaint.isDither = false
+        unitPaint.hinting = Paint.HINTING_ON
         if (config.strokeWidthDp > 0f) {
             unitPaint.style = Paint.Style.FILL_AND_STROKE
             unitPaint.strokeWidth = (config.strokeWidthDp * 0.75f) * density
@@ -269,12 +277,16 @@ object DynamicSpeedIconGenerator {
                 style = Paint.Style.STROKE
                 strokeWidth = 1.5f * density
                 isFilterBitmap = false
+                isDither = false
+                hinting = Paint.HINTING_ON
                 letterSpacing = config.letterSpacing
             }.also { if (config == activeConfig) cachedStrokePaint = it }
         } else null
 
         outlinePaint?.letterSpacing = config.letterSpacing
         outlinePaint?.isFilterBitmap = false
+        outlinePaint?.isDither = false
+        outlinePaint?.hinting = Paint.HINTING_ON
 
         val centerX = Math.round(sizePx / 2f).toFloat()
 
@@ -283,12 +295,13 @@ object DynamicSpeedIconGenerator {
                 // Compact: e.g. "45K" or "1.2M" on a single centered line
                 val shortUnit = if (display.unit.startsWith("M")) "M" else "K"
                 val compactText = "${display.number}$shortUnit"
-                val maxH = sizePx * 0.75f * config.numScale
-                val maxW = sizePx * 0.94f
+                val safePadX = (2.5f * density).coerceAtLeast(3f)
+                val maxW = (sizePx - (2f * safePadX)).coerceAtLeast(10f)
+                val maxH = sizePx * 0.72f * config.numScale
                 numPaint.textSize = maxH
                 val textW = numPaint.measureText(compactText)
                 val scale = minOf(if (textW > 0f) maxW / textW else 1f, 1.0f)
-                numPaint.textSize = maxH * scale
+                numPaint.textSize = (maxH * scale).coerceAtLeast(8f)
 
                 val finalMetrics = numPaint.fontMetrics
                 val centerY = (sizePx / 2f) + (config.numYOffsetDp * density)
@@ -301,12 +314,13 @@ object DynamicSpeedIconGenerator {
             }
             "NumberOnly" -> {
                 // Number only centered across full height
-                val maxH = sizePx * 0.85f * config.numScale
-                val maxW = sizePx * 0.94f
+                val safePadX = (2.5f * density).coerceAtLeast(3f)
+                val maxW = (sizePx - (2f * safePadX)).coerceAtLeast(10f)
+                val maxH = sizePx * 0.82f * config.numScale
                 numPaint.textSize = maxH
                 val textW = numPaint.measureText(display.number)
                 val scale = minOf(if (textW > 0f) maxW / textW else 1f, 1.0f)
-                numPaint.textSize = maxH * scale
+                numPaint.textSize = (maxH * scale).coerceAtLeast(8f)
 
                 val finalMetrics = numPaint.fontMetrics
                 val centerY = (sizePx / 2f) + (config.numYOffsetDp * density)
@@ -318,29 +332,29 @@ object DynamicSpeedIconGenerator {
                 canvas.drawText(display.number, centerX, baselineY, numPaint)
             }
             else -> {
-                // Stacked (Default 70/30 Split)
-                // Top Speed Value: textSize = sizePx * 0.58f (bold, centered in top 70%)
-                val maxNumH = sizePx * 0.58f * config.numScale
-                val maxNumW = sizePx * 0.96f
+                // Stacked (Default 70/30 Split with boundary safety margins)
+                val safePadX = (2.5f * density).coerceAtLeast(3f)
+                val maxNumW = (sizePx - (2f * safePadX)).coerceAtLeast(10f)
+                val maxNumH = sizePx * 0.54f * config.numScale
                 numPaint.textSize = maxNumH
                 val numTextW = numPaint.measureText(display.number)
                 val scaleNum = minOf(if (numTextW > 0f) maxNumW / numTextW else 1f, 1.0f)
-                numPaint.textSize = maxNumH * scaleNum
+                numPaint.textSize = (maxNumH * scaleNum).coerceAtLeast(8f)
 
                 val numFm = numPaint.fontMetrics
-                val topCenterY = (sizePx * 0.36f) + (config.numYOffsetDp * density)
+                val topCenterY = (sizePx * 0.35f) + (config.numYOffsetDp * density)
                 val numY = Math.round(topCenterY - ((numFm.ascent + numFm.descent) / 2f)).toFloat()
 
-                // Bottom Unit (kB/s): textSize = sizePx * 0.28f (bold, centered in bottom 30%)
+                // Bottom Unit (kB/s)
+                val maxUnitW = (sizePx - (2f * safePadX)).coerceAtLeast(10f)
                 val maxUnitH = sizePx * 0.28f * config.unitScale
-                val maxUnitW = sizePx * 0.96f
                 unitPaint.textSize = maxUnitH
                 val unitTextW = unitPaint.measureText(display.unit)
                 val scaleUnit = minOf(if (unitTextW > 0f) maxUnitW / unitTextW else 1f, 1.0f)
-                unitPaint.textSize = maxUnitH * scaleUnit
+                unitPaint.textSize = (maxUnitH * scaleUnit).coerceAtLeast(6f)
 
                 val unitFm = unitPaint.fontMetrics
-                val bottomCenterY = (sizePx * 0.82f) + (config.unitYOffsetDp * density)
+                val bottomCenterY = (sizePx * 0.81f) + (config.unitYOffsetDp * density)
                 val unitY = Math.round(bottomCenterY - ((unitFm.ascent + unitFm.descent) / 2f)).toFloat()
 
                 if (outlinePaint != null) {

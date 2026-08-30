@@ -21,25 +21,19 @@ object LogKeeper {
         appContext = context.applicationContext
         cleanLegacyLogFiles()
         
-        if (!isEnabled || defaultHandler != null) return
-        defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-        
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            saveCrashLog(thread, throwable)
-            defaultHandler?.uncaughtException(thread, throwable)
+        if (!isEnabled) return
+        if (defaultHandler == null) {
+            defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+                saveCrashLog(thread, throwable)
+                defaultHandler?.uncaughtException(thread, throwable)
+            }
         }
     }
 
-    private fun getTargetLogDirectory(): File? {
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        if (downloadsDir != null && downloadsDir.exists()) {
-            return downloadsDir
-        }
-        val fallbackDir = appContext?.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        if (fallbackDir != null && fallbackDir.exists()) {
-            return fallbackDir
-        }
-        return appContext?.filesDir
+    fun getTargetLogDirectory(context: android.content.Context? = null): File? {
+        val ctx = context?.applicationContext ?: appContext
+        return ctx?.filesDir
     }
 
     private fun cleanLegacyLogFiles() {
