@@ -19,8 +19,8 @@ class SidebarManager(
         if (intent == null) return
         val action = intent.action
         val handleId = intent.getStringExtra("handleId") ?: "sidebar"
-        val gesture = intent.getStringExtra("gesture") ?: "tap"
-        val containerId = "${handleId}_${gesture}"
+        val gesture = intent.getStringExtra("gesture") ?: "swipe_left"
+        val containerId = intent.getStringExtra("containerId") ?: "${handleId}_${gesture}"
         
         AppLogger.d("SidebarManager", "handleIntent: action=$action handleId=$handleId gesture=$gesture containerId=$containerId")
         

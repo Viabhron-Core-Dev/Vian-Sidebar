@@ -167,7 +167,60 @@ fun NetSpeedSettingsScreen(onBack: () -> Unit) {
                 )
                 Divider()
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Diagnostics Card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Speed Icon Sharpness & Diagnostics",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Captures first 10-second polling trace (bitmap allocation, subpixel text, canvas clean state) to diagnose rendering quality.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val success = com.example.core.SpeedIconDiagnostics.copyToClipboard(context)
+                                    if (success) {
+                                        android.widget.Toast.makeText(context, "Diagnostic report copied to clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        android.widget.Toast.makeText(context, "Failed to copy diagnostics", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("📋 Copy Diagnostic Log")
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    com.example.core.SpeedIconDiagnostics.reset()
+                                    android.widget.Toast.makeText(context, "Diagnostics reset for next polling cycle", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            ) {
+                                Text("Reset")
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
                     text = "App Data Usage",

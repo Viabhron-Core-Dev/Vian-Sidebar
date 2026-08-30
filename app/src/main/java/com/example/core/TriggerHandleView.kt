@@ -168,6 +168,7 @@ class TriggerHandleView(
             setClassName(context, "com.example.service.SidebarService")
             putExtra("handleId", handleId)
             putExtra("gesture", gesture)
+            putExtra("containerId", "${handleId}_$gesture")
         }
 
         when {

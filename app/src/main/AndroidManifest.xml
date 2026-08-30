@@ -60,14 +60,14 @@
             android:name=".service.SidebarService"
             android:enabled="true"
             android:exported="false"
-            android:process=":overlay"
+            android:process=":sidebar"
             android:foregroundServiceType="specialUse" />
 
         <service
             android:name=".core.HandleService"
             android:enabled="true"
             android:exported="false"
-            android:process=":overlay"
+            android:process=":core"
             android:foregroundServiceType="specialUse" />
 
         <receiver
@@ -143,19 +143,23 @@
         <service
             android:name=".feature.miniapps.browser.FloatingBrowserService"
             android:exported="false"
+            android:process=":sidebar"
             android:foregroundServiceType="specialUse" />
         <service
             android:name=".feature.miniapps.reader.FloatingReaderService"
             android:exported="false"
+            android:process=":sidebar"
             android:foregroundServiceType="mediaPlayback|microphone" />
 
         <service
             android:name=".service.PageWindowService"
             android:exported="false"
+            android:process=":sidebar"
             android:foregroundServiceType="specialUse" />
         <service
             android:name=".service.FloatingTriggerService"
             android:exported="false"
+            android:process=":sidebar"
             android:foregroundServiceType="specialUse" />
             <activity android:name=".feature.settings.AddElementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".feature.settings.ActionPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
@@ -186,6 +190,7 @@
         <activity android:name=".feature.settings.TagManagementActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".feature.settings.LogKeeperActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".WidgetPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
+        <activity android:name=".IconPickerActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         
         <activity android:name=".HybridGridEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
         <activity android:name=".WidgetsGridEditActivity" android:exported="false" android:theme="@style/Theme.LiteReader" />
@@ -200,6 +205,7 @@
         <service
             android:name=".service.ScreenRecordService"
             android:exported="false"
+            android:process=":sidebar"
             android:foregroundServiceType="mediaProjection" />
         <activity
             android:name=".feature.system_hub.BarcodeScannerActivity"
@@ -227,6 +233,7 @@
             android:theme="@style/Theme.LiteReader" />
         <receiver
             android:name=".feature.system_hub.CallStateReceiver"
+            android:process=":core"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.PHONE_STATE" />

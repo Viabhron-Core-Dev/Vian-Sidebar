@@ -260,25 +260,6 @@ class SidebarView(
                 if (pageConfigs.isNotEmpty()) {
                     val currentItem = viewPager.currentItem
                     val actualPosition = if (pageConfigs.size > 2) currentItem % pageConfigs.size else currentItem
-                    
-                    val recyclerView = viewPager.getChildAt(0) as RecyclerView
-                    val holder = recyclerView.findViewHolderForAdapterPosition(currentItem) as? SidebarPageViewHolder
-                    var handledLocally = false
-                    if (holder != null) {
-                        val frame = holder.itemView as FrameLayout
-                        if (frame.childCount > 0) {
-                            val child = frame.getChildAt(0)
-                            val pageView = if (child is android.widget.ScrollView) (child as android.view.ViewGroup).getChildAt(0) else child
-                            if (pageView is SidebarPageControllable) {
-                                pageView.onEditClicked()
-                                handledLocally = true
-                            } else if (child is SidebarPageControllable) {
-                                child.onEditClicked()
-                                handledLocally = true
-                            }
-                        }
-                    }
-                    
                     val pageConfig = pageConfigs.getOrNull(actualPosition)
                     if (pageConfig != null) {
                         when (pageConfig.type) {
@@ -291,7 +272,6 @@ class SidebarView(
                                 }
                                 context.startActivity(intent)
                                 onClose()
-                                handledLocally = true
                             }
                             "widgets_grid" -> {
                                 val intent = Intent(context, com.example.WidgetsGridEditActivity::class.java).apply {
@@ -300,7 +280,6 @@ class SidebarView(
                                 }
                                 context.startActivity(intent)
                                 onClose()
-                                handledLocally = true
                             }
                             "hybrid_grid", "default_hybrid" -> {
                                 val intent = Intent(context, com.example.HybridGridEditActivity::class.java).apply {
@@ -309,7 +288,6 @@ class SidebarView(
                                 }
                                 context.startActivity(intent)
                                 onClose()
-                                handledLocally = true
                             }
                             "app_tracker" -> {
                                 val intent = Intent(context, com.example.AppTrackerSettingsActivity::class.java).apply {
@@ -317,7 +295,6 @@ class SidebarView(
                                 }
                                 context.startActivity(intent)
                                 onClose()
-                                handledLocally = true
                             }
                             "notifications", "notification" -> {
                                 val intent = Intent(context, com.example.NotificationHistoryActivity::class.java).apply {
@@ -325,7 +302,6 @@ class SidebarView(
                                 }
                                 context.startActivity(intent)
                                 onClose()
-                                handledLocally = true
                             }
                             "scheduler", "short_reminders", "reminder", "reminders" -> {
                                 val intent = Intent(context, com.example.feature.settings.TagManagementActivity::class.java).apply {
@@ -333,7 +309,6 @@ class SidebarView(
                                 }
                                 context.startActivity(intent)
                                 onClose()
-                                handledLocally = true
                             }
                             "calculator", "compass", "resources_tracker", "media_player", "widget" -> {
                                 val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
@@ -342,23 +317,16 @@ class SidebarView(
                                 }
                                 context.startActivity(intent)
                                 onClose()
-                                handledLocally = true
+                            }
+                            else -> {
+                                val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    putExtra("start_route", "pages_${containerId}")
+                                }
+                                context.startActivity(intent)
+                                onClose()
                             }
                         }
-                    }
-                    
-                    if (!handledLocally) {
-                        // Fallback to Settings if the view doesn't implement its own editor
-                        val intent = Intent(context, com.example.feature.settings.SettingsActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            if (pageConfig != null) {
-                                putExtra("start_route", "pages_${containerId}|edit_page:${pageConfig.id}")
-                            } else {
-                                putExtra("start_route", "pages_${containerId}")
-                            }
-                        }
-                        context.startActivity(intent)
-                        onClose()
                     }
                 }
             }

@@ -612,13 +612,27 @@ class SidebarAppsManager(
         if (id.startsWith("app:")) {
             val pkg = id.substringAfter("app:")
             iconCache.get(pkg)?.let { return it }
+            com.example.core.IconCacheManager.getCachedBitmap(context, pkg)?.let {
+                iconCache.put(pkg, it)
+                return it
+            }
         } else if (id.startsWith("intent:")) {
             val pkg = id.substringAfter("intent:").split("/").getOrNull(0) ?: ""
             iconCache.get(pkg)?.let { return it }
+            if (pkg.isNotEmpty()) {
+                com.example.core.IconCacheManager.getCachedBitmap(context, pkg)?.let {
+                    iconCache.put(pkg, it)
+                    return it
+                }
+            }
         }
         val parsed = parseId(id) ?: return null
         if (parsed is SidebarItem.App) {
-            return iconCache.get(parsed.packageName)
+            iconCache.get(parsed.packageName)?.let { return it }
+            com.example.core.IconCacheManager.getCachedBitmap(context, parsed.packageName)?.let {
+                iconCache.put(parsed.packageName, it)
+                return it
+            }
         }
         val resId = when (parsed) {
             is SidebarItem.SystemAction -> parsed.iconResId
@@ -1000,6 +1014,12 @@ class SidebarAppsManager(
 
     suspend fun loadIcon(packageName: String): Bitmap? = withContext(Dispatchers.IO) {
         iconCache.get(packageName)?.let { return@withContext it }
+
+        val cachedDisk = com.example.core.IconCacheManager.getOrLoadBitmap(context, packageName)
+        if (cachedDisk != null) {
+            iconCache.put(packageName, cachedDisk)
+            return@withContext cachedDisk
+        }
 
         val pm = context.packageManager
         return@withContext try {

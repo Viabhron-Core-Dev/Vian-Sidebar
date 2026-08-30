@@ -120,7 +120,7 @@ object PageManager {
 
         val pagesJson = containerSpecificJson ?: handlePagesJson
         
-        val defaultPageId = if (rawHandleId == "sidebar") "default_hybrid" else "default_hybrid_$rawHandleId"
+        val defaultPageId = if (rawHandleId == "sidebar" || rawHandleId == "sidebar_swipe_left") "default_hybrid" else "default_hybrid_$rawHandleId"
         val defaultPage = SidebarPage(id = defaultPageId, type = "hybrid_grid", title = "Home Grid")
         if (!prefs.contains("hybrid_grid_" + defaultPageId)) {
             val jsonStr = "[{\"id\": \"system:ebook_reader\", \"cols\": 1, \"rows\": 1, \"x\": 0, \"y\": 0}, {\"id\": \"system:log_keeper\", \"cols\": 1, \"rows\": 1, \"x\": 1, \"y\": 0}]"

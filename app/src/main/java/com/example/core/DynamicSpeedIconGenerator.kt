@@ -102,16 +102,15 @@ object DynamicSpeedIconGenerator {
         return Math.round(24f * density).coerceAtLeast(24)
     }
 
-    /**
-     * Generates a razor-sharp, 1:1 pixel native status bar icon bitmap (Battery Indicator Pro style).
-     * Sized exactly to the system small icon dimension with zero supersampling and zero downsampling blur.
-     */
+    private var tickCounter = 0
+
     fun generateStatusBarBitmap(
         context: Context,
         bytesPerSec: Long,
         forcedUnit: String? = null,
         overrideConfig: IconConfig? = null
     ): Bitmap {
+        val startTime = System.nanoTime()
         val config = overrideConfig ?: activeConfig
         val display = formatSpeed(bytesPerSec, forcedUnit)
         
@@ -121,9 +120,14 @@ object DynamicSpeedIconGenerator {
 
         val sizePx = getNotificationIconSize(context)
 
+        if (tickCounter == 0) {
+            SpeedIconDiagnostics.captureInitialMetrics(context, sizePx)
+        }
+
         val isLive = (overrideConfig == null)
         var bitmap = if (isLive) cachedBitmap else null
         var canvas = if (isLive) cachedCanvas else null
+        var eraseCalled = false
 
         if (isLive) {
             if (bitmap == null || bitmap.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
@@ -137,14 +141,34 @@ object DynamicSpeedIconGenerator {
                 cachedDensityDpi = densityDpi
             }
             bitmap.eraseColor(Color.TRANSPARENT)
+            eraseCalled = true
         } else {
             bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
                 this.density = densityDpi
             }
             canvas = Canvas(bitmap)
+            bitmap.eraseColor(Color.TRANSPARENT)
+            eraseCalled = true
         }
 
-        renderIconToCanvas(canvas!!, sizePx, display, config)
+        val (numBounds, unitBounds, numPaint, unitPaint) = renderIconToCanvas(canvas!!, sizePx, display, config)
+
+        val durationUs = (System.nanoTime() - startTime) / 1000
+        if (isLive) {
+            SpeedIconDiagnostics.recordTick(
+                tickIndex = tickCounter++,
+                bytesPerSec = bytesPerSec,
+                formattedNumber = display.number,
+                formattedUnit = display.unit,
+                bitmap = bitmap,
+                numPaint = numPaint,
+                unitPaint = unitPaint,
+                numBounds = numBounds,
+                unitBounds = unitBounds,
+                eraseColorCalled = eraseCalled,
+                renderDurationUs = durationUs
+            )
+        }
 
         return bitmap
     }
@@ -154,7 +178,7 @@ object DynamicSpeedIconGenerator {
         sizePx: Int,
         display: SpeedDisplay,
         config: IconConfig
-    ) {
+    ): Quadruple<Rect, Rect, Paint, Paint> {
         val tf = cachedTypeface ?: try {
             if (config.font.isNotEmpty()) {
                 Typeface.create(config.font, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
@@ -165,33 +189,41 @@ object DynamicSpeedIconGenerator {
             if (config.isFakeBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }.also { if (config == activeConfig) cachedTypeface = it }
 
-        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             isFilterBitmap = true
             isDither = false
+            hinting = Paint.HINTING_ON
+            isSubpixelText = true
             style = Paint.Style.FILL
             letterSpacing = config.letterSpacing
         }.also { if (config == activeConfig) cachedNumPaint = it }
 
         numPaint.letterSpacing = config.letterSpacing
         numPaint.isFakeBoldText = config.isFakeBold
+        numPaint.isSubpixelText = true
+        numPaint.hinting = Paint.HINTING_ON
 
-        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             isFilterBitmap = true
             isDither = false
+            hinting = Paint.HINTING_ON
+            isSubpixelText = true
             style = Paint.Style.FILL
             letterSpacing = config.letterSpacing
         }.also { if (config == activeConfig) cachedUnitPaint = it }
 
         unitPaint.letterSpacing = config.letterSpacing
         unitPaint.isFakeBoldText = config.isFakeBold
+        unitPaint.isSubpixelText = true
+        unitPaint.hinting = Paint.HINTING_ON
 
         val centerX = (sizePx / 2f)
 
@@ -223,7 +255,11 @@ object DynamicSpeedIconGenerator {
 
         canvas.drawText(display.number, centerX, numBaseline, numPaint)
         canvas.drawText(display.unit, centerX, unitBaseline, unitPaint)
+
+        return Quadruple(numBounds, unitBounds, numPaint, unitPaint)
     }
+
+    data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
     fun generateIconCompat(context: Context, bytesPerSec: Long, forcedUnit: String? = null): IconCompat {
         val bitmap = generateStatusBarBitmap(context, bytesPerSec, forcedUnit)

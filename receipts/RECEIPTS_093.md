@@ -219,23 +219,39 @@
 * Deviations: None.
 * Known issues: None.
 
-* Timestamp: 2026-08-30T09:50:00-07:00
-* One-line summary: Removed internet speed calibration logging, isolated gesture container page configurations, and verified 1:1 pixel rendering.
+* Timestamp: 2026-08-30T13:07:30-07:00
+* One-line summary: Implemented long-press contextual menus, SAF compressed custom icon replacement, dedicated top-bar edit mode, and AddElementActivity integration.
 * Exact files touched:
-  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
-  - `app/src/main/java/com/example/core/HandleService.kt`
-  - `app/src/main/java/com/example/core/TriggerHandleView.kt`
-  - `app/src/main/java/com/example/feature/settings/HandlesListSettingsScreen.kt`
-  - `app/src/main/java/com/example/feature/sidebar/SidebarManager.kt`
-  - `app/src/main/java/com/example/utils/PageManager.kt`
+  - `app/src/main/java/com/example/IconPickerActivity.kt`
+  - `app/src/main/java/com/example/core/IconCacheManager.kt`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+  - `app/src/main/AndroidManifest.xml`
+  - `receipts/RECEIPTS_093.md`
 * What was actually done:
-  - Removed diagnostic device calibration logging from `DynamicSpeedIconGenerator.kt` and `HandleService.kt`.
-  - Rendered internet speed status bar icon directly to 1:1 native small-icon pixel dimensions with subpixel anti-aliasing and zero downsampling distortion.
-  - Enforced strict gesture container isolation across `PageManager.kt`, `SidebarManager.kt`, and `HandlesListSettingsScreen.kt` using `containerId = "${handleId}_$gesture"`, ensuring separate gesture actions (such as tap vs. swipe left) maintain completely independent page configurations and faces without bleeding.
-  - Aligned `TriggerHandleView.kt` lifecycle methods (`attach()`, `detach()`, `updatePosition()`, `setVisibility()`) and parameters with `HandleService.kt`.
-* How it was verified: local build only (`compile_applet` passed).
+  - Implemented `IconPickerActivity` allowing custom icon selection via Storage Access Framework (SAF) or resetting to default icon. Integrated with `IconCacheManager` to downsample custom images via `inSampleSize` and save them as ultra-compact 48x48 WebP files in `filesDir/custom_icons/`.
+  - Configured long-press menus across App/Hybrid grids ("App Info", "Remove", "Change Icon", "Reset Icon") and Widget grids ("App Info", "Remove"), completely decoupling them from drag/reorder mode.
+  - Enforced that edit mode (reordering, grid dimension configuration, item additions) is exclusively triggered via the top-left Edit button in the Sidebar header, routing directly to `SidebarEditActivity`, `HybridGridEditActivity`, and `WidgetsGridEditActivity`.
+  - Verified and confirmed that adding elements uses the original `AddElementActivity` (AppPicker, ActionPicker, ShortcutPicker, IntentPicker) with lightweight JSON ID storage.
+* How it was verified: local build only (`compile_applet` passed successfully).
 * Deviations: None.
 * Known issues: None.
+
+* Timestamp: 2026-08-30T14:07:30-07:00
+* One-line summary: Implemented NetSpeed dynamic icon subpixel sharpness fix, 10-second polling diagnostics tracer, and one-tap clipboard copy button in Settings.
+* Exact files touched:
+  - `app/src/main/java/com/example/core/SpeedIconDiagnostics.kt`
+  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+  - `app/src/main/java/com/example/feature/settings/NetSpeedSettingsScreen.kt`
+  - `receipts/RECEIPTS_093.md`
+* What was actually done:
+  - Created `SpeedIconDiagnostics.kt` to capture a ring-buffer trace of the first 10 polling ticks (screen density metrics, target icon dimensions, bitmap allocation vs memory reuse, canvas erase state, subpixel text and antialiasing flags, glyph bounds, and native execution latency in microseconds).
+  - Updated `DynamicSpeedIconGenerator.kt` with explicit `Paint.SUBPIXEL_TEXT_FLAG`, `Paint.HINTING_ON`, subpixel glyph positioning, and guaranteed `eraseColor(Color.TRANSPARENT)` execution per cycle to prevent accumulated alpha bleed and font fuzziness.
+  - Added "Speed Icon Sharpness & Diagnostics" card in `NetSpeedSettingsScreen.kt` featuring a one-tap `[📋 Copy Diagnostic Log]` button that copies the full report to the Android `ClipboardManager` and a reset button.
+  - Verified full clean compilation with `compile_applet`.
+* How it was verified: local build only (`compile_applet` passed successfully).
+* Deviations: None.
+* Known issues: None.
+
 
 
 

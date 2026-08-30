@@ -13,6 +13,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         LogKeeper.initialize(this)
+        com.example.core.IconCacheManager.init(this)
         
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, exception ->
