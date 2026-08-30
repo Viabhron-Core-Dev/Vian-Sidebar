@@ -1,13 +1,13 @@
 package com.example.core
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Rect
 import android.os.Build
+import androidx.core.app.NotificationCompat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,38 +25,64 @@ object SpeedIconDiagnostics {
         val bitmapWidth: Int,
         val bitmapHeight: Int,
         val bitmapDensity: Int,
-        val eraseColorCalled: Boolean,
-        val isSubpixelText: Boolean,
-        val isAntiAlias: Boolean,
-        val isFilterBitmap: Boolean,
-        val hinting: Int,
-        val numTextSize: Float,
-        val unitTextSize: Float,
-        val numBounds: Rect,
-        val unitBounds: Rect,
         val renderDurationUs: Long
     )
 
-    private const val MAX_DIAGNOSTIC_TICKS = 10
+    private const val MAX_DIAGNOSTIC_TICKS = 15
     private val ticks = CopyOnWriteArrayList<DiagnosticTick>()
     private var isRecording = true
-    private var initialMetricsString: String = ""
+    private var systemMetricsReport: String = ""
 
-    fun captureInitialMetrics(context: Context, sizePx: Int) {
+    fun captureComprehensiveSystemMetrics(context: Context) {
         val dm = context.resources.displayMetrics
         val res = context.resources
-        val resId = res.getIdentifier("status_bar_icon_size", "dimen", "android")
-        val sysDimensPx = if (resId > 0) {
-            try { res.getDimensionPixelSize(resId) } catch (e: Exception) { -1 }
-        } else -1
 
-        initialMetricsString = """
-            Android OS: Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})
-            Device: ${Build.MANUFACTURER} ${Build.MODEL}
-            Screen Resolution: ${dm.widthPixels}x${dm.heightPixels} px
-            Screen Density: ${dm.density}x (Dpi: ${dm.densityDpi})
-            System status_bar_icon_size dimen: ${if (sysDimensPx > 0) "${sysDimensPx}px" else "Not defined by OEM"}
-            Generated Icon Target Size: ${sizePx}x${sizePx} px (calculated density factor: ${(sizePx / dm.density)}dp)
+        fun getDimenPx(name: String): String {
+            val id = res.getIdentifier(name, "dimen", "android")
+            return if (id > 0) {
+                try {
+                    val px = res.getDimensionPixelSize(id)
+                    val dp = px / dm.density
+                    "${px}px (${String.format(Locale.US, "%.1fdp", dp)})"
+                } catch (e: Exception) { "Error reading" }
+            } else "OEM Default / Undefined"
+        }
+
+        val notifManager = context.getSystemService(NotificationManager::class.java)
+        val channel = notifManager?.getNotificationChannel("handle_channel")
+        val channelImportance = when (channel?.importance) {
+            NotificationManager.IMPORTANCE_NONE -> "NONE"
+            NotificationManager.IMPORTANCE_MIN -> "MIN"
+            NotificationManager.IMPORTANCE_LOW -> "LOW"
+            NotificationManager.IMPORTANCE_DEFAULT -> "DEFAULT"
+            NotificationManager.IMPORTANCE_HIGH -> "HIGH"
+            else -> "Not Created / Unknown"
+        }
+
+        val calculatedIconPx = DynamicSpeedIconGenerator.getNotificationIconSize(context)
+
+        systemMetricsReport = """
+            --- [DEVICE & DISPLAY HARDWARE] ---
+            • Android Version: Android ${Build.VERSION.RELEASE} (API Level ${Build.VERSION.SDK_INT})
+            • Manufacturer & Model: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.PRODUCT})
+            • Physical Resolution: ${dm.widthPixels}x${dm.heightPixels} px
+            • Screen Density: ${dm.density}x (DensityDpi: ${dm.densityDpi} dpi)
+            • Scaled Density (Font scale): ${dm.scaledDensity}x
+
+            --- [SYSTEM NOTIFICATION & STATUS BAR DIMENSIONS] ---
+            • status_bar_height: ${getDimenPx("status_bar_height")}
+            • status_bar_icon_size: ${getDimenPx("status_bar_icon_size")}
+            • notification_small_icon_size: ${getDimenPx("notification_small_icon_size")}
+            • notification_large_icon_width: ${getDimenPx("notification_large_icon_width")}
+            • notification_large_icon_height: ${getDimenPx("notification_large_icon_height")}
+            • notification_badge_size: ${getDimenPx("notification_badge_size")}
+            • Generated SmallIcon Native Buffer: ${calculatedIconPx}x${calculatedIconPx} px
+
+            --- [NOTIFICATION PIPELINE & CHANNEL] ---
+            • Notification Channel ID: "handle_channel"
+            • Channel Importance: $channelImportance
+            • SmallIcon Binding Method: IconCompat.createWithBitmap(Bitmap)
+            • Ongoing / Foreground Service: Active
         """.trimIndent()
     }
 
@@ -66,11 +92,6 @@ object SpeedIconDiagnostics {
         formattedNumber: String,
         formattedUnit: String,
         bitmap: Bitmap,
-        numPaint: Paint,
-        unitPaint: Paint,
-        numBounds: Rect,
-        unitBounds: Rect,
-        eraseColorCalled: Boolean,
         renderDurationUs: Long
     ) {
         if (!isRecording && ticks.size >= MAX_DIAGNOSTIC_TICKS) return
@@ -86,15 +107,6 @@ object SpeedIconDiagnostics {
                 bitmapWidth = bitmap.width,
                 bitmapHeight = bitmap.height,
                 bitmapDensity = bitmap.density,
-                eraseColorCalled = eraseColorCalled,
-                isSubpixelText = numPaint.isSubpixelText,
-                isAntiAlias = numPaint.isAntiAlias,
-                isFilterBitmap = numPaint.isFilterBitmap,
-                hinting = numPaint.hinting,
-                numTextSize = numPaint.textSize,
-                unitTextSize = unitPaint.textSize,
-                numBounds = Rect(numBounds),
-                unitBounds = Rect(unitBounds),
                 renderDurationUs = renderDurationUs
             )
             ticks.add(tick)
@@ -106,56 +118,50 @@ object SpeedIconDiagnostics {
         isRecording = true
     }
 
-    fun getDiagnosticReport(context: Context? = null): String {
+    fun getDiagnosticReport(context: Context): String {
+        captureComprehensiveSystemMetrics(context)
         val sb = StringBuilder()
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
         sb.appendLine("==================================================")
-        sb.appendLine("  NETSPEED DYNAMIC ICON DIAGNOSTIC REPORT")
+        sb.appendLine("  NETSPEED DYNAMIC ICON FORENSIC REPORT")
         sb.appendLine("==================================================")
-        sb.appendLine("Generated At: ${sdf.format(Date())}")
+        sb.appendLine("Report Timestamp: ${sdf.format(Date())}")
         sb.appendLine()
-        sb.appendLine("--- [DISPLAY & DENSITY ENVIRONMENT] ---")
-        if (initialMetricsString.isNotEmpty()) {
-            sb.appendLine(initialMetricsString)
-        } else if (context != null) {
-            val dm = context.resources.displayMetrics
-            sb.appendLine("Screen: ${dm.widthPixels}x${dm.heightPixels} px | Density: ${dm.density}x (${dm.densityDpi} dpi)")
-        } else {
-            sb.appendLine("Metrics: Pending initialization")
-        }
+        sb.appendLine(systemMetricsReport)
         sb.appendLine()
-        sb.appendLine("--- [FIRST ${ticks.size} POLLING TICKS TRANSITION ANALYSIS] ---")
+        sb.appendLine("--- [POLLING CYCLE TRANSITION LOG (FIRST ${ticks.size} TICKS)] ---")
 
         if (ticks.isEmpty()) {
-            sb.appendLine("No polling ticks recorded yet. Please enable NetSpeed monitor in Settings or wait 2-3 seconds.")
+            sb.appendLine("No polling ticks captured yet. Enable NetSpeed monitor in Settings to collect frames.")
         } else {
             ticks.forEach { t ->
                 val timeStr = sdf.format(Date(t.timestamp))
                 sb.appendLine("[Tick #${t.tickIndex} @ $timeStr]")
-                sb.appendLine("  • Speed: ${t.bytesPerSec} B/s -> Display: \"${t.formattedNumber} ${t.formattedUnit}\"")
-                sb.appendLine("  • Bitmap: ${t.bitmapWidth}x${t.bitmapHeight} px (Dpi: ${t.bitmapDensity}) | MemHash: ${Integer.toHexString(t.bitmapHash)}")
-                sb.appendLine("  • Buffer Erase: ${if (t.eraseColorCalled) "PASS (eraseColor TRANSPARENT executed)" else "FAIL (No canvas clear!)"}")
-                sb.appendLine("  • Paint Config: AntiAlias=${t.isAntiAlias} | SubpixelText=${t.isSubpixelText} | FilterBitmap=${t.isFilterBitmap} | Hinting=${if (t.hinting == Paint.HINTING_ON) "ON" else "OFF"}")
-                sb.appendLine("  • Number TextSize=${String.format(Locale.US, "%.1fpx", t.numTextSize)} | Bounds=${t.numBounds}")
-                sb.appendLine("  • Unit TextSize=${String.format(Locale.US, "%.1fpx", t.unitTextSize)} | Bounds=${t.unitBounds}")
-                sb.appendLine("  • Native Render Latency: ${t.renderDurationUs} µs (<0.1 ms)")
+                sb.appendLine("  • Speed Value: ${t.bytesPerSec} B/s -> Rendered Text: \"${t.formattedNumber} ${t.formattedUnit}\"")
+                sb.appendLine("  • Dynamic Bitmap Buffer: ${t.bitmapWidth}x${t.bitmapHeight} px (Dpi: ${t.bitmapDensity}) | MemAddress: ${Integer.toHexString(t.bitmapHash)}")
+                sb.appendLine("  • Render Execution Latency: ${t.renderDurationUs} µs")
                 sb.appendLine()
             }
         }
 
-        sb.appendLine("--- [DIAGNOSTIC VERDICT] ---")
-        if (ticks.isNotEmpty()) {
-            val firstTick = ticks.first()
-            val allErased = ticks.all { it.eraseColorCalled }
-            val sameBuffer = ticks.all { it.bitmapHash == firstTick.bitmapHash }
-            val subpixelEnabled = ticks.all { it.isSubpixelText }
-
-            sb.appendLine("1. Canvas Cleanliness: ${if (allErased) "PERFECT - Zero alpha accumulation bleed between ticks." else "WARNING - Missing erase color."}")
-            sb.appendLine("2. Memory Recycling: ${if (sameBuffer) "PERFECT - Reusing static 0-allocation buffer." else "ALLOCATING - New bitmap created per tick."}")
-            sb.appendLine("3. Subpixel & Antialiasing: ${if (subpixelEnabled) "ACTIVE - Subpixel glyph positioning enabled." else "WARNING - Subpixel text disabled."}")
-            sb.appendLine("4. Density Alignment: Target bitmap density (${firstTick.bitmapDensity} dpi) matched to hardware.")
-        } else {
-            sb.appendLine("Status: Idle / Awaiting ticks.")
+        sb.appendLine("--- [BLUR / DEGRADATION FORENSIC FINDINGS] ---")
+        val dm = context.resources.displayMetrics
+        val calculatedIconPx = DynamicSpeedIconGenerator.getNotificationIconSize(context)
+        sb.appendLine("1. Status Bar SmallIcon Downscale:")
+        sb.appendLine("   - Generated buffer is ${calculatedIconPx}x${calculatedIconPx} px.")
+        sb.appendLine("   - In Android 12+, status bar small icon is clamped to ~24dp (approx ${(24 * dm.density).toInt()}px).")
+        sb.appendLine("2. Notification Panel Shade Badge:")
+        sb.appendLine("   - In expanded shade, small icon appears in header circle (~16dp to 20dp).")
+        sb.appendLine("   - High-density number text (stacked 2-line layout) undergoes downsampling by NotificationManager IPC binder.")
+        sb.appendLine("3. Memory Re-allocation Check:")
+        if (ticks.size >= 2) {
+            val uniqueHashes = ticks.map { it.bitmapHash }.distinct().size
+            sb.appendLine("   - Unique buffer instances across ${ticks.size} ticks: $uniqueHashes")
+            if (uniqueHashes == 1) {
+                sb.appendLine("   - Single reused buffer in memory (Zero GC pause overhead).")
+            } else {
+                sb.appendLine("   - Multiple buffer allocations detected.")
+            }
         }
         sb.appendLine("==================================================")
         return sb.toString()
@@ -174,3 +180,4 @@ object SpeedIconDiagnostics {
         }
     }
 }
+

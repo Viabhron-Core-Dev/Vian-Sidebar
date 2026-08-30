@@ -11,7 +11,8 @@ import com.example.utils.PageManager
 class SidebarManager(
     private val context: Context,
     private val prefs: SharedPreferences,
-    private val windowManager: WindowManager
+    private val windowManager: WindowManager,
+    private val onClosed: (() -> Unit)? = null
 ) {
     private var sidebarView: SidebarView? = null
     
@@ -150,7 +151,10 @@ class SidebarManager(
             sidebarView = null
             current.closeWithAnimation {
                 current.detach()
+                onClosed?.invoke()
             }
+        } else {
+            onClosed?.invoke()
         }
     }
 

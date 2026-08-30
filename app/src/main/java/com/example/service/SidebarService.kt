@@ -24,7 +24,9 @@ class SidebarService : Service() {
         instance = this
         prefs = getSharedPreferences("FloatingReaderPrefs", Context.MODE_PRIVATE)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        sidebarManager = SidebarManager(this, prefs, windowManager)
+        sidebarManager = SidebarManager(this, prefs, windowManager) {
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -34,7 +36,7 @@ class SidebarService : Service() {
             return START_NOT_STICKY
         }
         sidebarManager.handleIntent(intent)
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     fun closeSidebar() {
