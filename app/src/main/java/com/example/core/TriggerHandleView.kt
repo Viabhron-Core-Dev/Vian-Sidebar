@@ -1,141 +1,144 @@
 package com.example.core
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.graphics.PixelFormat
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import com.example.util.Utils
-import com.example.util.HandleShapeDrawable
-import com.example.util.getEdgeFlag
-import kotlin.math.abs
 import androidx.core.content.ContextCompat
+import kotlin.math.abs
 
 class TriggerHandleView(
     private val context: Context,
     private val prefs: SharedPreferences,
     private val windowManager: WindowManager,
-    private val handleId: String
+    val handleId: String
 ) {
-    private val prefix = "handle_${handleId}_"
     private var handleView: View? = null
     private var layoutParams: WindowManager.LayoutParams? = null
-    private var isAttached = false
+    private val prefix = "handle_${handleId}_"
 
     fun attach() {
-        if (isAttached) return
-        
-        handleView = View(context)
-        
-        val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (handleView != null) return
+
+        val isEnabled = prefs.getBoolean("${prefix}enabled", true)
+        if (!isEnabled) return
+
+        val edge = prefs.getString("${prefix}edge", "right") ?: "right"
+        val widthDp = prefs.getInt("${prefix}width", 15)
+        val heightDp = prefs.getInt("${prefix}height", 200)
+        val yOffsetDp = prefs.getInt("${prefix}y_offset", 0)
+        val colorHex = prefs.getString("${prefix}color", "#FF5252") ?: "#FF5252"
+        val alpha = prefs.getFloat("${prefix}alpha", 0.5f)
+
+        val density = context.resources.displayMetrics.density
+        val widthPx = (widthDp * density).toInt()
+        val heightPx = (heightDp * density).toInt()
+        val yOffsetPx = (yOffsetDp * density).toInt()
+
+        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
-        
+
         layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            windowType,
+            widthPx,
+            heightPx,
+            layoutType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        )
-        
-        updatePosition()
-        setupListeners()
-        
-        windowManager.addView(handleView, layoutParams)
-        isAttached = true
-    }
-    
-    fun setVisibility(visible: Boolean?) {
-        handleView?.visibility = if (visible == true) View.VISIBLE else View.GONE
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            android.graphics.PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = if (edge == "left") Gravity.START or Gravity.CENTER_VERTICAL else Gravity.END or Gravity.CENTER_VERTICAL
+            y = yOffsetPx
+        }
+
+        handleView = View(context).apply {
+            val baseColor = try {
+                Color.parseColor(colorHex)
+            } catch (e: Exception) {
+                Color.RED
+            }
+            val alphaInt = (alpha * 255).toInt().coerceIn(0, 255)
+            val finalColor = Color.argb(alphaInt, Color.red(baseColor), Color.green(baseColor), Color.blue(baseColor))
+
+            background = GradientDrawable().apply {
+                setColor(finalColor)
+                val cornerRadius = 8f * density
+                cornerRadii = if (edge == "left") {
+                    floatArrayOf(0f, 0f, cornerRadius, cornerRadius, cornerRadius, cornerRadius, 0f, 0f)
+                } else {
+                    floatArrayOf(cornerRadius, cornerRadius, 0f, 0f, 0f, 0f, cornerRadius, cornerRadius)
+                }
+            }
+        }
+
+        setupGestures()
+
+        try {
+            windowManager.addView(handleView, layoutParams)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun detach() {
-        if (!isAttached) return
         if (handleView != null) {
             try {
                 windowManager.removeView(handleView)
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            handleView = null
         }
-        isAttached = false
     }
 
     fun updatePosition() {
-        if (handleView == null || layoutParams == null) return
-        
-        val edgeStr = prefs.getString("${prefix}edge", "right") ?: "right"
-        val gravity = getEdgeFlag(edgeStr)
-        
-        val yPos = prefs.getInt("${prefix}y", 50)
-        
-        layoutParams?.gravity = gravity or Gravity.TOP
-        layoutParams?.y = (Utils.getScreenHeight(context) * (yPos / 100f)).toInt()
-        
-        val heightDp = try {
-            prefs.getInt("${prefix}height", if (handleId == "reader") 60 else 120)
-        } catch (e: Exception) {
-            val str = prefs.getString("${prefix}height", "medium") ?: "medium"
-            val map = mapOf("small" to 60, "medium" to 120, "large" to 200, "xlarge" to 300)
-            map[str] ?: (if (handleId == "reader") 60 else 120)
-        }
-        
-        val widthDp = try {
-            prefs.getInt("${prefix}width", if (handleId == "reader") 16 else 12)
-        } catch (e: Exception) {
-            val str = prefs.getString("${prefix}width", "medium") ?: "medium"
-            val map = mapOf("small" to 4, "medium" to 6, "large" to 10, "xlarge" to 16)
-            map[str] ?: (if (handleId == "reader") 16 else 12)
-        }
-        
-        val heightPx = Utils.dpToPx(context, heightDp)
-        val widthPx = Utils.dpToPx(context, widthDp)
-        
-        layoutParams?.height = heightPx
-        layoutParams?.width = widthPx
-        
-        val colorInt = try {
-            val c = prefs.all["${prefix}color"]
-            when (c) {
-                is Int -> c
-                is String -> android.graphics.Color.parseColor(c)
-                else -> android.graphics.Color.parseColor(if (handleId == "reader") "#44102d42" else "#242962ff")
-            }
-        } catch(e: Exception) { android.graphics.Color.parseColor(if (handleId == "reader") "#44102d42" else "#242962ff") }
-        
-        val shapeStr = prefs.getString("${prefix}shape", if (handleId == "reader") "half_oval" else "slanted_block") ?: if (handleId == "reader") "half_oval" else "slanted_block"
-        val edgeStrForShape = prefs.getString("${prefix}edge", "right") ?: "right"
-        handleView?.background = HandleShapeDrawable(colorInt, shapeStr, edgeStrForShape)
-        
-        if (isAttached) {
-            windowManager.updateViewLayout(handleView, layoutParams)
+        detach()
+        attach()
+    }
+
+    fun setVisibility(visible: Boolean?) {
+        if (visible == null) {
+            handleView?.visibility = View.VISIBLE
+        } else {
+            handleView?.visibility = if (visible) View.VISIBLE else View.GONE
         }
     }
 
-    private fun setupListeners() {
-        val gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
-            override fun onDown(e: MotionEvent): Boolean {
-                return true
-            }
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupGestures() {
+        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
                 handleAction("tap")
                 return true
             }
+
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 handleAction("double_tap")
                 return true
             }
+
             override fun onLongPress(e: MotionEvent) {
                 handleAction("long_press")
             }
-            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
                 if (e1 != null) {
                     val dx = e2.x - e1.x
                     val dy = e2.y - e1.y
@@ -167,36 +170,48 @@ class TriggerHandleView(
             putExtra("gesture", gesture)
         }
 
-        if (action == "toggle_sidebar") {
-            sidebarIntent.action = "com.example.ACTION_TOGGLE_SIDEBAR"
-            context.startService(sidebarIntent)
-        } else if (action == "toggle_reader") {
-            val intent = Intent().apply {
-                setClassName(context, "com.example.service.FloatingReaderService")
-                putExtra("UNFOLD", true)
+        when {
+            action == "toggle_sidebar" -> {
+                sidebarIntent.action = "com.example.ACTION_TOGGLE_SIDEBAR"
+                context.startService(sidebarIntent)
             }
-            ContextCompat.startForegroundService(context, intent)
-        } else if (action.startsWith("open_page:")) {
-            val pageType = action.removePrefix("open_page:")
-            sidebarIntent.action = "com.example.ACTION_OPEN_PAGE"
-            sidebarIntent.putExtra("pageType", pageType)
-            context.startService(sidebarIntent)
-        } else if (action.startsWith("open_element:")) {
-            val elementId = action.removePrefix("open_element:")
-            sidebarIntent.action = "com.example.ACTION_EXECUTE_ELEMENT"
-            sidebarIntent.putExtra("elementId", elementId)
-            context.startService(sidebarIntent)
-        } else if (action.startsWith("open_")) {
-            val pageType = action.removePrefix("open_")
-            sidebarIntent.action = "com.example.ACTION_OPEN_PAGE"
-            sidebarIntent.putExtra("pageType", pageType)
-            context.startService(sidebarIntent)
-        } else if (action.startsWith("action_") || action.startsWith("action:")) {
-            val sysAction = action.removePrefix("action_").removePrefix("action:")
-            val accIntent = Intent("com.example.ACTION_ACCESSIBILITY_PERFORM").apply {
-                putExtra("action", sysAction)
+            action == "toggle_reader" -> {
+                val intent = Intent().apply {
+                    setClassName(context, "com.example.service.FloatingReaderService")
+                    putExtra("UNFOLD", true)
+                }
+                ContextCompat.startForegroundService(context, intent)
             }
-            context.sendBroadcast(accIntent)
+            action.startsWith("open_page:") -> {
+                val pageType = action.removePrefix("open_page:")
+                sidebarIntent.action = "com.example.ACTION_OPEN_PAGE"
+                sidebarIntent.putExtra("pageType", pageType)
+                context.startService(sidebarIntent)
+            }
+            action.startsWith("open_element:") || action.startsWith("element:") -> {
+                val elementId = action.removePrefix("open_element:").removePrefix("element:")
+                sidebarIntent.action = "com.example.ACTION_EXECUTE_ELEMENT"
+                sidebarIntent.putExtra("elementId", elementId)
+                context.startService(sidebarIntent)
+            }
+            action.startsWith("system:") -> {
+                sidebarIntent.action = "com.example.ACTION_EXECUTE_ELEMENT"
+                sidebarIntent.putExtra("elementId", action)
+                context.startService(sidebarIntent)
+            }
+            action.startsWith("open_") -> {
+                val pageType = action.removePrefix("open_")
+                sidebarIntent.action = "com.example.ACTION_OPEN_PAGE"
+                sidebarIntent.putExtra("pageType", pageType)
+                context.startService(sidebarIntent)
+            }
+            action.startsWith("action_") || action.startsWith("action:") -> {
+                val sysAction = action.removePrefix("action_").removePrefix("action:")
+                val accIntent = Intent("com.example.ACTION_ACCESSIBILITY_PERFORM").apply {
+                    putExtra("action", sysAction)
+                }
+                context.sendBroadcast(accIntent)
+            }
         }
     }
 }

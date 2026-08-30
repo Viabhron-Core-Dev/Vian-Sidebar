@@ -221,6 +221,7 @@ fun HandleItem(
                     }
                     
                     fun updateGesture(gesture: String, action: String) {
+                        val containerId = "${handle.id}_$gesture"
                         if (action == "none") {
                             gesturesMap.remove(gesture)
                         } else {
@@ -241,18 +242,23 @@ fun HandleItem(
                                     "notifications", "notification" -> "Notifications"
                                     else -> pageType.replace("_", " ").replaceFirstChar { it.uppercase() }
                                 }
-                                val handlePages = com.example.utils.PageManager.getPages(prefs, handle.id).toMutableList()
-                                val existingIndex = handlePages.indexOfFirst { 
+                                val containerPages = com.example.utils.PageManager.getPages(prefs, containerId).toMutableList()
+                                val existingIndex = containerPages.indexOfFirst { 
                                     it.id == target || it.type == pageType || (pageType == "hybrid_grid" && (it.id.startsWith("default_hybrid") || it.type == "hybrid_grid"))
                                 }
                                 if (existingIndex == -1) {
                                     val newPage = com.example.utils.SidebarPage.createDefault(
-                                        id = if (pageType == "hybrid_grid") "default_hybrid_${handle.id}" else UUID.randomUUID().toString(),
+                                        id = if (pageType == "hybrid_grid") "default_hybrid_$containerId" else UUID.randomUUID().toString(),
                                         type = pageType,
                                         title = pageTitle
                                     )
-                                    handlePages.add(newPage)
-                                    com.example.utils.PageManager.savePages(prefs, handle.id, handlePages, context)
+                                    if (containerPages.size == 1 && containerPages[0].type == "hybrid_grid" && pageType != "hybrid_grid" && !prefs.contains("handle_${containerId}_pages")) {
+                                        containerPages.clear()
+                                        containerPages.add(newPage)
+                                    } else {
+                                        containerPages.add(0, newPage)
+                                    }
+                                    com.example.utils.PageManager.savePages(prefs, containerId, containerPages, context)
                                 }
                             }
                         }
@@ -263,8 +269,9 @@ fun HandleItem(
                     if (gesturesMap.isEmpty()) {
                         Text("No gestures assigned.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                     } else {
-                        val configuredPages = com.example.utils.PageManager.getPages(prefs, handle.id)
                         gesturesMap.forEach { (gesture, action) ->
+                            val containerId = "${handle.id}_$gesture"
+                            val configuredPages = com.example.utils.PageManager.getPages(prefs, containerId)
                             val actionName = when {
                                 action == "toggle_sidebar" -> "Sidebar (Default / Active Page)"
                                 action == "toggle_reader" -> "Toggle Floating Reader"
@@ -463,7 +470,8 @@ fun HandleItem(
                     )
 
                     if (showChangeGestureDialog) {
-                        val pageConfigs = com.example.utils.PageManager.getPages(prefs, handle.id)
+                        val containerId = "${handle.id}_$gestureToChange"
+                        val pageConfigs = com.example.utils.PageManager.getPages(prefs, containerId)
                         val categoryOptions = listOf(
                             "sidebar" to "Sidebar",
                             "element" to "Action / Element"
@@ -522,8 +530,8 @@ fun HandleItem(
                     }
 
                     if (showAddGestureDialog) {
-                        val pageConfigs = com.example.utils.PageManager.getPages(prefs, handle.id)
                         var selectedGesture by remember { mutableStateOf(gestureKeys.firstOrNull { !gesturesMap.containsKey(it) } ?: gestureKeys.first()) }
+                        val pageConfigs = com.example.utils.PageManager.getPages(prefs, "${handle.id}_$selectedGesture")
                         
                         val categoryOptions = listOf(
                             "sidebar" to "Sidebar",

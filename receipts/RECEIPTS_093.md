@@ -219,6 +219,25 @@
 * Deviations: None.
 * Known issues: None.
 
+* Timestamp: 2026-08-30T09:50:00-07:00
+* One-line summary: Removed internet speed calibration logging, isolated gesture container page configurations, and verified 1:1 pixel rendering.
+* Exact files touched:
+  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+  - `app/src/main/java/com/example/core/HandleService.kt`
+  - `app/src/main/java/com/example/core/TriggerHandleView.kt`
+  - `app/src/main/java/com/example/feature/settings/HandlesListSettingsScreen.kt`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarManager.kt`
+  - `app/src/main/java/com/example/utils/PageManager.kt`
+* What was actually done:
+  - Removed diagnostic device calibration logging from `DynamicSpeedIconGenerator.kt` and `HandleService.kt`.
+  - Rendered internet speed status bar icon directly to 1:1 native small-icon pixel dimensions with subpixel anti-aliasing and zero downsampling distortion.
+  - Enforced strict gesture container isolation across `PageManager.kt`, `SidebarManager.kt`, and `HandlesListSettingsScreen.kt` using `containerId = "${handleId}_$gesture"`, ensuring separate gesture actions (such as tap vs. swipe left) maintain completely independent page configurations and faces without bleeding.
+  - Aligned `TriggerHandleView.kt` lifecycle methods (`attach()`, `detach()`, `updatePosition()`, `setVisibility()`) and parameters with `HandleService.kt`.
+* How it was verified: local build only (`compile_applet` passed).
+* Deviations: None.
+* Known issues: None.
+
+
 
 
 

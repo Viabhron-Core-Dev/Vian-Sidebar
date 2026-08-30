@@ -22,8 +22,7 @@ class SidebarManager(
         val gesture = intent.getStringExtra("gesture") ?: "tap"
         val containerId = "${handleId}_${gesture}"
         
-        
-        AppLogger.d("SidebarManager", "handleIntent: action=$action handleId=$handleId")
+        AppLogger.d("SidebarManager", "handleIntent: action=$action handleId=$handleId gesture=$gesture containerId=$containerId")
         
         when (action) {
             "com.example.ACTION_CLOSE_SIDEBAR", "CLOSE_SIDEBAR" -> {
@@ -93,8 +92,8 @@ class SidebarManager(
         sidebarView?.detach()
         sidebarView = null
         
-        val cleanHandleId = if (physicalHandleId.isNotBlank()) physicalHandleId else PageManager.getCleanHandleId(containerId)
-        val pages = PageManager.getPages(prefs, cleanHandleId).toMutableList()
+        // Fetch pages strictly for this isolated container
+        val pages = PageManager.getPages(prefs, containerId).toMutableList()
         val cleanTargetId = targetPageId?.removePrefix("open_page:")
         
         var targetIndex = 0
@@ -120,15 +119,23 @@ class SidebarManager(
                     else -> effectiveTarget.replace("_", " ").replaceFirstChar { it.uppercase() }
                 }
                 val newPage = com.example.utils.SidebarPage.createDefault(
-                    id = if (effectiveTarget == "hybrid_grid") "default_hybrid_$cleanHandleId" else java.util.UUID.randomUUID().toString(),
+                    id = if (effectiveTarget == "hybrid_grid") "default_hybrid_$containerId" else java.util.UUID.randomUUID().toString(),
                     type = effectiveTarget,
                     title = pageTitle
                 )
-                pages.add(newPage)
-                targetIndex = pages.size - 1
+                // If it was a default placeholder container, replace it; otherwise prepend as the face
+                if (pages.size == 1 && pages[0].type == "hybrid_grid" && effectiveTarget != "hybrid_grid" && !prefs.contains("handle_${containerId}_pages")) {
+                    pages.clear()
+                    pages.add(newPage)
+                    targetIndex = 0
+                } else {
+                    pages.add(0, newPage)
+                    targetIndex = 0
+                }
+                PageManager.savePages(prefs, containerId, pages)
             }
         } else {
-            targetIndex = PageManager.getDefaultPageIndex(prefs, cleanHandleId).coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+            targetIndex = PageManager.getDefaultPageIndex(prefs, containerId).coerceIn(0, (pages.size - 1).coerceAtLeast(0))
         }
         
         sidebarView = SidebarView(context, prefs, windowManager, physicalHandleId, containerId, pages, targetIndex) {
@@ -146,11 +153,8 @@ class SidebarManager(
             }
         }
     }
-    
+
     fun onTrimMemory(level: Int) {
-        // Freeze/Thaw logic: unload if not Handle 1
-        if (sidebarView?.containerId != "sidebar") {
-            closeSidebar()
-        }
+        // Release any heavy cached resources if needed
     }
 }
