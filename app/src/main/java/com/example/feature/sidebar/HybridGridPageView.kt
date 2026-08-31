@@ -38,6 +38,7 @@ class HybridGridPageView(
     private val pageId: String,
     private val scope: CoroutineScope,
     private val containerId: String = "sidebar",
+    private val onClose: (() -> Unit)? = null,
     private val onDimSidebar: ((Boolean) -> Unit)? = null,
     private val onHeightChanged: (Int) -> Unit
 ) : FrameLayout(context), SidebarPageControllable {
@@ -531,7 +532,7 @@ class HybridGridPageView(
                                     else -> {}
                                 }
                                 if (parsed !is SidebarItem.Folder && parsed !is SidebarItem.PopupWidget && parsed !is SidebarItem.VolumeAction && parsed !is SidebarItem.DisplayAction && parsed !is SidebarItem.QuickTile) {
-                                    com.example.service.SidebarService.instance?.closeSidebar()
+                                    onClose?.invoke() ?: com.example.service.SidebarService.instance?.closeSidebar()
                                 }
                             }
                             

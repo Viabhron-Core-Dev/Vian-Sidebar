@@ -91,15 +91,23 @@ object DynamicSpeedIconGenerator {
 
     fun getNotificationIconSize(context: Context): Int {
         val res = context.resources
+        // Query notification_small_icon_size first (e.g., 96px on 2.0x density) to prevent notification shade upscaling blur.
+        val notifResId = res.getIdentifier("notification_small_icon_size", "dimen", "android")
+        if (notifResId > 0) {
+            try {
+                val size = res.getDimensionPixelSize(notifResId)
+                if (size in 32..192) return size
+            } catch (e: Exception) {}
+        }
         val resId = res.getIdentifier("status_bar_icon_size", "dimen", "android")
         if (resId > 0) {
             try {
                 val size = res.getDimensionPixelSize(resId)
-                if (size in 24..128) return size
+                if (size in 24..192) return (size * 2).coerceIn(48, 192)
             } catch (e: Exception) {}
         }
         val density = res.displayMetrics.density
-        return Math.round(24f * density).coerceAtLeast(24)
+        return Math.round(48f * density).coerceAtLeast(48)
     }
 
     fun generateStatusBarBitmap(
@@ -162,13 +170,14 @@ object DynamicSpeedIconGenerator {
             if (config.isFakeBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }.also { if (config == activeConfig) cachedTypeface = it }
 
-        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             isFilterBitmap = true
             isDither = false
+            hinting = Paint.HINTING_ON
             style = Paint.Style.FILL
             letterSpacing = config.letterSpacing
         }.also { if (config == activeConfig) cachedNumPaint = it }
@@ -176,13 +185,14 @@ object DynamicSpeedIconGenerator {
         numPaint.letterSpacing = config.letterSpacing
         numPaint.isFakeBoldText = config.isFakeBold
 
-        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
             isFilterBitmap = true
             isDither = false
+            hinting = Paint.HINTING_ON
             style = Paint.Style.FILL
             letterSpacing = config.letterSpacing
         }.also { if (config == activeConfig) cachedUnitPaint = it }

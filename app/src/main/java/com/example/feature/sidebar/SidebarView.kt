@@ -857,6 +857,7 @@ class SidebarView(
                 "hybrid_grid", "default_hybrid" -> {
                     val pageId = if (config.type == "default_hybrid" && !config.id.startsWith("default_hybrid")) "default_hybrid" else config.id
                     HybridGridPageView(context, pageId, viewScope, containerId,
+                        onClose = { onClose() },
                         onDimSidebar = { dimmed -> setDimmed(dimmed) }
                     ) { newHeight ->
                         handleChildHeightChange(bindingAdapterPosition, newHeight)

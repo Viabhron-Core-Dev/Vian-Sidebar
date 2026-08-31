@@ -251,17 +251,18 @@
 * Deviations: None.
 * Known issues: None.
 
-* Timestamp: 2026-08-30T15:12:00-07:00
-* One-line summary: Implemented ephemeral on-demand lifecycle for :sidebar process (stopSelf on dismiss), reducing idle memory from ~62 MB to ~30-32 MB.
+* Timestamp: 2026-08-30T15:34:30-07:00
+* One-line summary: Enforced complete SidebarService dismiss lifecycle termination and resolved NetSpeed dynamic icon dual-blur with notification small icon size matching and subpixel antialiasing.
 * Exact files touched:
-  - `app/src/main/java/com/example/feature/sidebar/SidebarManager.kt`
-  - `app/src/main/java/com/example/service/SidebarService.kt`
+  - `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
+  - `app/src/main/java/com/example/feature/sidebar/HybridGridPageView.kt`
+  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
   - `receipts/RECEIPTS_093.md`
 * What was actually done:
-  - Added `onClosed` lifecycle callback to `SidebarManager` invoked immediately when `closeWithAnimation` finishes and detaches the sidebar view from `WindowManager`.
-  - Configured `SidebarService` in `:sidebar` to call `stopSelf()` on dismiss and set `onStartCommand` return mode to `START_NOT_STICKY`.
-  - Ensured that when the sidebar is dismissed, the `:sidebar` process is fully stopped and reclaimed by Android OS, leaving only the single `:core` (`HandleService`) process active (~30-32 MB idle RAM).
-  - Verified full compilation with `compile_applet`.
+  - Wired `onClose` callback directly through `SidebarView` into `HybridGridPageView` so item launches invoke `SidebarManager.closeSidebar()` $\rightarrow$ triggering `SidebarService.stopSelf()` reliably on every dismiss.
+  - Updated `DynamicSpeedIconGenerator.kt` to target OEM `notification_small_icon_size` (96px on 2.0x density) rather than 44px, eliminating the 200%+ upscaling blur in the notification panel shade.
+  - Enabled `Paint.SUBPIXEL_TEXT_FLAG` and `Paint.HINTING_ON` to maintain ultra-crisp glyphs in both the status bar downsampler and expanded notification shade.
+  - Verified full clean compilation with `compile_applet`.
 * How it was verified: local build only (`compile_applet` passed successfully).
 * Deviations: None.
 * Known issues: None.
