@@ -34,7 +34,7 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 SettingsApp(startRoute = startRoute) {
-                    finish()
+                    finishAndRemoveTask()
                 }
             }
         }

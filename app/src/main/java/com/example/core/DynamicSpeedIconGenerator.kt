@@ -91,23 +91,15 @@ object DynamicSpeedIconGenerator {
 
     fun getNotificationIconSize(context: Context): Int {
         val res = context.resources
-        // Query notification_small_icon_size first (e.g., 96px on 2.0x density) to prevent notification shade upscaling blur.
-        val notifResId = res.getIdentifier("notification_small_icon_size", "dimen", "android")
-        if (notifResId > 0) {
-            try {
-                val size = res.getDimensionPixelSize(notifResId)
-                if (size in 32..192) return size
-            } catch (e: Exception) {}
-        }
         val resId = res.getIdentifier("status_bar_icon_size", "dimen", "android")
         if (resId > 0) {
             try {
                 val size = res.getDimensionPixelSize(resId)
-                if (size in 24..192) return (size * 2).coerceIn(48, 192)
+                if (size in 24..128) return size
             } catch (e: Exception) {}
         }
         val density = res.displayMetrics.density
-        return Math.round(48f * density).coerceAtLeast(48)
+        return Math.round(24f * density).coerceAtLeast(24)
     }
 
     fun generateStatusBarBitmap(
@@ -125,31 +117,14 @@ object DynamicSpeedIconGenerator {
 
         val sizePx = getNotificationIconSize(context)
 
-        val isLive = (overrideConfig == null)
-        var bitmap = if (isLive) cachedBitmap else null
-        var canvas = if (isLive) cachedCanvas else null
-
-        if (isLive) {
-            if (bitmap == null || bitmap.isRecycled || cachedSizePx != sizePx || cachedDensityDpi != densityDpi) {
-                bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
-                    this.density = densityDpi
-                }
-                canvas = Canvas(bitmap)
-                cachedBitmap = bitmap
-                cachedCanvas = canvas
-                cachedSizePx = sizePx
-                cachedDensityDpi = densityDpi
-            }
-            bitmap.eraseColor(Color.TRANSPARENT)
-        } else {
-            bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
-                this.density = densityDpi
-            }
-            canvas = Canvas(bitmap)
-            bitmap.eraseColor(Color.TRANSPARENT)
+        // Always create a clean unshared bitmap so NotificationManager / SystemUI does not cache or tear dirty buffers
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).apply {
+            this.density = densityDpi
         }
+        val canvas = Canvas(bitmap)
+        bitmap.eraseColor(Color.TRANSPARENT)
 
-        renderIconToCanvas(canvas!!, sizePx, display, config)
+        renderIconToCanvas(canvas, sizePx, display, config)
 
         return bitmap
     }
@@ -160,7 +135,7 @@ object DynamicSpeedIconGenerator {
         display: SpeedDisplay,
         config: IconConfig
     ) {
-        val tf = cachedTypeface ?: try {
+        val tf = try {
             if (config.font.isNotEmpty()) {
                 Typeface.create(config.font, if (config.isFakeBold) Typeface.BOLD else Typeface.NORMAL)
             } else {
@@ -168,37 +143,29 @@ object DynamicSpeedIconGenerator {
             }
         } catch (e: Exception) {
             if (config.isFakeBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-        }.also { if (config == activeConfig) cachedTypeface = it }
+        }
 
-        val numPaint = (if (config == activeConfig) cachedNumPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        val numPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
-            isFilterBitmap = true
+            isFilterBitmap = false
             isDither = false
-            hinting = Paint.HINTING_ON
             style = Paint.Style.FILL
             letterSpacing = config.letterSpacing
-        }.also { if (config == activeConfig) cachedNumPaint = it }
+        }
 
-        numPaint.letterSpacing = config.letterSpacing
-        numPaint.isFakeBoldText = config.isFakeBold
-
-        val unitPaint = (if (config == activeConfig) cachedUnitPaint else null) ?: Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        val unitPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             typeface = tf
             textAlign = Paint.Align.CENTER
             isFakeBoldText = config.isFakeBold
-            isFilterBitmap = true
+            isFilterBitmap = false
             isDither = false
-            hinting = Paint.HINTING_ON
             style = Paint.Style.FILL
             letterSpacing = config.letterSpacing
-        }.also { if (config == activeConfig) cachedUnitPaint = it }
-
-        unitPaint.letterSpacing = config.letterSpacing
-        unitPaint.isFakeBoldText = config.isFakeBold
+        }
 
         val centerX = (sizePx / 2f)
 

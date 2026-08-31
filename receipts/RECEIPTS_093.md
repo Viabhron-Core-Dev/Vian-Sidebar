@@ -251,21 +251,18 @@
 * Deviations: None.
 * Known issues: None.
 
-* Timestamp: 2026-08-30T15:34:30-07:00
-* One-line summary: Enforced complete SidebarService dismiss lifecycle termination and resolved NetSpeed dynamic icon dual-blur with notification small icon size matching and subpixel antialiasing.
+* Timestamp: 2026-08-31T06:34:00-07:00
+* One-line summary: Updated MASTER_PLAN.md to incorporate the 4-process model, XML view architecture, floating mini-app isolation, and topbar edit mode.
 * Exact files touched:
-  - `app/src/main/java/com/example/feature/sidebar/SidebarView.kt`
-  - `app/src/main/java/com/example/feature/sidebar/HybridGridPageView.kt`
-  - `app/src/main/java/com/example/core/DynamicSpeedIconGenerator.kt`
+  - `MASTER_PLAN.md`
   - `receipts/RECEIPTS_093.md`
 * What was actually done:
-  - Wired `onClose` callback directly through `SidebarView` into `HybridGridPageView` so item launches invoke `SidebarManager.closeSidebar()` $\rightarrow$ triggering `SidebarService.stopSelf()` reliably on every dismiss.
-  - Updated `DynamicSpeedIconGenerator.kt` to target OEM `notification_small_icon_size` (96px on 2.0x density) rather than 44px, eliminating the 200%+ upscaling blur in the notification panel shade.
-  - Enabled `Paint.SUBPIXEL_TEXT_FLAG` and `Paint.HINTING_ON` to maintain ultra-crisp glyphs in both the status bar downsampler and expanded notification shade.
-  - Verified full clean compilation with `compile_applet`.
-* How it was verified: local build only (`compile_applet` passed successfully).
+  - Upgraded `MASTER_PLAN.md` to define the 4-process isolation architecture (`:core`, `:sidebar`, `:tools`/`:floating`, `:ui`), native XML view stack for overlays with 0 MB teardown, topbar edit mode wiring to `AddItemsActivity`, disk-cached compressed icons, and decoupled 2-part Log Keeper.
+* How it was verified: local build / file inspection only.
 * Deviations: None.
 * Known issues: None.
+
+
 
 
 
